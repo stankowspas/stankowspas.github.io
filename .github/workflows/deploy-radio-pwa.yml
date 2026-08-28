@@ -26,7 +26,8 @@ jobs:
             .radio-pwa/chunks/00.b64 \
             .radio-pwa/chunks/01.b64 \
             .radio-pwa/chunks/02.b64 \
-            .radio-pwa/chunks/03.b64 \
+            .radio-pwa/chunks/03a.b64 \
+            .radio-pwa/chunks/03b.b64 \
             .radio-pwa/chunks/04.b64 \
             .radio-pwa/chunks/05.b64 \
             .radio-pwa/chunks/06.b64 \
@@ -73,4 +74,4 @@ jobs:
           git commit -m 'Deploy Radio PWA directly on GitHub Pages'
           git push
 
-# archive revision: 1
+# archive revision: 2
