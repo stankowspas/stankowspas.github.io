@@ -72,3 +72,5 @@ jobs:
           fi
           git commit -m 'Deploy Radio PWA directly on GitHub Pages'
           git push
+
+# archive revision: 1
