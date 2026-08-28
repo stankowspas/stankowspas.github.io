@@ -1,0 +1,15 @@
+{
+  "name": "SSGPT14 Radio",
+  "short_name": "SSGPT14 Radio",
+  "description": "Местни и световни онлайн радиостанции.",
+  "start_url": "./",
+  "scope": "./",
+  "id": "/projects/radio/",
+  "display": "standalone",
+  "background_color": "#091328",
+  "theme_color": "#15264a",
+  "icons": [
+    {"src":"assets/icon-192.png","sizes":"192x192","type":"image/png"},
+    {"src":"assets/icon-512.png","sizes":"512x512","type":"image/png"}
+  ]
+}

@@ -1,1 +1,151 @@
-<!doctype html><html data-lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Spas Stankov</title><link rel="stylesheet" href="/assets/style.css?v=8"></head><body><div class="wrap"><header class="top"><div class="brand">Spas Stankov</div><div id="languageHost" class="top-right"></div></header><main class="hero"><div id="eyebrow" class="eyebrow"></div><h1>Spas Stankov</h1><p id="intro"></p></main><footer>© 2026 Spas Stankov</footer></div><script src="/assets/app.js?v=8"></script><script src="/assets/lang-menu.js?v=8"></script><script src="/assets/radio-project.js?v=1"></script></body></html>
+<!doctype html>
+<html lang="bg" data-theme="neon">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#15264a">
+<meta name="app-version" content="1.0.0-hosted-beta.18">
+<meta name="description" content="SSGPT14 Radio — local and worldwide online radio stations.">
+<title>SSGPT14 Radio</title>
+<link rel="manifest" href="manifest.webmanifest?v=beta18">
+<link rel="icon" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="stylesheet" href="src/radio.css?v=beta18">
+</head>
+<body>
+<main class="radio-app" id="radioApp">
+<div class="top-dock" id="topDock">
+<header class="radio-header">
+<div class="radio-brand">
+<img src="assets/icon-512.png" alt="SSGPT12 Radio logo">
+<div><p>SSGPT14 RADIO · WEB</p><h1 id="radioTitle">Онлайн радио</h1></div>
+</div>
+<div class="header-actions">
+<span class="network-state" id="networkState" title="Мрежа">●</span>
+<select class="language-select" id="languageSelect" aria-label="Language"></select>
+<button class="icon-button hidden" id="installApp" type="button" title="Инсталирай">＋</button>
+<button class="icon-button" id="refreshStations" type="button" title="Обнови">↻</button>
+</div>
+</header>
+<section class="radio-toolbar">
+<nav class="mode-tabs" id="modeTabs" aria-label="Primary navigation">
+<button class="mode-tab active" data-mode="local" type="button" aria-current="page">📍 <span data-t="local">Местни</span></button>
+<button class="mode-tab" data-mode="world" type="button">🌍 <span data-t="world">Световни</span></button>
+<button class="mode-tab" data-mode="favorites" type="button">★ <span data-t="favorites">Любими</span></button>
+<button class="mode-tab" data-mode="recent" type="button">◷ <span data-t="recent">Последно слушани</span></button>
+<button class="mode-tab" data-mode="appearance" type="button">🎨 <span data-t="appearance">Стил на визуализация</span></button>
+<button class="mode-tab" data-mode="about" type="button">ⓘ <span data-t="about">За приложението</span></button>
+</nav>
+<div class="filters" id="stationFilters">
+<label class="search-field"><span aria-hidden="true">⌕</span><input id="stationSearch" type="search" maxlength="120" autocomplete="off" placeholder="Търси станция…" aria-label="Търси станция"></label>
+<div class="filter-field country-readonly" id="localCountryField">
+<span data-t="currentCountry">Текуща държава</span>
+<strong id="localCountryName">—</strong>
+</div>
+<label class="filter-field hidden" id="worldCountryField">
+<span data-t="country">Държава</span>
+<select id="countrySelect"></select>
+</label>
+<label class="filter-field"><span data-t="genre">Жанр</span><input id="genreFilter" maxlength="80" placeholder="rock, pop, news…"></label>
+</div>
+</section>
+</div>
+<section class="active-station-view hidden" id="activeStationView" aria-live="polite">
+<section class="radio-player" id="radioPlayer">
+<div class="now-playing">
+<div class="station-avatar" id="playerAvatar">♫</div>
+<div class="now-text"><small id="playerStatus">Готово</small><strong id="playerName">Избери радиостанция</strong><span id="playerMeta"></span></div>
+</div>
+<div class="audio-visualizer" id="audioVisualizer" aria-label="Live audio visualizer">
+<canvas id="visualizerCanvas"></canvas>
+<div class="visualizer-indicator" id="visualizerIndicator" aria-hidden="true"><span class="visualizer-live-dot"></span><span>LIVE</span></div>
+</div>
+<div class="player-controls">
+<button class="player-button" id="playPause" type="button" aria-label="Play/Pause">▶</button>
+<button class="player-button" id="stopPlayback" type="button" aria-label="Stop">■</button>
+<button class="favorite-current-button" id="favoriteCurrent" type="button" aria-label="Favorite"><span class="favorite-current-star">☆</span><span id="favoriteCurrentLabel">Добави в любими</span></button>
+</div>
+<div class="player-options">
+<label class="volume-control">🔊 <input id="volumeControl" type="range" min="0" max="100" value="70"><span id="volumeValue">70%</span></label>
+<label class="sleep-control"><span data-t="sleepTimer">Sleep timer</span><select id="sleepTimer"><option value="0">Off</option><option value="15">15 min</option><option value="30">30 min</option><option value="60">60 min</option><option value="90">90 min</option></select></label>
+<span class="sleep-status" id="sleepStatus"></span>
+</div>
+<audio id="audioPlayer" preload="none"></audio>
+</section>
+<aside class="station-info-panel" id="stationInfoPanel">
+<div class="station-info-head">
+<div class="station-info-avatar" id="infoAvatar">♫</div>
+<div><small data-t="stationInfo">Информация за радиостанцията</small><h2 id="infoName">—</h2></div>
+</div>
+<dl class="station-info-grid">
+<div class="station-info-field"><dt data-t="country">Държава</dt><dd id="infoCountry">—</dd></div>
+<div class="station-info-field"><dt data-t="region">Регион</dt><dd id="infoRegion">—</dd></div>
+<div class="station-info-field station-info-field--wide station-info-field--tokens"><dt data-t="languageLabel">Език</dt><dd id="infoLanguage" class="station-info-tokens">—</dd></div>
+<div class="station-info-field station-info-field--wide station-info-field--tokens"><dt data-t="genre">Жанр</dt><dd id="infoGenre" class="station-info-tokens">—</dd></div>
+<div class="station-info-field"><dt data-t="codec">Кодек</dt><dd id="infoCodec">—</dd></div>
+<div class="station-info-field"><dt data-t="bitrate">Битрейт</dt><dd id="infoBitrate">—</dd></div>
+<div class="station-info-field"><dt data-t="streamType">Тип поток</dt><dd id="infoStreamType">—</dd></div>
+<div class="station-info-field"><dt data-t="rightsStatusLabel">Права за вграждане</dt><dd id="infoRights">—</dd></div>
+</dl>
+<a class="station-homepage hidden" id="infoHomepage" target="_blank" rel="noopener noreferrer"><span data-t="website">Уебсайт</span> ↗</a>
+</aside>
+</section>
+<section class="radio-summary" id="radioSummary">
+<div><strong id="viewHeading">Местни станции</strong><small id="viewDescription"></small></div>
+<div class="summary-actions">
+<span class="catalog-status" id="catalogStatus"></span>
+<span class="catalog-count" id="catalogCount">Каталог: 0 радиостанции</span>
+</div>
+</section>
+<section class="stations" id="stationList" aria-live="polite"></section>
+<section class="empty-state hidden" id="emptyState">
+<div>📻</div><h2 id="emptyTitle">Няма станции</h2><p id="emptyText"></p>
+</section>
+<section class="settings-page hidden" id="appearancePanel" aria-labelledby="appearanceTitle">
+<div class="page-card-head"><div><small>SSGPT14 RADIO</small><h2 id="appearanceTitle" data-t="appearance">Стил на визуализация</h2></div><p data-t="appearanceDesc">Избери готов цветови стил. Цветът на текста се настройва за добра четимост.</p></div>
+<div class="theme-grid" id="themeGrid">
+<button class="theme-card" data-theme-choice="neon" type="button"><span class="theme-preview theme-preview-neon"></span><strong data-t="themeNeon">Neon Night</strong><small data-t="themeDarkReadable">Тъмен фон · светъл текст</small></button>
+<button class="theme-card" data-theme-choice="aurora" type="button"><span class="theme-preview theme-preview-aurora"></span><strong data-t="themeAurora">Aurora</strong><small data-t="themeDarkReadable">Тъмен фон · светъл текст</small></button>
+<button class="theme-card" data-theme-choice="sunset" type="button"><span class="theme-preview theme-preview-sunset"></span><strong data-t="themeSunset">Sunset</strong><small data-t="themeDarkReadable">Тъмен фон · светъл текст</small></button>
+<button class="theme-card" data-theme-choice="emerald" type="button"><span class="theme-preview theme-preview-emerald"></span><strong data-t="themeEmerald">Emerald</strong><small data-t="themeDarkReadable">Тъмен фон · светъл текст</small></button>
+<button class="theme-card" data-theme-choice="arctic" type="button"><span class="theme-preview theme-preview-arctic"></span><strong data-t="themeArctic">Arctic Light</strong><small data-t="themeLightReadable">Светъл фон · тъмен текст</small></button>
+<button class="theme-card" data-theme-choice="graphite" type="button"><span class="theme-preview theme-preview-graphite"></span><strong data-t="themeGraphite">Graphite Gold</strong><small data-t="themeDarkReadable">Тъмен фон · светъл текст</small></button>
+</div>
+</section>
+<section class="settings-page hidden" id="aboutPanel" aria-labelledby="aboutTitle">
+<div class="page-card-head"><div><small>SSGPT14 RADIO</small><h2 id="aboutTitle" data-t="about">За приложението</h2></div><p data-t="aboutDesc">Информация за продукта, версията и използваните услуги.</p></div>
+<div class="about-grid">
+<article><span data-t="developer">Разработил</span><strong>Spas Stankov</strong></article>
+<article><span data-t="createdOn">Дата на създаване</span><strong>14.08.2026</strong></article>
+<article><span data-t="version">Версия</span><strong>1.0.0-hosted-beta.18</strong></article>
+<article><span data-t="appLicense">Лиценз</span><strong data-t="allRightsReserved">Всички права запазени</strong></article>
+<article><span data-t="catalogService">Радио каталог</span><strong>Radio Browser API</strong></article>
+<article><span data-t="storage">Съхранение</span><strong data-t="localStorageInfo">Локално на устройството</strong></article>
+</div>
+<div class="about-notes">
+<div class="privacy-actions">
+<span class="test-ads-badge" data-t="testAdsBadge">TEST ADS · без реални приходи</span>
+<button class="secondary-button" id="privacySettings" type="button" data-t="privacySettings">Настройки за поверителност</button>
+</div>
+<p data-t="aboutNetworkNote">За каталога и възпроизвеждането на интернет радиостанции е необходима интернет връзка.</p>
+<p data-t="aboutThirdPartyNote">Radio Browser е външна услуга и не е част от SSGPT14 Radio. Условията на външните потоци и услуги се определят от съответните им доставчици.</p>
+<p data-t="aboutRightsNote">Вграденият Player допуска само станции с проверено разрешение за вграждане и търговска употреба. При липса на доказателство приложението предлага само официалния сайт или маркира станцията за преглед.</p>
+<p>© 2026 Spas Stankov. <span data-t="allRightsReserved">Всички права запазени</span>.</p>
+</div>
+</section>
+</main>
+<dialog class="privacy-dialog" id="privacyDialog">
+<div class="privacy-dialog-card">
+<h2 data-t="privacySettings">Настройки за поверителност</h2>
+<p data-t="webConsentTestNote">Това е тестов consent интерфейс за Hosted Web beta. Production сертифициран CMP още не е конфигуриран.</p>
+<div class="privacy-dialog-actions">
+<button class="primary-button" id="webConsentAllow" type="button" data-t="allowTestAds">Разреши тестови реклами</button>
+<button class="secondary-button" id="webConsentLimit" type="button" data-t="limitTestAds">Ограничи тестовите реклами</button>
+<button class="secondary-button" id="webConsentClose" type="button" data-t="close">Затвори</button>
+</div>
+</div>
+</dialog>
+<div class="toast" id="radioToast" role="status" aria-live="polite"></div>
+<script type="module" src="src/radio.js?v=beta18"></script>
+</body>
+</html>
