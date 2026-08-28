@@ -24,6 +24,33 @@ function setupContact(){
  const close=()=>{modal.classList.remove('open');modal.setAttribute('aria-hidden','true');document.body.classList.remove('modal-open')};
  const open=()=>{modal.classList.add('open');modal.setAttribute('aria-hidden','false');document.body.classList.add('modal-open');setTimeout(()=>modal.querySelector('input')?.focus(),180)};
  link.addEventListener('click',open);modal.querySelector('.contact-close').addEventListener('click',close);modal.querySelector('.contact-backdrop').addEventListener('click',close);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open'))close()});
- modal.querySelector('#contactForm').addEventListener('submit',async e=>{e.preventDefault();const status=modal.querySelector('.contact-status');status.textContent=t.pending;status.className='contact-status warn'});
+ modal.querySelector('#contactForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const form=e.currentTarget,status=modal.querySelector('.contact-status'),button=modal.querySelector('.contact-send');
+  if(form._gotcha&&form._gotcha.value)return;
+  const payload=Object.fromEntries(new FormData(form).entries());
+  payload._subject='Portfolio contact · '+(payload.subject||'Message');
+  payload._template='table';
+  payload._url=location.href;
+  button.disabled=true;button.textContent=t.sending;status.textContent='';
+  try{
+    const target=['s.stankow','protonmail.com'].join('@');
+    const r=await fetch('https://formsubmit.co/ajax/'+encodeURIComponent(target),{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    const data=await r.json().catch(()=>({}));
+    if(r.ok&&data.success!==false){
+      form.reset();status.textContent=t.success;status.className='contact-status success';
+    }else{
+      status.textContent=(data.message||t.error);status.className='contact-status error';
+    }
+  }catch(err){
+    status.textContent=t.error;status.className='contact-status error';
+  }finally{
+    button.disabled=false;button.textContent=t.send;
+  }
+});
 }
 setupContact();
