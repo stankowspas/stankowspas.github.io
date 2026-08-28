@@ -1,1 +1,0 @@
-Custom language palette enabled with glass styling, search, and responsive mobile layout.
