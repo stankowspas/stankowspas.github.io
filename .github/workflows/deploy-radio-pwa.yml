@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - '.radio-pwa/payload.zip'
+      - '.radio-pwa/chunks/**'
       - '.github/workflows/deploy-radio-pwa.yml'
   workflow_dispatch:
 
@@ -18,27 +18,57 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Expand Radio PWA into GitHub Pages path
+      - name: Rebuild and verify Radio PWA
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat \
+            .radio-pwa/chunks/00.b64 \
+            .radio-pwa/chunks/01.b64 \
+            .radio-pwa/chunks/02.b64 \
+            .radio-pwa/chunks/03.b64 \
+            .radio-pwa/chunks/04.b64 \
+            .radio-pwa/chunks/05.b64 \
+            .radio-pwa/chunks/06.b64 \
+            .radio-pwa/chunks/07.b64 \
+            .radio-pwa/chunks/08a.b64 \
+            .radio-pwa/chunks/08b.b64 \
+            .radio-pwa/chunks/09a.b64 \
+            .radio-pwa/chunks/09b.b64 \
+            .radio-pwa/chunks/10.b64 \
+            .radio-pwa/chunks/11.b64 \
+            .radio-pwa/chunks/12.b64 \
+            .radio-pwa/chunks/13.b64 \
+            | base64 --decode > .radio-pwa/rebuilt.zip
+
+          echo '1d2623336c55af347b63a3a9e5b6e15459697ad273d9bc25ab150ad8f8f19b31  .radio-pwa/rebuilt.zip' | sha256sum -c -
+          unzip -t .radio-pwa/rebuilt.zip
+
+      - name: Expand Radio PWA directly into GitHub Pages path
         shell: bash
         run: |
           set -euo pipefail
           rm -rf projects/radio
           mkdir -p projects/radio
-          unzip -q -o .radio-pwa/payload.zip -d projects/radio
+          unzip -q -o .radio-pwa/rebuilt.zip -d projects/radio
           test -f projects/radio/index.html
           test -f projects/radio/manifest.webmanifest
           test -f projects/radio/sw.js
-          ! grep -R "onrender.com" projects/radio
+          test -f projects/radio/src/radio.js
+          test -f projects/radio/src/hosted/catalog-gateway.js
+          test -f projects/radio/assets/icon-192.png
+          test -f projects/radio/assets/icon-512.png
+          ! grep -R 'onrender.com' projects/radio
 
       - name: Commit deployed PWA
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add projects/radio
           if git diff --cached --quiet; then
             exit 0
           fi
-          git commit -m "Deploy Radio PWA directly on GitHub Pages"
+          git commit -m 'Deploy Radio PWA directly on GitHub Pages'
           git push
