@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>All World IPTV</title>
-<!-- build: 2026-08-30-language-mobile-fix-1 -->
+<!-- build: 2026-08-30-language-scope-fix-2 -->
 <meta name="theme-color" content="#07111f">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -244,8 +244,14 @@ function tr(k){return (I18N[currentLang]&&I18N[currentLang][k])||I18N.en[k]||k}
 function localeCode(){return currentLang==='zh-CN'?'zh-CN':currentLang==='zh-TW'?'zh-TW':currentLang}
 function applyLanguage(){
   const t=I18N[currentLang]||I18N.en;
-  document.documentElement.lang=currentLang;
-  document.documentElement.dir=(currentLang==='ar'||currentLang==='he')?'rtl':'ltr';
+  const rtl=(currentLang==='ar'||currentLang==='he');
+  const uiRoots=[document.querySelector('.top'),document.querySelector('.head'),playerControls,welcome];
+  for(const root of uiRoots){
+    if(!root)continue;
+    if(root.lang!==currentLang)root.lang=currentLang;
+    const nextDir=rtl?'rtl':'ltr';
+    if(root.dir!==nextDir)root.dir=nextDir;
+  }
 
   const developerLink=$('developerLink');
   if(developerLink)developerLink.textContent=t.developerWebsite||I18N.en.developerWebsite;
