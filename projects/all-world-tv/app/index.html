@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>All World IPTV</title>
-<!-- build: 2026-08-30-language-freeze-fix-3 -->
+<!-- build: 2026-08-30-mobile-virtual-list-1 -->
 <meta name="theme-color" content="#07111f">
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
@@ -371,18 +371,34 @@ function parseM3U(text,sourceId=''){
   return out;
 }
 function rebuildGroups(){const v=groupEl.value;const groups=[...new Set(channels.map(c=>c.group).filter(Boolean))].sort((a,b)=>a.localeCompare(b,localeCode()));groupEl.innerHTML=`<option value="">${esc(tr('allGroups'))}</option>`+groups.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join('');if(groups.includes(v))groupEl.value=v}
-function applyFilters(){const g=groupEl.value,q=searchEl.value.trim().toLowerCase();filtered=channels.filter(c=>(!g||c.group===g)&&(!q||`${c.name} ${c.group} ${c.id}`.toLowerCase().includes(q))&&(!showOnlyPlayable||health.get(c.url)==='ok'));countEl.textContent=`${filtered.length.toLocaleString(localeCode())} ${tr('channels')}`;render()}
+function applyFilters(){const g=groupEl.value,q=searchEl.value.trim().toLowerCase();filtered=channels.filter(c=>(!g||c.group===g)&&(!q||`${c.name} ${c.group} ${c.id}`.toLowerCase().includes(q))&&(!showOnlyPlayable||health.get(c.url)==='ok'));countEl.textContent=`${filtered.length.toLocaleString(localeCode())} ${tr('channels')}`;listEl.scrollTop=0;render()}
 function stateClass(url){const s=health.get(url);return s==='checking'?' checking':s==='ok'?' ok':s==='bad'?' bad':''}
 function setHealth(url,state){
   health.set(url,state);
   const dot=visibleDots.get(url);
   if(dot)dot.className='dot'+stateClass(url);
 }
+const VROW=72,VOVERSCAN=12;
+let virtualRenderQueued=false;
 function render(){
   visibleDots.clear();
-  if(!filtered.length){listEl.innerHTML=`<div class="empty">${esc(tr('noChannels'))}</div>`;return}
-  const f=document.createDocumentFragment();
-  filtered.forEach(ch=>{
+  if(!filtered.length){
+    listEl.innerHTML=`<div class="empty">${esc(tr('noChannels'))}</div>`;
+    return;
+  }
+  const viewport=Math.max(listEl.clientHeight||600,300);
+  const start=Math.max(0,Math.floor(listEl.scrollTop/VROW)-VOVERSCAN);
+  const count=Math.ceil(viewport/VROW)+(VOVERSCAN*2);
+  const end=Math.min(filtered.length,start+count);
+
+  const frag=document.createDocumentFragment();
+  const topSpace=document.createElement('div');
+  topSpace.style.height=(start*VROW)+'px';
+  topSpace.setAttribute('aria-hidden','true');
+  frag.appendChild(topSpace);
+
+  for(let i=start;i<end;i++){
+    const ch=filtered[i];
     const b=document.createElement('button');
     b.className='channel';
     const media=ch.logo?`<img class="logo" src="${esc(ch.logo)}" alt="" loading="lazy" decoding="async">`:'<div class="fallback">TV</div>';
@@ -391,9 +407,19 @@ function render(){
     const img=b.querySelector('img');
     if(img)img.onerror=()=>{const d=document.createElement('div');d.className='fallback';d.textContent='TV';img.replaceWith(d)};
     b.onclick=()=>{if(activeBtn)activeBtn.classList.remove('active');activeBtn=b;b.classList.add('active');play(ch);setTimeout(()=>setDrawer(false),350)};
-    f.appendChild(b);
-  });
-  listEl.replaceChildren(f);
+    frag.appendChild(b);
+  }
+
+  const bottomSpace=document.createElement('div');
+  bottomSpace.style.height=((filtered.length-end)*VROW)+'px';
+  bottomSpace.setAttribute('aria-hidden','true');
+  frag.appendChild(bottomSpace);
+  listEl.replaceChildren(frag);
+}
+function queueVirtualRender(){
+  if(virtualRenderQueued)return;
+  virtualRenderQueued=true;
+  requestAnimationFrame(()=>{virtualRenderQueued=false;render()});
 }
 function destroyHls(){if(hls){hls.destroy();hls=null}}
 async function probeUrl(url,runId,timeoutMs=7000){
@@ -520,6 +546,8 @@ applyLanguage();
 sourceEl.addEventListener('change',()=>{if(appStarted)loadSource()});
 groupEl.addEventListener('change',()=>{if(!appStarted)return;checkRunId++;showOnlyPlayable=false;applyFilters();const g=groupEl.value;if(g)startGroupCheck(g);else metaEl.textContent=tr('chooseGroup')});
 searchEl.addEventListener('input',()=>{if(appStarted)applyFilters()});
+listEl.addEventListener('scroll',queueVirtualRender,{passive:true});
+window.addEventListener('resize',queueVirtualRender,{passive:true});
 
 let appStarted=false;
 const appRoot=document.getElementById('appRoot');
