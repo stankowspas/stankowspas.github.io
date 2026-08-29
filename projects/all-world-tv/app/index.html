@@ -5,6 +5,26 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>All World IPTV</title>
 <meta name="theme-color" content="#07111f">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<script>
+window.__AW_APP_VERSION__='2026.08.30.0024.1';
+window.__AW_FRESHNESS_PROMISE__=(async()=>{
+  try{
+    const freshUrl='https://raw.githubusercontent.com/stankowspas/stankowspas.github.io/main/projects/all-world-tv/app/index.html?cb='+Date.now();
+    const response=await fetch(freshUrl,{cache:'no-store'});
+    if(!response.ok)return;
+    const freshHtml=await response.text();
+    const match=freshHtml.match(/window\.__AW_APP_VERSION__='([^']+)'/);
+    if(match&&match[1]&&match[1]!==window.__AW_APP_VERSION__){
+      document.open();
+      document.write(freshHtml);
+      document.close();
+    }
+  }catch(e){}
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <style>
 :root{--bg:#07111f;--bg2:#0b1830;--panel:rgba(17,29,52,.56);--panel2:rgba(22,38,68,.72);--line:rgba(148,180,225,.18);--text:#f5f8ff;--muted:#aebbd2;--accent:#79b2ff;--accent2:#8fe4ff;--warn:#f1c75b;--danger:#ff6b6b;--shadow:0 24px 70px rgba(0,0,0,.28)}
