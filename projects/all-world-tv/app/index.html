@@ -3,93 +3,464 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>All-World TV</title>
+<title>All World IPTV</title>
+<meta name="theme-color" content="#07111f">
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <style>
-:root{--bg:#05070a;--glass:rgba(10,14,20,.45);--line:rgba(255,255,255,.10);--text:#f4f7fb;--muted:#a9b3c2;--accent:#5ae0b0;--accent2:#6ea8ff;--danger:#ff6b6b}
-*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:var(--bg)}body{font-family:Inter,system-ui,"Segoe UI",sans-serif;color:var(--text)}
-button,input,select{font:inherit}.app{position:fixed;inset:0;background:#000}.player-shell{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000}video{width:100%;height:100%;object-fit:contain;background:#000}
-.glow{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 12% 10%,rgba(90,224,176,.10),transparent 30rem),radial-gradient(circle at 90% 85%,rgba(110,168,255,.08),transparent 30rem)}
-.topbar{position:absolute;left:0;right:0;top:0;padding:14px 16px;z-index:20;pointer-events:none;background:linear-gradient(to bottom,rgba(0,0,0,.42),transparent)}
-.brand-stack{display:flex;flex-direction:column;align-items:flex-start;gap:8px}.brand{pointer-events:auto;display:flex;align-items:center;gap:10px}.mark{width:38px;height:38px;border-radius:13px;background:linear-gradient(145deg,var(--accent),#31896e);display:grid;place-items:center;color:#06110d;font-weight:900}.brand h1{margin:0;font-size:16px}.brand small{color:#c3ccd8}
-.menu{pointer-events:auto;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(14px);color:var(--text);border-radius:12px;padding:8px 11px;cursor:pointer}
-.drawer{position:absolute;left:12px;top:105px;bottom:12px;width:min(330px,calc(100vw - 24px));z-index:30;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--line);border-radius:18px;background:rgba(10,14,20,.62);backdrop-filter:blur(20px);box-shadow:0 20px 60px rgba(0,0,0,.36);transition:.24s}
-.drawer.closed{transform:translateX(calc(-100% - 22px));opacity:0;pointer-events:none}.drawer-head{padding:12px;border-bottom:1px solid rgba(255,255,255,.07)}.drawer-title{display:flex;justify-content:space-between;gap:10px;margin-bottom:9px}.count{font-size:11px;color:var(--accent)}
-.controls{display:grid;gap:7px}.control{width:100%;border:1px solid var(--line);background:rgba(15,21,30,.78);color:var(--text);border-radius:11px;padding:9px 10px;outline:none}.control option{background:#121823;color:#fff}
-.list{flex:1;min-height:0;overflow-y:auto;padding:10px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.22) transparent}.list::-webkit-scrollbar{width:8px}.list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:10px}.channel{width:100%;display:grid;grid-template-columns:10px 42px 1fr;gap:9px;align-items:center;border:1px solid transparent;background:transparent;color:inherit;text-align:left;border-radius:12px;padding:7px;cursor:pointer}.channel:hover{background:rgba(255,255,255,.075)}.channel.active{background:rgba(90,224,176,.12);border-color:rgba(90,224,176,.26)}
-.logo,.fallback{width:42px;height:42px;border-radius:10px;border:1px solid rgba(255,255,255,.09);background:rgba(0,0,0,.3)}.logo{object-fit:contain;padding:4px}.fallback{display:grid;place-items:center;font-size:11px;font-weight:800}.name{font-size:13px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.country{font-size:10px;color:var(--muted);margin-top:3px}.dot{width:8px;height:8px;border-radius:50%;background:#727b8b}.dot.ok{background:#57d6a5}.dot.bad{background:#ff6b6b}.dot.checking{background:#f1c75b}
-.center{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}.center.hidden{display:none}.center-card{text-align:center;padding:18px 22px;border:1px solid rgba(255,255,255,.07);border-radius:18px;background:rgba(5,8,12,.38);backdrop-filter:blur(10px)}.center-card .icon{font-size:38px}
-.status{position:absolute;right:12px;bottom:12px;z-index:18;padding:7px 10px;border:1px solid var(--line);border-radius:999px;background:rgba(5,8,12,.5);font-size:10px;color:var(--muted)}.status.ok{color:var(--accent)}.status.bad{color:var(--danger)}
-.now{position:absolute;left:12px;bottom:12px;z-index:18;max-width:60%;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:rgba(5,8,12,.5);backdrop-filter:blur(12px)}.now.hidden{display:none}.now strong{display:block;font-size:12px}.now span{font-size:10px;color:var(--muted)}
-.loading{padding:18px;text-align:center;color:var(--muted);font-size:12px}.scrim{position:absolute;inset:0;background:rgba(0,0,0,.18);z-index:25}.scrim.hidden{display:none}
-@media(max-width:700px){.drawer{top:98px}.brand small{display:none}}
+:root{--bg:#07111f;--bg2:#0b1830;--panel:rgba(17,29,52,.56);--panel2:rgba(22,38,68,.72);--line:rgba(148,180,225,.18);--text:#f5f8ff;--muted:#aebbd2;--accent:#79b2ff;--accent2:#8fe4ff;--warn:#f1c75b;--danger:#ff6b6b;--shadow:0 24px 70px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html,body{width:100%;height:100%;margin:0;overflow:hidden;background:linear-gradient(145deg,var(--bg),var(--bg2));color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select{font:inherit}
+.app,.player{position:fixed;inset:0}.player{background:radial-gradient(circle at 85% 8%,rgba(55,126,225,.22),transparent 27%),radial-gradient(circle at 10% 55%,rgba(67,211,232,.10),transparent 26%),linear-gradient(145deg,var(--bg),var(--bg2));display:grid;place-items:center}video{position:absolute;left:0;right:0;top:76px;bottom:0;width:100%;height:calc(100% - 76px);object-fit:contain;background:#000}
+.glow{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 85% 8%,rgba(55,126,225,.20),transparent 30rem),radial-gradient(circle at 10% 55%,rgba(67,211,232,.10),transparent 28rem)}
+.top{position:absolute;top:0;left:0;right:0;z-index:40;padding:18px 20px;background:linear-gradient(to bottom,rgba(0,0,0,.48),transparent);pointer-events:none}.brand{display:flex;align-items:center;gap:11px;width:max-content;pointer-events:auto}.mark{width:42px;height:42px;border-radius:14px;background:linear-gradient(145deg,var(--accent),var(--accent2));display:grid;place-items:center;color:#07111f;font-weight:900}.brand h1{font-size:18px;margin:0}.brand small{display:block;color:#c3ccd8;margin-top:2px}.top-actions{display:flex;align-items:center;gap:8px;margin-top:10px;pointer-events:auto}.lang-select{position:relative;z-index:100;border:1px solid var(--line);background:rgba(7,17,31,.58);color:var(--text);border-radius:14px;padding:10px 11px;cursor:pointer;backdrop-filter:blur(14px);outline:none}.lang-select:focus{border-color:rgba(143,228,255,.56);box-shadow:0 0 0 3px rgba(121,178,255,.08)}.lang-select option{background:#0b1830;color:var(--text)}.menu{margin-top:0;pointer-events:auto;border:1px solid var(--line);background:rgba(7,17,31,.58);color:white;border-radius:14px;padding:10px 13px;cursor:pointer;backdrop-filter:blur(14px)}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.22);z-index:15}.scrim.hidden{display:none}
+.drawer{position:absolute;z-index:30;left:18px;top:132px;bottom:18px;width:min(410px,calc(100vw - 36px));display:flex;flex-direction:column;background:linear-gradient(145deg,rgba(24,42,72,.68),rgba(10,23,42,.58));border:1px solid var(--line);border-radius:22px;backdrop-filter:blur(22px) saturate(120%);box-shadow:var(--shadow);overflow:hidden;transition:.25s ease}.drawer.closed{transform:translateX(calc(-100% - 30px));opacity:0;pointer-events:none}.head{padding:15px;border-bottom:1px solid rgba(255,255,255,.07)}.title{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:11px}.title strong{font-size:15px}.count{font-size:12px;color:var(--accent)}.controls{display:grid;gap:8px}.control{width:100%;border:1px solid var(--line);background:rgba(5,15,29,.54);color:white;border-radius:13px;padding:11px 12px;outline:none}.control option{background:#121823}.meta{font-size:11px;color:var(--muted);min-height:16px;margin-top:8px}.list{flex:1;min-height:0;overflow:auto;padding:10px}.channel{width:100%;display:grid;grid-template-columns:12px 50px 1fr;gap:11px;align-items:center;border:1px solid transparent;background:transparent;color:inherit;text-align:left;border-radius:14px;padding:9px;cursor:pointer;margin:2px 0;content-visibility:auto;contain-intrinsic-size:70px}.channel:hover{background:rgba(121,178,255,.10);border-color:rgba(143,228,255,.24)}.channel.active{background:rgba(121,178,255,.14);border-color:rgba(143,228,255,.42)}.dot{width:9px;height:9px;border-radius:50%;background:#727b8b;box-shadow:0 0 0 3px rgba(255,255,255,.04)}.dot.checking{background:var(--warn)}.dot.ok{background:#57d6a5}.dot.bad{background:var(--danger)}.logo,.fallback{width:50px;height:50px;border-radius:12px;border:1px solid rgba(255,255,255,.09);background:rgba(0,0,0,.3)}.logo{object-fit:contain;padding:5px}.fallback{display:grid;place-items:center;font-size:12px;font-weight:800;color:#c3ccd8}.name{font-size:14px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sub{font-size:11px;color:var(--muted);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.empty{padding:24px;text-align:center;color:var(--muted);font-size:13px}
+.now{position:absolute;z-index:18;left:50%;top:16px;bottom:auto;transform:translateX(-50%);max-width:min(650px,calc(100vw - 40px));background:rgba(7,17,31,.64);border:1px solid var(--line);border-radius:15px;padding:11px 14px;backdrop-filter:blur(14px)}.now.hidden{display:none}.now b{display:block;font-size:15px}.now span{font-size:11px;color:var(--muted)}.status{position:absolute;z-index:18;right:20px;bottom:78px;background:rgba(7,17,31,.64);border:1px solid var(--line);border-radius:999px;padding:9px 12px;font-size:11px;color:var(--muted);backdrop-filter:blur(14px)}.status.ok{color:var(--accent)}.status.bad{color:var(--danger)}
+.welcome{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}.card{text-align:center;background:rgba(12,27,49,.60);border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:22px 26px;backdrop-filter:blur(10px);color:#c8d0db}.card .earth{font-size:48px}.welcome.hidden{display:none}
+[dir=rtl] .drawer{left:auto;right:18px}[dir=rtl] .drawer.closed{transform:translateX(calc(100% + 30px))}[dir=rtl] .top{text-align:right}[dir=rtl] .brand{margin-left:auto}[dir=rtl] .top-actions{justify-content:flex-end}@media(max-width:760px){.top{padding:14px}.drawer{left:10px;right:10px;top:118px;bottom:10px;width:auto}.brand small{display:none}video{top:118px;height:calc(100% - 118px)}.now{left:12px;right:12px;top:66px;bottom:auto;transform:none;max-width:none}.status{right:12px;bottom:82px}}
+
+/* Integrated player controls */
+.player{position:fixed;inset:0}.player video{z-index:1}.glow{z-index:2}
+.player-controls{position:absolute;left:0;right:0;bottom:0;z-index:12;padding:34px 18px 12px;background:linear-gradient(to top,rgba(0,0,0,.78),rgba(0,0,0,.28) 58%,transparent);opacity:1;transition:opacity .2s ease;pointer-events:none}
+.player-controls.hidden{opacity:0}.player-controls>*{pointer-events:auto}
+.player-timeline{width:100%;height:18px;display:flex;align-items:center;margin-bottom:7px}.player-timeline input{width:100%;margin:0;accent-color:#fff;cursor:pointer}
+.player-row{display:flex;align-items:center;gap:10px}.player-row .spacer{flex:1}
+.pbtn{appearance:none;border:0;background:transparent;color:#fff;min-width:34px;height:34px;padding:0 7px;border-radius:6px;display:grid;place-items:center;cursor:pointer;font-size:18px;line-height:1}.pbtn:hover{background:rgba(255,255,255,.13)}.pbtn:disabled{opacity:.35;cursor:default;background:transparent}
+.volume-wrap{display:flex;align-items:center;gap:4px}.volume{width:86px;accent-color:#fff}
+.live-label{font-size:11px;font-weight:800;letter-spacing:.5px;color:#ff5b5b;white-space:nowrap}.live-label.off{color:#c5cfdd}
+.settings-wrap{position:relative}.settings-menu{position:absolute;right:0;bottom:42px;min-width:210px;max-height:280px;overflow:auto;background:rgba(10,18,31,.96);border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.45);display:none}.settings-menu.open{display:block}.settings-title{font-size:11px;color:#aebbd2;padding:7px 9px}.settings-item{width:100%;border:0;background:transparent;color:#fff;text-align:left;padding:9px 10px;border-radius:7px;cursor:pointer}.settings-item:hover,.settings-item.active{background:rgba(121,178,255,.15)}
+.cc-active{box-shadow:inset 0 -2px 0 #fff}
+/* Dynamic subtitle rendering inside the video area.
+   Cue position is calculated in JS from the real player/control-bar size. */
+video::cue{
+  font-size:clamp(16px,2.15vw,28px);
+  line-height:1.25;
+  color:#fff;
+  background:rgba(0,0,0,.68);
+  text-shadow:0 1px 3px rgba(0,0,0,.9);
+}
+@media(max-width:760px){.player-controls{padding:30px 10px 8px}.volume{width:62px}.pbtn{min-width:32px}.status{bottom:64px}}
+
+
+/* Dynamic application layout: header -> channel info -> player.
+   Only positioning/layout is overridden; player and application logic are unchanged. */
+.app{
+  position:fixed;inset:0;
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  grid-template-rows:auto auto minmax(0,1fr);
+  overflow:hidden;
+}
+.top{
+  position:relative;inset:auto;
+  grid-column:1;grid-row:1;
+  align-self:start;
+}
+.now{
+  position:relative;left:auto;right:auto;top:auto;bottom:auto;transform:none;
+  grid-column:1;grid-row:2;
+  place-self:center;
+  width:min(650px,calc(100vw - 40px));max-width:none;
+  margin:0;
+  z-index:18;
+}
+.player{
+  position:relative;inset:auto;
+  grid-column:1;grid-row:3;
+  width:100%;height:100%;min-width:0;min-height:0;
+}
+.player video{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+}
+.scrim{
+  grid-column:1;grid-row:3;
+  position:absolute;inset:0;
+}
+.drawer{
+  grid-column:1;grid-row:3;
+  position:absolute;left:18px;right:auto;top:18px;bottom:18px;
+}
+.status{
+  grid-column:1;grid-row:3;
+}
+[dir=rtl] .drawer{left:auto;right:18px}
+@media(max-width:760px){
+  .top{padding:14px}
+  .now{
+    width:calc(100vw - 24px);
+    margin:0;
+  }
+  .player video{inset:0;width:100%;height:100%}
+  .drawer{left:10px;right:10px;top:10px;bottom:10px;width:auto}
+  [dir=rtl] .drawer{left:10px;right:10px}
+}
+
 </style>
 </head>
 <body>
 <div class="app">
-  <div class="player-shell"><video id="video" controls playsinline></video><div class="glow"></div><div id="center" class="center"><div class="center-card"><div class="icon">🌍</div><strong>All-World TV</strong><div id="centerHint" style="margin-top:5px;font-size:12px;color:#a9b3c2">Избери държава и канал</div></div></div></div>
-  <div class="topbar"><div class="brand-stack"><div class="brand"><div class="mark">AW</div><div><h1>All-World TV</h1><small id="brandSub">Live channels from around the world</small></div></div><button id="menu" class="menu">☰ <span id="menuText">Канали</span></button></div></div>
+  <div class="player" id="player"><video id="video" playsinline preload="metadata"></video><div class="glow"></div>
+    <div id="playerControls" class="player-controls">
+      <div class="player-timeline"><input id="timeline" type="range" min="0" max="1000" value="1000" step="1" aria-label="Timeline"></div>
+      <div class="player-row">
+        <button id="playBtn" class="pbtn" type="button" title="Play/Pause" aria-label="Play/Pause">▶</button>
+        <div class="volume-wrap"><button id="muteBtn" class="pbtn" type="button" title="Mute" aria-label="Mute">🔊</button><input id="volume" class="volume" type="range" min="0" max="1" step="0.05" value="1" aria-label="Volume"></div>
+        <span id="liveLabel" class="live-label off">LIVE</span>
+        <div class="spacer"></div>
+        <button id="ccBtn" class="pbtn" type="button" title="Subtitles" aria-label="Subtitles" disabled>CC</button>
+        <div class="settings-wrap"><button id="settingsBtn" class="pbtn" type="button" title="Settings" aria-label="Settings">⚙</button><div id="settingsMenu" class="settings-menu"><div class="settings-title">Subtitles</div><div id="subtitleMenu"></div></div></div>
+        <button id="fullscreenBtn" class="pbtn" type="button" title="Fullscreen" aria-label="Fullscreen">⛶</button>
+      </div>
+    </div>
+    <div id="welcome" class="welcome"><div class="card"><div class="earth">🌍</div><div style="font-weight:800;font-size:18px">All World IPTV</div><div id="welcomeText" style="margin-top:6px;font-size:13px">Избери списък, група и канал</div></div></div></div>
+  <div class="top"><div class="brand"><div class="mark">AW</div><div><h1>All World IPTV</h1><small id="brandSub">Multiple public TV lists</small></div></div><div class="top-actions"><select id="language" class="lang-select" aria-label="Language"></select><button id="menuBtn" class="menu">☰ <span id="menuText">Канали</span></button></div></div>
   <div id="scrim" class="scrim"></div>
-  <aside id="drawer" class="drawer"><div class="drawer-head"><div class="drawer-title"><strong id="drawerTitle">Канали по държави</strong><span id="count" class="count">Зареждане…</span></div><div class="controls"><select id="country" class="control"><option id="allCountriesOption" value="">Всички държави</option></select><input id="search" class="control" type="search" placeholder="Търси канал..." autocomplete="off"></div></div><div id="list" class="list"><div id="initialLoading" class="loading">Зареждам плейлиста…</div></div></aside>
-  <div id="now" class="now hidden"><strong id="nowTitle"></strong><span id="nowCountry"></span></div><div id="status" class="status">Готов</div>
+  <aside id="drawer" class="drawer">
+    <div class="head">
+      <div class="title"><strong id="drawerTitle">Източник и канали</strong><span id="count" class="count">—</span></div>
+      <div class="controls">
+        <select id="source" class="control" aria-label="Източник" data-i18n-aria="sourceLabel"></select>
+        <select id="group" class="control" aria-label="Държава или група" data-i18n-aria="groupLabel"><option value="">Всички групи</option></select>
+        <input id="search" class="control" type="search" placeholder="Търси канал..." data-i18n-placeholder="searchPlaceholder" autocomplete="off">
+      </div>
+      <div id="meta" class="meta"></div>
+    </div>
+    <div id="list" class="list"><div class="empty">Зареждане…</div></div>
+  </aside>
+  <div id="now" class="now hidden"><b id="nowName"></b><span id="nowMeta"></span></div>
+  <div id="status" class="status">Готов</div>
 </div>
 <script>
-const PLAYLIST='https://iptv-org.github.io/iptv/index.country.m3u';
-const video=document.getElementById('video'),drawer=document.getElementById('drawer'),scrim=document.getElementById('scrim'),menu=document.getElementById('menu'),country=document.getElementById('country'),search=document.getElementById('search'),list=document.getElementById('list'),count=document.getElementById('count'),center=document.getElementById('center'),status=document.getElementById('status'),now=document.getElementById('now'),nowTitle=document.getElementById('nowTitle'),nowCountry=document.getElementById('nowCountry');
-let channels=[],filtered=[],hls=null,active=null;const channelHealth=new Map();let checkRunId=0;const UI={
-bg:{channels:'Канали',byCountry:'Канали по държави',allCountries:'Всички държави',search:'Търси канал...',choose:'Избери държава и канал',live:'Канали на живо от цял свят',loading:'Зареждам плейлиста…',noResults:'Няма намерени канали.',ready:'Готов',connecting:'Свързване…',playing:'Възпроизвежда',buffering:'Буфериране…',streamBad:'Потокът е недостъпен',pressPlay:'Натисни Play',catalogLoading:'Зареждане на каталога…',catalogFail:'Каталогът не се зареди',error:'Грешка'},
-en:{channels:'Channels',byCountry:'Channels by country',allCountries:'All countries',search:'Search channel...',choose:'Choose a country and channel',live:'Live channels from around the world',loading:'Loading playlist…',noResults:'No channels found.',ready:'Ready',connecting:'Connecting…',playing:'Playing',buffering:'Buffering…',streamBad:'Stream unavailable',pressPlay:'Press Play',catalogLoading:'Loading catalog…',catalogFail:'Catalog failed to load',error:'Error'},
-de:{channels:'Kanäle',byCountry:'Kanäle nach Land',allCountries:'Alle Länder',search:'Kanal suchen...',choose:'Land und Kanal wählen',live:'Live-Kanäle aus aller Welt',loading:'Playlist wird geladen…',noResults:'Keine Kanäle gefunden.',ready:'Bereit',connecting:'Verbindung…',playing:'Wiedergabe',buffering:'Pufferung…',streamBad:'Stream nicht verfügbar',pressPlay:'Play drücken',catalogLoading:'Katalog wird geladen…',catalogFail:'Katalog konnte nicht geladen werden',error:'Fehler'},
-fr:{channels:'Chaînes',byCountry:'Chaînes par pays',allCountries:'Tous les pays',search:'Rechercher une chaîne...',choose:'Choisissez un pays et une chaîne',live:'Chaînes en direct du monde entier',loading:'Chargement de la playlist…',noResults:'Aucune chaîne trouvée.',ready:'Prêt',connecting:'Connexion…',playing:'Lecture',buffering:'Mise en mémoire tampon…',streamBad:'Flux indisponible',pressPlay:'Appuyez sur Lecture',catalogLoading:'Chargement du catalogue…',catalogFail:'Le catalogue n’a pas pu être chargé',error:'Erreur'},
-es:{channels:'Canales',byCountry:'Canales por país',allCountries:'Todos los países',search:'Buscar canal...',choose:'Elige un país y un canal',live:'Canales en vivo de todo el mundo',loading:'Cargando lista…',noResults:'No se encontraron canales.',ready:'Listo',connecting:'Conectando…',playing:'Reproduciendo',buffering:'Almacenando…',streamBad:'Transmisión no disponible',pressPlay:'Pulsa Play',catalogLoading:'Cargando catálogo…',catalogFail:'No se pudo cargar el catálogo',error:'Error'},
-it:{channels:'Canali',byCountry:'Canali per paese',allCountries:'Tutti i paesi',search:'Cerca canale...',choose:'Scegli un paese e un canale',live:'Canali live da tutto il mondo',loading:'Caricamento playlist…',noResults:'Nessun canale trovato.',ready:'Pronto',connecting:'Connessione…',playing:'Riproduzione',buffering:'Buffering…',streamBad:'Stream non disponibile',pressPlay:'Premi Play',catalogLoading:'Caricamento catalogo…',catalogFail:'Impossibile caricare il catalogo',error:'Errore'},
-pt:{channels:'Canais',byCountry:'Canais por país',allCountries:'Todos os países',search:'Pesquisar canal...',choose:'Escolha um país e um canal',live:'Canais ao vivo de todo o mundo',loading:'A carregar playlist…',noResults:'Nenhum canal encontrado.',ready:'Pronto',connecting:'A ligar…',playing:'A reproduzir',buffering:'A carregar…',streamBad:'Transmissão indisponível',pressPlay:'Prima Play',catalogLoading:'A carregar catálogo…',catalogFail:'Não foi possível carregar o catálogo',error:'Erro'},
-nl:{channels:'Kanalen',byCountry:'Kanalen per land',allCountries:'Alle landen',search:'Kanaal zoeken...',choose:'Kies een land en kanaal',live:'Live kanalen van over de hele wereld',loading:'Afspeellijst laden…',noResults:'Geen kanalen gevonden.',ready:'Gereed',connecting:'Verbinden…',playing:'Afspelen',buffering:'Bufferen…',streamBad:'Stream niet beschikbaar',pressPlay:'Druk op Play',catalogLoading:'Catalogus laden…',catalogFail:'Catalogus kon niet worden geladen',error:'Fout'},
-pl:{channels:'Kanały',byCountry:'Kanały według kraju',allCountries:'Wszystkie kraje',search:'Szukaj kanału...',choose:'Wybierz kraj i kanał',live:'Kanały na żywo z całego świata',loading:'Ładowanie playlisty…',noResults:'Nie znaleziono kanałów.',ready:'Gotowe',connecting:'Łączenie…',playing:'Odtwarzanie',buffering:'Buforowanie…',streamBad:'Strumień niedostępny',pressPlay:'Naciśnij Play',catalogLoading:'Ładowanie katalogu…',catalogFail:'Nie udało się załadować katalogu',error:'Błąd'},
-ro:{channels:'Canale',byCountry:'Canale după țară',allCountries:'Toate țările',search:'Caută canal...',choose:'Alege o țară și un canal',live:'Canale live din întreaga lume',loading:'Se încarcă lista…',noResults:'Nu au fost găsite canale.',ready:'Gata',connecting:'Conectare…',playing:'Redare',buffering:'Buffering…',streamBad:'Flux indisponibil',pressPlay:'Apasă Play',catalogLoading:'Se încarcă catalogul…',catalogFail:'Catalogul nu s-a încărcat',error:'Eroare'},
-el:{channels:'Κανάλια',byCountry:'Κανάλια ανά χώρα',allCountries:'Όλες οι χώρες',search:'Αναζήτηση καναλιού...',choose:'Επιλέξτε χώρα και κανάλι',live:'Ζωντανά κανάλια από όλο τον κόσμο',loading:'Φόρτωση λίστας…',noResults:'Δεν βρέθηκαν κανάλια.',ready:'Έτοιμο',connecting:'Σύνδεση…',playing:'Αναπαραγωγή',buffering:'Φόρτωση…',streamBad:'Η ροή δεν είναι διαθέσιμη',pressPlay:'Πατήστε Play',catalogLoading:'Φόρτωση καταλόγου…',catalogFail:'Ο κατάλογος δεν φορτώθηκε',error:'Σφάλμα'},
-sr:{channels:'Канали',byCountry:'Канали по државама',allCountries:'Све државе',search:'Претражи канал...',choose:'Изаберите државу и канал',live:'Канали уживо из целог света',loading:'Учитавање листе…',noResults:'Нема пронађених канала.',ready:'Спремно',connecting:'Повезивање…',playing:'Репродукција',buffering:'Баферовање…',streamBad:'Стрим није доступан',pressPlay:'Притисните Play',catalogLoading:'Учитавање каталога…',catalogFail:'Каталог није учитан',error:'Грешка'},
-hr:{channels:'Kanali',byCountry:'Kanali po državama',allCountries:'Sve države',search:'Pretraži kanal...',choose:'Odaberite državu i kanal',live:'Kanali uživo iz cijelog svijeta',loading:'Učitavanje popisa…',noResults:'Nema pronađenih kanala.',ready:'Spremno',connecting:'Povezivanje…',playing:'Reprodukcija',buffering:'Međuspremnik…',streamBad:'Prijenos nije dostupan',pressPlay:'Pritisnite Play',catalogLoading:'Učitavanje kataloga…',catalogFail:'Katalog se nije učitao',error:'Pogreška'},
-cs:{channels:'Kanály',byCountry:'Kanály podle země',allCountries:'Všechny země',search:'Hledat kanál...',choose:'Vyberte zemi a kanál',live:'Živé kanály z celého světa',loading:'Načítání playlistu…',noResults:'Nebyly nalezeny žádné kanály.',ready:'Připraveno',connecting:'Připojování…',playing:'Přehrávání',buffering:'Načítání…',streamBad:'Stream není dostupný',pressPlay:'Stiskněte Play',catalogLoading:'Načítání katalogu…',catalogFail:'Katalog se nepodařilo načíst',error:'Chyba'},
-sk:{channels:'Kanály',byCountry:'Kanály podľa krajiny',allCountries:'Všetky krajiny',search:'Hľadať kanál...',choose:'Vyberte krajinu a kanál',live:'Živé kanály z celého sveta',loading:'Načítanie playlistu…',noResults:'Nenašli sa žiadne kanály.',ready:'Pripravené',connecting:'Pripájanie…',playing:'Prehrávanie',buffering:'Načítanie…',streamBad:'Stream nie je dostupný',pressPlay:'Stlačte Play',catalogLoading:'Načítanie katalógu…',catalogFail:'Katalóg sa nepodarilo načítať',error:'Chyba'},
-hu:{channels:'Csatornák',byCountry:'Csatornák ország szerint',allCountries:'Minden ország',search:'Csatorna keresése...',choose:'Válasszon országot és csatornát',live:'Élő csatornák a világ minden tájáról',loading:'Lejátszási lista betöltése…',noResults:'Nem található csatorna.',ready:'Kész',connecting:'Kapcsolódás…',playing:'Lejátszás',buffering:'Pufferelés…',streamBad:'A stream nem érhető el',pressPlay:'Nyomja meg a Play gombot',catalogLoading:'Katalógus betöltése…',catalogFail:'A katalógus nem tölthető be',error:'Hiba'},
-sv:{channels:'Kanaler',byCountry:'Kanaler efter land',allCountries:'Alla länder',search:'Sök kanal...',choose:'Välj land och kanal',live:'Livekanaler från hela världen',loading:'Laddar spellista…',noResults:'Inga kanaler hittades.',ready:'Klar',connecting:'Ansluter…',playing:'Spelar',buffering:'Buffrar…',streamBad:'Strömmen är inte tillgänglig',pressPlay:'Tryck på Play',catalogLoading:'Laddar katalog…',catalogFail:'Katalogen kunde inte laddas',error:'Fel'},
-no:{channels:'Kanaler',byCountry:'Kanaler etter land',allCountries:'Alle land',search:'Søk kanal...',choose:'Velg land og kanal',live:'Direktekanaler fra hele verden',loading:'Laster spilleliste…',noResults:'Ingen kanaler funnet.',ready:'Klar',connecting:'Kobler til…',playing:'Spiller',buffering:'Bufrer…',streamBad:'Strømmen er utilgjengelig',pressPlay:'Trykk Play',catalogLoading:'Laster katalog…',catalogFail:'Katalogen kunne ikke lastes',error:'Feil'},
-da:{channels:'Kanaler',byCountry:'Kanaler efter land',allCountries:'Alle lande',search:'Søg kanal...',choose:'Vælg land og kanal',live:'Livekanaler fra hele verden',loading:'Indlæser playliste…',noResults:'Ingen kanaler fundet.',ready:'Klar',connecting:'Forbinder…',playing:'Afspiller',buffering:'Buffering…',streamBad:'Stream er ikke tilgængelig',pressPlay:'Tryk Play',catalogLoading:'Indlæser katalog…',catalogFail:'Kataloget kunne ikke indlæses',error:'Fejl'},
-fi:{channels:'Kanavat',byCountry:'Kanavat maittain',allCountries:'Kaikki maat',search:'Hae kanavaa...',choose:'Valitse maa ja kanava',live:'Suorat kanavat ympäri maailmaa',loading:'Ladataan soittolistaa…',noResults:'Kanavia ei löytynyt.',ready:'Valmis',connecting:'Yhdistetään…',playing:'Toistetaan',buffering:'Puskuroidaan…',streamBad:'Striimi ei ole saatavilla',pressPlay:'Paina Play',catalogLoading:'Ladataan luetteloa…',catalogFail:'Luetteloa ei voitu ladata',error:'Virhe'},
-tr:{channels:'Kanallar',byCountry:'Ülkeye göre kanallar',allCountries:'Tüm ülkeler',search:'Kanal ara...',choose:'Bir ülke ve kanal seçin',live:'Dünyanın dört bir yanından canlı kanallar',loading:'Oynatma listesi yükleniyor…',noResults:'Kanal bulunamadı.',ready:'Hazır',connecting:'Bağlanıyor…',playing:'Oynatılıyor',buffering:'Arabelleğe alınıyor…',streamBad:'Yayın kullanılamıyor',pressPlay:'Play’e basın',catalogLoading:'Katalog yükleniyor…',catalogFail:'Katalog yüklenemedi',error:'Hata'},
-ru:{channels:'Каналы',byCountry:'Каналы по странам',allCountries:'Все страны',search:'Поиск канала...',choose:'Выберите страну и канал',live:'Прямые каналы со всего мира',loading:'Загрузка плейлиста…',noResults:'Каналы не найдены.',ready:'Готово',connecting:'Подключение…',playing:'Воспроизведение',buffering:'Буферизация…',streamBad:'Поток недоступен',pressPlay:'Нажмите Play',catalogLoading:'Загрузка каталога…',catalogFail:'Не удалось загрузить каталог',error:'Ошибка'},
-uk:{channels:'Канали',byCountry:'Канали за країнами',allCountries:'Усі країни',search:'Пошук каналу...',choose:'Оберіть країну та канал',live:'Прямі канали з усього світу',loading:'Завантаження плейлиста…',noResults:'Канали не знайдено.',ready:'Готово',connecting:'Підключення…',playing:'Відтворення',buffering:'Буферизація…',streamBad:'Потік недоступний',pressPlay:'Натисніть Play',catalogLoading:'Завантаження каталогу…',catalogFail:'Не вдалося завантажити каталог',error:'Помилка'},
-ar:{channels:'القنوات',byCountry:'القنوات حسب البلد',allCountries:'جميع البلدان',search:'ابحث عن قناة...',choose:'اختر بلدًا وقناة',live:'قنوات مباشرة من جميع أنحاء العالم',loading:'جارٍ تحميل القائمة…',noResults:'لم يتم العثور على قنوات.',ready:'جاهز',connecting:'جارٍ الاتصال…',playing:'تشغيل',buffering:'تخزين مؤقت…',streamBad:'البث غير متاح',pressPlay:'اضغط تشغيل',catalogLoading:'جارٍ تحميل الدليل…',catalogFail:'تعذر تحميل الدليل',error:'خطأ'},
-he:{channels:'ערוצים',byCountry:'ערוצים לפי מדינה',allCountries:'כל המדינות',search:'חיפוש ערוץ...',choose:'בחר מדינה וערוץ',live:'ערוצים חיים מכל העולם',loading:'טוען רשימה…',noResults:'לא נמצאו ערוצים.',ready:'מוכן',connecting:'מתחבר…',playing:'מנגן',buffering:'טוען…',streamBad:'הזרם אינו זמין',pressPlay:'לחץ Play',catalogLoading:'טוען קטלוג…',catalogFail:'טעינת הקטלוג נכשלה',error:'שגיאה'},
-'zh-CN':{channels:'频道',byCountry:'按国家浏览频道',allCountries:'所有国家',search:'搜索频道...',choose:'选择国家和频道',live:'来自世界各地的直播频道',loading:'正在加载播放列表…',noResults:'未找到频道。',ready:'就绪',connecting:'正在连接…',playing:'正在播放',buffering:'缓冲中…',streamBad:'直播不可用',pressPlay:'按下播放',catalogLoading:'正在加载目录…',catalogFail:'目录加载失败',error:'错误'},
-'zh-TW':{channels:'頻道',byCountry:'依國家瀏覽頻道',allCountries:'所有國家',search:'搜尋頻道...',choose:'選擇國家與頻道',live:'來自世界各地的直播頻道',loading:'正在載入播放清單…',noResults:'找不到頻道。',ready:'就緒',connecting:'正在連線…',playing:'播放中',buffering:'緩衝中…',streamBad:'直播不可用',pressPlay:'按下播放',catalogLoading:'正在載入目錄…',catalogFail:'目錄載入失敗',error:'錯誤'},
-ja:{channels:'チャンネル',byCountry:'国別チャンネル',allCountries:'すべての国',search:'チャンネルを検索...',choose:'国とチャンネルを選択',live:'世界中のライブチャンネル',loading:'プレイリストを読み込み中…',noResults:'チャンネルが見つかりません。',ready:'準備完了',connecting:'接続中…',playing:'再生中',buffering:'バッファリング中…',streamBad:'ストリームを利用できません',pressPlay:'再生を押してください',catalogLoading:'カタログを読み込み中…',catalogFail:'カタログを読み込めませんでした',error:'エラー'},
-ko:{channels:'채널',byCountry:'국가별 채널',allCountries:'모든 국가',search:'채널 검색...',choose:'국가와 채널을 선택하세요',live:'전 세계 라이브 채널',loading:'재생목록 로드 중…',noResults:'채널을 찾을 수 없습니다.',ready:'준비됨',connecting:'연결 중…',playing:'재생 중',buffering:'버퍼링 중…',streamBad:'스트림을 사용할 수 없음',pressPlay:'Play를 누르세요',catalogLoading:'카탈로그 로드 중…',catalogFail:'카탈로그를 불러오지 못했습니다',error:'오류'},
-hi:{channels:'चैनल',byCountry:'देश के अनुसार चैनल',allCountries:'सभी देश',search:'चैनल खोजें...',choose:'देश और चैनल चुनें',live:'दुनिया भर के लाइव चैनल',loading:'प्लेलिस्ट लोड हो रही है…',noResults:'कोई चैनल नहीं मिला।',ready:'तैयार',connecting:'कनेक्ट हो रहा है…',playing:'चल रहा है',buffering:'बफ़रिंग…',streamBad:'स्ट्रीम उपलब्ध नहीं',pressPlay:'Play दबाएँ',catalogLoading:'कैटलॉग लोड हो रहा है…',catalogFail:'कैटलॉग लोड नहीं हुआ',error:'त्रुटि'},
-id:{channels:'Saluran',byCountry:'Saluran menurut negara',allCountries:'Semua negara',search:'Cari saluran...',choose:'Pilih negara dan saluran',live:'Saluran langsung dari seluruh dunia',loading:'Memuat daftar putar…',noResults:'Saluran tidak ditemukan.',ready:'Siap',connecting:'Menghubungkan…',playing:'Memutar',buffering:'Buffering…',streamBad:'Streaming tidak tersedia',pressPlay:'Tekan Play',catalogLoading:'Memuat katalog…',catalogFail:'Katalog gagal dimuat',error:'Kesalahan'},
-vi:{channels:'Kênh',byCountry:'Kênh theo quốc gia',allCountries:'Tất cả quốc gia',search:'Tìm kênh...',choose:'Chọn quốc gia và kênh',live:'Kênh trực tiếp từ khắp thế giới',loading:'Đang tải danh sách phát…',noResults:'Không tìm thấy kênh.',ready:'Sẵn sàng',connecting:'Đang kết nối…',playing:'Đang phát',buffering:'Đang tải đệm…',streamBad:'Luồng không khả dụng',pressPlay:'Nhấn Play',catalogLoading:'Đang tải danh mục…',catalogFail:'Không tải được danh mục',error:'Lỗi'},
-th:{channels:'ช่อง',byCountry:'ช่องตามประเทศ',allCountries:'ทุกประเทศ',search:'ค้นหาช่อง...',choose:'เลือกประเทศและช่อง',live:'ช่องถ่ายทอดสดจากทั่วโลก',loading:'กำลังโหลดเพลย์ลิสต์…',noResults:'ไม่พบช่อง',ready:'พร้อม',connecting:'กำลังเชื่อมต่อ…',playing:'กำลังเล่น',buffering:'กำลังบัฟเฟอร์…',streamBad:'สตรีมไม่พร้อมใช้งาน',pressPlay:'กด Play',catalogLoading:'กำลังโหลดแคตตาล็อก…',catalogFail:'โหลดแคตตาล็อกไม่สำเร็จ',error:'ข้อผิดพลาด'}
+const LANGS = [
+ ['bg','Български'],['en','English'],['de','Deutsch'],['fr','Français'],['es','Español'],['it','Italiano'],['pt','Português'],['nl','Nederlands'],['pl','Polski'],['ro','Română'],['el','Ελληνικά'],['tr','Türkçe'],['ru','Русский'],['uk','Українська'],['sr','Српски'],['hr','Hrvatski'],['cs','Čeština'],['sk','Slovenčina'],['hu','Magyar'],['sv','Svenska'],['no','Norsk'],['da','Dansk'],['fi','Suomi'],['ar','العربية'],['he','עברית'],['zh-CN','简体中文'],['zh-TW','繁體中文'],['ja','日本語'],['ko','한국어'],['hi','हिन्दी'],['id','Bahasa Indonesia'],['vi','Tiếng Việt'],['th','ไทย']
+];
+const I18N = {
+bg:{brandSub:'Множество публични ТВ списъци',menu:'Канали',welcome:'Избери списък, група и канал',drawer:'Източник и канали',sourceLabel:'Източник',groupLabel:'Държава или група',allGroups:'Всички групи',searchPlaceholder:'Търси канал...',loading:'Зареждане…',noChannels:'Няма намерени канали.',channels:'канала',checked:'Проверени',available:'достъпни',done:'Готово',shown:'показани',streams:'налични потока',noStream:'Няма достъпен поток',try:'Проба',connecting:'Свързване…',ready:'Готов',pressPlay:'Натисни Play',playing:'Възпроизвежда',buffering:'Буфериране…',streamUnavailable:'Потокът е недостъпен',streamError:'Грешка при потока',loadingCatalog:'Зареждане на каталога…',loadingList:'Зареждане на списъка…',records:'записа',unique:'уникални канала',merged:'Обединени',sources:'източника',unavailableSources:'недостъпни източника',catalogError:'Грешка при каталога',loadFail:'Списъкът не можа да бъде зареден. Възможно е източникът временно да е недостъпен или браузърът да блокира заявката.',chooseGroup:'Избери конкретна група/държава за проверка на каналите.',allSources:'Всички източници · обединени'},
+en:{brandSub:'Multiple public TV lists',menu:'Channels',welcome:'Choose a list, group and channel',drawer:'Source and channels',sourceLabel:'Source',groupLabel:'Country or group',allGroups:'All groups',searchPlaceholder:'Search channel...',loading:'Loading…',noChannels:'No channels found.',channels:'channels',checked:'Checked',available:'available',done:'Done',shown:'shown',streams:'available streams',noStream:'No available stream',try:'Try',connecting:'Connecting…',ready:'Ready',pressPlay:'Press Play',playing:'Playing',buffering:'Buffering…',streamUnavailable:'Stream unavailable',streamError:'Stream error',loadingCatalog:'Loading catalog…',loadingList:'Loading list…',records:'records',unique:'unique channels',merged:'Merged',sources:'sources',unavailableSources:'unavailable sources',catalogError:'Catalog error',loadFail:'The list could not be loaded. The source may be temporarily unavailable or the browser may be blocking the request.',chooseGroup:'Choose a specific group/country to check channels.',allSources:'All sources · merged'},
+de:{brandSub:'Mehrere öffentliche TV-Listen',menu:'Kanäle',welcome:'Liste, Gruppe und Kanal wählen',drawer:'Quelle und Kanäle',sourceLabel:'Quelle',groupLabel:'Land oder Gruppe',allGroups:'Alle Gruppen',searchPlaceholder:'Kanal suchen...',loading:'Laden…',noChannels:'Keine Kanäle gefunden.',channels:'Kanäle',checked:'Geprüft',available:'verfügbar',done:'Fertig',shown:'angezeigt',streams:'verfügbare Streams',noStream:'Kein Stream verfügbar',try:'Versuch',connecting:'Verbinden…',ready:'Bereit',pressPlay:'Play drücken',playing:'Wiedergabe',buffering:'Puffern…',streamUnavailable:'Stream nicht verfügbar',streamError:'Stream-Fehler',loadingCatalog:'Katalog wird geladen…',loadingList:'Liste wird geladen…',records:'Einträge',unique:'eindeutige Kanäle',merged:'Zusammengeführt',sources:'Quellen',unavailableSources:'nicht verfügbare Quellen',catalogError:'Katalogfehler',loadFail:'Die Liste konnte nicht geladen werden. Die Quelle ist möglicherweise vorübergehend nicht verfügbar oder der Browser blockiert die Anfrage.',chooseGroup:'Wähle eine bestimmte Gruppe/ein Land zur Kanalprüfung.',allSources:'Alle Quellen · zusammengeführt'},
+fr:{brandSub:'Plusieurs listes TV publiques',menu:'Chaînes',welcome:'Choisissez une liste, un groupe et une chaîne',drawer:'Source et chaînes',sourceLabel:'Source',groupLabel:'Pays ou groupe',allGroups:'Tous les groupes',searchPlaceholder:'Rechercher une chaîne...',loading:'Chargement…',noChannels:'Aucune chaîne trouvée.',channels:'chaînes',checked:'Vérifiées',available:'disponibles',done:'Terminé',shown:'affichées',streams:'flux disponibles',noStream:'Aucun flux disponible',try:'Essai',connecting:'Connexion…',ready:'Prêt',pressPlay:'Appuyez sur Lecture',playing:'Lecture',buffering:'Mise en mémoire tampon…',streamUnavailable:'Flux indisponible',streamError:'Erreur de flux',loadingCatalog:'Chargement du catalogue…',loadingList:'Chargement de la liste…',records:'entrées',unique:'chaînes uniques',merged:'Fusionnées',sources:'sources',unavailableSources:'sources indisponibles',catalogError:'Erreur du catalogue',loadFail:'La liste n’a pas pu être chargée. La source peut être temporairement indisponible ou le navigateur peut bloquer la requête.',chooseGroup:'Choisissez un groupe/pays précis pour vérifier les chaînes.',allSources:'Toutes les sources · fusionnées'},
+es:{brandSub:'Varias listas públicas de TV',menu:'Canales',welcome:'Elige una lista, grupo y canal',drawer:'Fuente y canales',sourceLabel:'Fuente',groupLabel:'País o grupo',allGroups:'Todos los grupos',searchPlaceholder:'Buscar canal...',loading:'Cargando…',noChannels:'No se encontraron canales.',channels:'canales',checked:'Comprobados',available:'disponibles',done:'Listo',shown:'mostrados',streams:'streams disponibles',noStream:'No hay stream disponible',try:'Intento',connecting:'Conectando…',ready:'Listo',pressPlay:'Pulsa Play',playing:'Reproduciendo',buffering:'Almacenando en búfer…',streamUnavailable:'Stream no disponible',streamError:'Error del stream',loadingCatalog:'Cargando catálogo…',loadingList:'Cargando lista…',records:'registros',unique:'canales únicos',merged:'Combinadas',sources:'fuentes',unavailableSources:'fuentes no disponibles',catalogError:'Error del catálogo',loadFail:'No se pudo cargar la lista. La fuente puede estar temporalmente no disponible o el navegador puede bloquear la solicitud.',chooseGroup:'Elige un grupo/país concreto para comprobar los canales.',allSources:'Todas las fuentes · combinadas'},
+it:{brandSub:'Più liste TV pubbliche',menu:'Canali',welcome:'Scegli una lista, un gruppo e un canale',drawer:'Fonte e canali',sourceLabel:'Fonte',groupLabel:'Paese o gruppo',allGroups:'Tutti i gruppi',searchPlaceholder:'Cerca canale...',loading:'Caricamento…',noChannels:'Nessun canale trovato.',channels:'canali',checked:'Controllati',available:'disponibili',done:'Fatto',shown:'mostrati',streams:'stream disponibili',noStream:'Nessuno stream disponibile',try:'Tentativo',connecting:'Connessione…',ready:'Pronto',pressPlay:'Premi Play',playing:'Riproduzione',buffering:'Buffering…',streamUnavailable:'Stream non disponibile',streamError:'Errore stream',loadingCatalog:'Caricamento catalogo…',loadingList:'Caricamento lista…',records:'record',unique:'canali unici',merged:'Unite',sources:'fonti',unavailableSources:'fonti non disponibili',catalogError:'Errore catalogo',loadFail:'Impossibile caricare la lista. La fonte potrebbe essere temporaneamente non disponibile o il browser potrebbe bloccare la richiesta.',chooseGroup:'Scegli un gruppo/paese specifico per controllare i canali.',allSources:'Tutte le fonti · unite'},
+pt:{brandSub:'Várias listas públicas de TV',menu:'Canais',welcome:'Escolha uma lista, grupo e canal',drawer:'Fonte e canais',sourceLabel:'Fonte',groupLabel:'País ou grupo',allGroups:'Todos os grupos',searchPlaceholder:'Pesquisar canal...',loading:'Carregando…',noChannels:'Nenhum canal encontrado.',channels:'canais',checked:'Verificados',available:'disponíveis',done:'Concluído',shown:'mostrados',streams:'streams disponíveis',noStream:'Nenhum stream disponível',try:'Tentativa',connecting:'Conectando…',ready:'Pronto',pressPlay:'Pressione Play',playing:'Reproduzindo',buffering:'Buffering…',streamUnavailable:'Stream indisponível',streamError:'Erro no stream',loadingCatalog:'Carregando catálogo…',loadingList:'Carregando lista…',records:'registros',unique:'canais únicos',merged:'Combinadas',sources:'fontes',unavailableSources:'fontes indisponíveis',catalogError:'Erro no catálogo',loadFail:'A lista não pôde ser carregada. A fonte pode estar temporariamente indisponível ou o navegador pode bloquear a solicitação.',chooseGroup:'Escolha um grupo/país específico para verificar os canais.',allSources:'Todas as fontes · combinadas'},
+nl:{brandSub:'Meerdere openbare tv-lijsten',menu:'Kanalen',welcome:'Kies een lijst, groep en kanaal',drawer:'Bron en kanalen',sourceLabel:'Bron',groupLabel:'Land of groep',allGroups:'Alle groepen',searchPlaceholder:'Kanaal zoeken...',loading:'Laden…',noChannels:'Geen kanalen gevonden.',channels:'kanalen',checked:'Gecontroleerd',available:'beschikbaar',done:'Klaar',shown:'getoond',streams:'beschikbare streams',noStream:'Geen stream beschikbaar',try:'Poging',connecting:'Verbinden…',ready:'Gereed',pressPlay:'Druk op Play',playing:'Afspelen',buffering:'Bufferen…',streamUnavailable:'Stream niet beschikbaar',streamError:'Streamfout',loadingCatalog:'Catalogus laden…',loadingList:'Lijst laden…',records:'items',unique:'unieke kanalen',merged:'Samengevoegd',sources:'bronnen',unavailableSources:'onbeschikbare bronnen',catalogError:'Catalogusfout',loadFail:'De lijst kon niet worden geladen. De bron is mogelijk tijdelijk niet beschikbaar of de browser blokkeert het verzoek.',chooseGroup:'Kies een specifieke groep/land om de kanalen te controleren.',allSources:'Alle bronnen · samengevoegd'},
+pl:{brandSub:'Wiele publicznych list TV',menu:'Kanały',welcome:'Wybierz listę, grupę i kanał',drawer:'Źródło i kanały',sourceLabel:'Źródło',groupLabel:'Kraj lub grupa',allGroups:'Wszystkie grupy',searchPlaceholder:'Szukaj kanału...',loading:'Ładowanie…',noChannels:'Nie znaleziono kanałów.',channels:'kanałów',checked:'Sprawdzono',available:'dostępnych',done:'Gotowe',shown:'pokazano',streams:'dostępne strumienie',noStream:'Brak dostępnego strumienia',try:'Próba',connecting:'Łączenie…',ready:'Gotowe',pressPlay:'Naciśnij Play',playing:'Odtwarzanie',buffering:'Buforowanie…',streamUnavailable:'Strumień niedostępny',streamError:'Błąd strumienia',loadingCatalog:'Ładowanie katalogu…',loadingList:'Ładowanie listy…',records:'wpisów',unique:'unikalnych kanałów',merged:'Połączono',sources:'źródeł',unavailableSources:'niedostępnych źródeł',catalogError:'Błąd katalogu',loadFail:'Nie udało się załadować listy. Źródło może być chwilowo niedostępne lub przeglądarka może blokować żądanie.',chooseGroup:'Wybierz konkretną grupę/kraj, aby sprawdzić kanały.',allSources:'Wszystkie źródła · połączone'},
+ro:{brandSub:'Mai multe liste TV publice',menu:'Canale',welcome:'Alege o listă, un grup și un canal',drawer:'Sursă și canale',sourceLabel:'Sursă',groupLabel:'Țară sau grup',allGroups:'Toate grupurile',searchPlaceholder:'Caută canal...',loading:'Se încarcă…',noChannels:'Nu s-au găsit canale.',channels:'canale',checked:'Verificate',available:'disponibile',done:'Gata',shown:'afișate',streams:'fluxuri disponibile',noStream:'Niciun flux disponibil',try:'Încercare',connecting:'Conectare…',ready:'Gata',pressPlay:'Apasă Play',playing:'Redare',buffering:'Buffering…',streamUnavailable:'Flux indisponibil',streamError:'Eroare flux',loadingCatalog:'Se încarcă catalogul…',loadingList:'Se încarcă lista…',records:'înregistrări',unique:'canale unice',merged:'Combinate',sources:'surse',unavailableSources:'surse indisponibile',catalogError:'Eroare catalog',loadFail:'Lista nu a putut fi încărcată. Sursa poate fi temporar indisponibilă sau browserul poate bloca cererea.',chooseGroup:'Alege un grup/o țară pentru verificarea canalelor.',allSources:'Toate sursele · combinate'},
+el:{brandSub:'Πολλαπλές δημόσιες λίστες TV',menu:'Κανάλια',welcome:'Επιλέξτε λίστα, ομάδα και κανάλι',drawer:'Πηγή και κανάλια',sourceLabel:'Πηγή',groupLabel:'Χώρα ή ομάδα',allGroups:'Όλες οι ομάδες',searchPlaceholder:'Αναζήτηση καναλιού...',loading:'Φόρτωση…',noChannels:'Δεν βρέθηκαν κανάλια.',channels:'κανάλια',checked:'Ελέγχθηκαν',available:'διαθέσιμα',done:'Έτοιμο',shown:'εμφανίζονται',streams:'διαθέσιμες ροές',noStream:'Δεν υπάρχει διαθέσιμη ροή',try:'Δοκιμή',connecting:'Σύνδεση…',ready:'Έτοιμο',pressPlay:'Πατήστε Play',playing:'Αναπαραγωγή',buffering:'Προσωρινή αποθήκευση…',streamUnavailable:'Η ροή δεν είναι διαθέσιμη',streamError:'Σφάλμα ροής',loadingCatalog:'Φόρτωση καταλόγου…',loadingList:'Φόρτωση λίστας…',records:'εγγραφές',unique:'μοναδικά κανάλια',merged:'Συγχωνεύτηκαν',sources:'πηγές',unavailableSources:'μη διαθέσιμες πηγές',catalogError:'Σφάλμα καταλόγου',loadFail:'Η λίστα δεν μπόρεσε να φορτωθεί. Η πηγή μπορεί να μην είναι προσωρινά διαθέσιμη ή ο browser να μπλοκάρει το αίτημα.',chooseGroup:'Επιλέξτε συγκεκριμένη ομάδα/χώρα για έλεγχο καναλιών.',allSources:'Όλες οι πηγές · συγχωνευμένες'},
+tr:{brandSub:'Birden çok herkese açık TV listesi',menu:'Kanallar',welcome:'Liste, grup ve kanal seçin',drawer:'Kaynak ve kanallar',sourceLabel:'Kaynak',groupLabel:'Ülke veya grup',allGroups:'Tüm gruplar',searchPlaceholder:'Kanal ara...',loading:'Yükleniyor…',noChannels:'Kanal bulunamadı.',channels:'kanal',checked:'Kontrol edildi',available:'kullanılabilir',done:'Tamam',shown:'gösterilen',streams:'kullanılabilir yayın',noStream:'Kullanılabilir yayın yok',try:'Deneme',connecting:'Bağlanıyor…',ready:'Hazır',pressPlay:'Play’e basın',playing:'Oynatılıyor',buffering:'Arabelleğe alınıyor…',streamUnavailable:'Yayın kullanılamıyor',streamError:'Yayın hatası',loadingCatalog:'Katalog yükleniyor…',loadingList:'Liste yükleniyor…',records:'kayıt',unique:'benzersiz kanal',merged:'Birleştirildi',sources:'kaynak',unavailableSources:'kullanılamayan kaynak',catalogError:'Katalog hatası',loadFail:'Liste yüklenemedi. Kaynak geçici olarak kullanılamıyor olabilir veya tarayıcı isteği engelliyor olabilir.',chooseGroup:'Kanalları kontrol etmek için belirli bir grup/ülke seçin.',allSources:'Tüm kaynaklar · birleştirilmiş'},
+ru:{brandSub:'Несколько публичных ТВ-списков',menu:'Каналы',welcome:'Выберите список, группу и канал',drawer:'Источник и каналы',sourceLabel:'Источник',groupLabel:'Страна или группа',allGroups:'Все группы',searchPlaceholder:'Поиск канала...',loading:'Загрузка…',noChannels:'Каналы не найдены.',channels:'каналов',checked:'Проверено',available:'доступно',done:'Готово',shown:'показано',streams:'доступных потоков',noStream:'Нет доступного потока',try:'Попытка',connecting:'Подключение…',ready:'Готово',pressPlay:'Нажмите Play',playing:'Воспроизведение',buffering:'Буферизация…',streamUnavailable:'Поток недоступен',streamError:'Ошибка потока',loadingCatalog:'Загрузка каталога…',loadingList:'Загрузка списка…',records:'записей',unique:'уникальных каналов',merged:'Объединено',sources:'источников',unavailableSources:'недоступных источников',catalogError:'Ошибка каталога',loadFail:'Не удалось загрузить список. Источник может быть временно недоступен или браузер блокирует запрос.',chooseGroup:'Выберите конкретную группу/страну для проверки каналов.',allSources:'Все источники · объединены'},
+uk:{brandSub:'Кілька публічних ТВ-списків',menu:'Канали',welcome:'Виберіть список, групу та канал',drawer:'Джерело та канали',sourceLabel:'Джерело',groupLabel:'Країна або група',allGroups:'Усі групи',searchPlaceholder:'Пошук каналу...',loading:'Завантаження…',noChannels:'Каналів не знайдено.',channels:'каналів',checked:'Перевірено',available:'доступно',done:'Готово',shown:'показано',streams:'доступних потоків',noStream:'Немає доступного потоку',try:'Спроба',connecting:'Підключення…',ready:'Готово',pressPlay:'Натисніть Play',playing:'Відтворення',buffering:'Буферизація…',streamUnavailable:'Потік недоступний',streamError:'Помилка потоку',loadingCatalog:'Завантаження каталогу…',loadingList:'Завантаження списку…',records:'записів',unique:'унікальних каналів',merged:'Об’єднано',sources:'джерел',unavailableSources:'недоступних джерел',catalogError:'Помилка каталогу',loadFail:'Не вдалося завантажити список. Джерело може бути тимчасово недоступним або браузер блокує запит.',chooseGroup:'Виберіть конкретну групу/країну для перевірки каналів.',allSources:'Усі джерела · об’єднані'},
+sr:{brandSub:'Више јавних ТВ листа',menu:'Канали',welcome:'Изаберите листу, групу и канал',drawer:'Извор и канали',sourceLabel:'Извор',groupLabel:'Земља или група',allGroups:'Све групе',searchPlaceholder:'Претражи канал...',loading:'Учитавање…',noChannels:'Нема пронађених канала.',channels:'канала',checked:'Проверено',available:'доступно',done:'Готово',shown:'приказано',streams:'доступних стримова',noStream:'Нема доступног стрима',try:'Покушај',connecting:'Повезивање…',ready:'Спремно',pressPlay:'Притисните Play',playing:'Репродукција',buffering:'Баферовање…',streamUnavailable:'Стрим није доступан',streamError:'Грешка стрима',loadingCatalog:'Учитавање каталога…',loadingList:'Учитавање листе…',records:'записа',unique:'јединствених канала',merged:'Спојено',sources:'извора',unavailableSources:'недоступних извора',catalogError:'Грешка каталога',loadFail:'Листа није могла да се учита. Извор је можда привремено недоступан или прегледач блокира захтев.',chooseGroup:'Изаберите конкретну групу/земљу за проверу канала.',allSources:'Сви извори · спојено'},
+hr:{brandSub:'Više javnih TV popisa',menu:'Kanali',welcome:'Odaberite popis, grupu i kanal',drawer:'Izvor i kanali',sourceLabel:'Izvor',groupLabel:'Država ili grupa',allGroups:'Sve grupe',searchPlaceholder:'Pretraži kanal...',loading:'Učitavanje…',noChannels:'Nema pronađenih kanala.',channels:'kanala',checked:'Provjereno',available:'dostupno',done:'Gotovo',shown:'prikazano',streams:'dostupnih streamova',noStream:'Nema dostupnog streama',try:'Pokušaj',connecting:'Povezivanje…',ready:'Spremno',pressPlay:'Pritisnite Play',playing:'Reprodukcija',buffering:'Međuspremnik…',streamUnavailable:'Stream nije dostupan',streamError:'Greška streama',loadingCatalog:'Učitavanje kataloga…',loadingList:'Učitavanje popisa…',records:'zapisa',unique:'jedinstvenih kanala',merged:'Spojeno',sources:'izvora',unavailableSources:'nedostupnih izvora',catalogError:'Greška kataloga',loadFail:'Popis se nije mogao učitati. Izvor je možda privremeno nedostupan ili preglednik blokira zahtjev.',chooseGroup:'Odaberite konkretnu grupu/državu za provjeru kanala.',allSources:'Svi izvori · spojeno'},
+cs:{brandSub:'Více veřejných TV seznamů',menu:'Kanály',welcome:'Vyberte seznam, skupinu a kanál',drawer:'Zdroj a kanály',sourceLabel:'Zdroj',groupLabel:'Země nebo skupina',allGroups:'Všechny skupiny',searchPlaceholder:'Hledat kanál...',loading:'Načítání…',noChannels:'Nebyly nalezeny žádné kanály.',channels:'kanálů',checked:'Zkontrolováno',available:'dostupných',done:'Hotovo',shown:'zobrazeno',streams:'dostupných streamů',noStream:'Není dostupný žádný stream',try:'Pokus',connecting:'Připojování…',ready:'Připraveno',pressPlay:'Stiskněte Play',playing:'Přehrávání',buffering:'Načítání do vyrovnávací paměti…',streamUnavailable:'Stream není dostupný',streamError:'Chyba streamu',loadingCatalog:'Načítání katalogu…',loadingList:'Načítání seznamu…',records:'záznamů',unique:'unikátních kanálů',merged:'Sloučeno',sources:'zdrojů',unavailableSources:'nedostupných zdrojů',catalogError:'Chyba katalogu',loadFail:'Seznam se nepodařilo načíst. Zdroj může být dočasně nedostupný nebo prohlížeč požadavek blokuje.',chooseGroup:'Vyberte konkrétní skupinu/zemi pro kontrolu kanálů.',allSources:'Všechny zdroje · sloučeno'},
+sk:{brandSub:'Viac verejných TV zoznamov',menu:'Kanály',welcome:'Vyberte zoznam, skupinu a kanál',drawer:'Zdroj a kanály',sourceLabel:'Zdroj',groupLabel:'Krajina alebo skupina',allGroups:'Všetky skupiny',searchPlaceholder:'Hľadať kanál...',loading:'Načítava sa…',noChannels:'Nenašli sa žiadne kanály.',channels:'kanálov',checked:'Skontrolované',available:'dostupných',done:'Hotovo',shown:'zobrazené',streams:'dostupných streamov',noStream:'Nie je dostupný žiadny stream',try:'Pokus',connecting:'Pripájanie…',ready:'Pripravené',pressPlay:'Stlačte Play',playing:'Prehrávanie',buffering:'Ukladanie do vyrovnávacej pamäte…',streamUnavailable:'Stream nie je dostupný',streamError:'Chyba streamu',loadingCatalog:'Načítava sa katalóg…',loadingList:'Načítava sa zoznam…',records:'záznamov',unique:'jedinečných kanálov',merged:'Zlúčené',sources:'zdrojov',unavailableSources:'nedostupných zdrojov',catalogError:'Chyba katalógu',loadFail:'Zoznam sa nepodarilo načítať. Zdroj môže byť dočasne nedostupný alebo prehliadač blokuje požiadavku.',chooseGroup:'Vyberte konkrétnu skupinu/krajinu na kontrolu kanálov.',allSources:'Všetky zdroje · zlúčené'},
+hu:{brandSub:'Több nyilvános TV-lista',menu:'Csatornák',welcome:'Válasszon listát, csoportot és csatornát',drawer:'Forrás és csatornák',sourceLabel:'Forrás',groupLabel:'Ország vagy csoport',allGroups:'Minden csoport',searchPlaceholder:'Csatorna keresése...',loading:'Betöltés…',noChannels:'Nem található csatorna.',channels:'csatorna',checked:'Ellenőrizve',available:'elérhető',done:'Kész',shown:'megjelenítve',streams:'elérhető stream',noStream:'Nincs elérhető stream',try:'Próba',connecting:'Kapcsolódás…',ready:'Kész',pressPlay:'Nyomja meg a Play gombot',playing:'Lejátszás',buffering:'Pufferelés…',streamUnavailable:'A stream nem érhető el',streamError:'Stream hiba',loadingCatalog:'Katalógus betöltése…',loadingList:'Lista betöltése…',records:'bejegyzés',unique:'egyedi csatorna',merged:'Egyesítve',sources:'forrás',unavailableSources:'nem elérhető forrás',catalogError:'Katalógushiba',loadFail:'A lista nem tölthető be. A forrás átmenetileg nem érhető el, vagy a böngésző blokkolja a kérést.',chooseGroup:'Válasszon konkrét csoportot/országot a csatornák ellenőrzéséhez.',allSources:'Minden forrás · egyesítve'},
+sv:{brandSub:'Flera offentliga TV-listor',menu:'Kanaler',welcome:'Välj lista, grupp och kanal',drawer:'Källa och kanaler',sourceLabel:'Källa',groupLabel:'Land eller grupp',allGroups:'Alla grupper',searchPlaceholder:'Sök kanal...',loading:'Laddar…',noChannels:'Inga kanaler hittades.',channels:'kanaler',checked:'Kontrollerade',available:'tillgängliga',done:'Klar',shown:'visade',streams:'tillgängliga strömmar',noStream:'Ingen tillgänglig ström',try:'Försök',connecting:'Ansluter…',ready:'Klar',pressPlay:'Tryck på Play',playing:'Spelar',buffering:'Buffrar…',streamUnavailable:'Strömmen är inte tillgänglig',streamError:'Strömfel',loadingCatalog:'Laddar katalog…',loadingList:'Laddar lista…',records:'poster',unique:'unika kanaler',merged:'Sammanfogade',sources:'källor',unavailableSources:'otillgängliga källor',catalogError:'Katalogfel',loadFail:'Listan kunde inte laddas. Källan kan vara tillfälligt otillgänglig eller webbläsaren blockerar begäran.',chooseGroup:'Välj en specifik grupp/ett land för att kontrollera kanalerna.',allSources:'Alla källor · sammanfogade'},
+no:{brandSub:'Flere offentlige TV-lister',menu:'Kanaler',welcome:'Velg liste, gruppe og kanal',drawer:'Kilde og kanaler',sourceLabel:'Kilde',groupLabel:'Land eller gruppe',allGroups:'Alle grupper',searchPlaceholder:'Søk kanal...',loading:'Laster…',noChannels:'Ingen kanaler funnet.',channels:'kanaler',checked:'Kontrollert',available:'tilgjengelige',done:'Ferdig',shown:'vist',streams:'tilgjengelige strømmer',noStream:'Ingen tilgjengelig strøm',try:'Forsøk',connecting:'Kobler til…',ready:'Klar',pressPlay:'Trykk Play',playing:'Spiller',buffering:'Bufrer…',streamUnavailable:'Strøm utilgjengelig',streamError:'Strømfeil',loadingCatalog:'Laster katalog…',loadingList:'Laster liste…',records:'oppføringer',unique:'unike kanaler',merged:'Slått sammen',sources:'kilder',unavailableSources:'utilgjengelige kilder',catalogError:'Katalogfeil',loadFail:'Listen kunne ikke lastes. Kilden kan være midlertidig utilgjengelig eller nettleseren blokkerer forespørselen.',chooseGroup:'Velg en bestemt gruppe/et land for å kontrollere kanalene.',allSources:'Alle kilder · slått sammen'},
+da:{brandSub:'Flere offentlige TV-lister',menu:'Kanaler',welcome:'Vælg liste, gruppe og kanal',drawer:'Kilde og kanaler',sourceLabel:'Kilde',groupLabel:'Land eller gruppe',allGroups:'Alle grupper',searchPlaceholder:'Søg kanal...',loading:'Indlæser…',noChannels:'Ingen kanaler fundet.',channels:'kanaler',checked:'Kontrolleret',available:'tilgængelige',done:'Færdig',shown:'vist',streams:'tilgængelige streams',noStream:'Ingen tilgængelig stream',try:'Forsøg',connecting:'Forbinder…',ready:'Klar',pressPlay:'Tryk Play',playing:'Afspiller',buffering:'Buffering…',streamUnavailable:'Stream ikke tilgængelig',streamError:'Streamfejl',loadingCatalog:'Indlæser katalog…',loadingList:'Indlæser liste…',records:'poster',unique:'unikke kanaler',merged:'Sammenlagt',sources:'kilder',unavailableSources:'utilgængelige kilder',catalogError:'Katalogfejl',loadFail:'Listen kunne ikke indlæses. Kilden kan være midlertidigt utilgængelig, eller browseren blokerer anmodningen.',chooseGroup:'Vælg en bestemt gruppe/et land for at kontrollere kanalerne.',allSources:'Alle kilder · sammenlagt'},
+fi:{brandSub:'Useita julkisia TV-listoja',menu:'Kanavat',welcome:'Valitse lista, ryhmä ja kanava',drawer:'Lähde ja kanavat',sourceLabel:'Lähde',groupLabel:'Maa tai ryhmä',allGroups:'Kaikki ryhmät',searchPlaceholder:'Hae kanavaa...',loading:'Ladataan…',noChannels:'Kanavia ei löytynyt.',channels:'kanavaa',checked:'Tarkistettu',available:'saatavilla',done:'Valmis',shown:'näytetään',streams:'saatavilla olevia streameja',noStream:'Ei saatavilla olevaa streamia',try:'Yritys',connecting:'Yhdistetään…',ready:'Valmis',pressPlay:'Paina Play',playing:'Toistetaan',buffering:'Puskuroidaan…',streamUnavailable:'Stream ei ole saatavilla',streamError:'Stream-virhe',loadingCatalog:'Ladataan luetteloa…',loadingList:'Ladataan listaa…',records:'tietuetta',unique:'yksilöllistä kanavaa',merged:'Yhdistetty',sources:'lähdettä',unavailableSources:'lähdettä ei saatavilla',catalogError:'Luettelovirhe',loadFail:'Listaa ei voitu ladata. Lähde voi olla tilapäisesti poissa käytöstä tai selain estää pyynnön.',chooseGroup:'Valitse tietty ryhmä/maa kanavien tarkistamiseksi.',allSources:'Kaikki lähteet · yhdistetty'},
+ar:{brandSub:'قوائم تلفزيون عامة متعددة',menu:'القنوات',welcome:'اختر قائمة ومجموعة وقناة',drawer:'المصدر والقنوات',sourceLabel:'المصدر',groupLabel:'الدولة أو المجموعة',allGroups:'كل المجموعات',searchPlaceholder:'ابحث عن قناة...',loading:'جارٍ التحميل…',noChannels:'لم يتم العثور على قنوات.',channels:'قناة',checked:'تم الفحص',available:'متاحة',done:'تم',shown:'المعروضة',streams:'تدفقات متاحة',noStream:'لا يوجد تدفق متاح',try:'محاولة',connecting:'جارٍ الاتصال…',ready:'جاهز',pressPlay:'اضغط تشغيل',playing:'قيد التشغيل',buffering:'جارٍ التخزين المؤقت…',streamUnavailable:'التدفق غير متاح',streamError:'خطأ في التدفق',loadingCatalog:'جارٍ تحميل الدليل…',loadingList:'جارٍ تحميل القائمة…',records:'سجل',unique:'قناة فريدة',merged:'تم الدمج',sources:'مصادر',unavailableSources:'مصادر غير متاحة',catalogError:'خطأ في الدليل',loadFail:'تعذر تحميل القائمة. قد يكون المصدر غير متاح مؤقتًا أو قد يحظر المتصفح الطلب.',chooseGroup:'اختر مجموعة/دولة محددة لفحص القنوات.',allSources:'كل المصادر · مدمجة'},
+he:{brandSub:'מספר רשימות טלוויזיה ציבוריות',menu:'ערוצים',welcome:'בחר רשימה, קבוצה וערוץ',drawer:'מקור וערוצים',sourceLabel:'מקור',groupLabel:'מדינה או קבוצה',allGroups:'כל הקבוצות',searchPlaceholder:'חפש ערוץ...',loading:'טוען…',noChannels:'לא נמצאו ערוצים.',channels:'ערוצים',checked:'נבדקו',available:'זמינים',done:'הושלם',shown:'מוצגים',streams:'זרמים זמינים',noStream:'אין זרם זמין',try:'ניסיון',connecting:'מתחבר…',ready:'מוכן',pressPlay:'לחץ Play',playing:'מנגן',buffering:'טוען למאגר…',streamUnavailable:'הזרם אינו זמין',streamError:'שגיאת זרם',loadingCatalog:'טוען קטלוג…',loadingList:'טוען רשימה…',records:'רשומות',unique:'ערוצים ייחודיים',merged:'מוזגו',sources:'מקורות',unavailableSources:'מקורות לא זמינים',catalogError:'שגיאת קטלוג',loadFail:'לא ניתן לטעון את הרשימה. ייתכן שהמקור אינו זמין זמנית או שהדפדפן חוסם את הבקשה.',chooseGroup:'בחר קבוצה/מדינה מסוימת לבדיקת הערוצים.',allSources:'כל המקורות · מוזגו'},
+'zh-CN':{brandSub:'多个公共电视列表',menu:'频道',welcome:'选择列表、分组和频道',drawer:'来源和频道',sourceLabel:'来源',groupLabel:'国家或分组',allGroups:'所有分组',searchPlaceholder:'搜索频道...',loading:'加载中…',noChannels:'未找到频道。',channels:'个频道',checked:'已检查',available:'可用',done:'完成',shown:'显示',streams:'个可用流',noStream:'没有可用流',try:'尝试',connecting:'正在连接…',ready:'就绪',pressPlay:'按播放',playing:'正在播放',buffering:'缓冲中…',streamUnavailable:'流不可用',streamError:'流错误',loadingCatalog:'正在加载目录…',loadingList:'正在加载列表…',records:'条记录',unique:'个唯一频道',merged:'已合并',sources:'个来源',unavailableSources:'个不可用来源',catalogError:'目录错误',loadFail:'无法加载列表。来源可能暂时不可用，或浏览器阻止了请求。',chooseGroup:'选择特定分组/国家以检查频道。',allSources:'所有来源 · 已合并'},
+'zh-TW':{brandSub:'多個公共電視清單',menu:'頻道',welcome:'選擇清單、群組和頻道',drawer:'來源和頻道',sourceLabel:'來源',groupLabel:'國家或群組',allGroups:'所有群組',searchPlaceholder:'搜尋頻道...',loading:'載入中…',noChannels:'找不到頻道。',channels:'個頻道',checked:'已檢查',available:'可用',done:'完成',shown:'顯示',streams:'個可用串流',noStream:'沒有可用串流',try:'嘗試',connecting:'正在連線…',ready:'就緒',pressPlay:'按播放',playing:'正在播放',buffering:'緩衝中…',streamUnavailable:'串流不可用',streamError:'串流錯誤',loadingCatalog:'正在載入目錄…',loadingList:'正在載入清單…',records:'筆記錄',unique:'個唯一頻道',merged:'已合併',sources:'個來源',unavailableSources:'個不可用來源',catalogError:'目錄錯誤',loadFail:'無法載入清單。來源可能暫時無法使用，或瀏覽器阻擋了請求。',chooseGroup:'選擇特定群組/國家以檢查頻道。',allSources:'所有來源 · 已合併'},
+ja:{brandSub:'複数の公開TVリスト',menu:'チャンネル',welcome:'リスト、グループ、チャンネルを選択',drawer:'ソースとチャンネル',sourceLabel:'ソース',groupLabel:'国またはグループ',allGroups:'すべてのグループ',searchPlaceholder:'チャンネル検索...',loading:'読み込み中…',noChannels:'チャンネルが見つかりません。',channels:'チャンネル',checked:'確認済み',available:'利用可能',done:'完了',shown:'表示',streams:'利用可能なストリーム',noStream:'利用可能なストリームがありません',try:'試行',connecting:'接続中…',ready:'準備完了',pressPlay:'再生を押してください',playing:'再生中',buffering:'バッファリング中…',streamUnavailable:'ストリームを利用できません',streamError:'ストリームエラー',loadingCatalog:'カタログを読み込み中…',loadingList:'リストを読み込み中…',records:'件',unique:'ユニークチャンネル',merged:'統合済み',sources:'ソース',unavailableSources:'利用不可ソース',catalogError:'カタログエラー',loadFail:'リストを読み込めませんでした。ソースが一時的に利用不可か、ブラウザがリクエストをブロックしている可能性があります。',chooseGroup:'チャンネル確認のため特定のグループ/国を選択してください。',allSources:'すべてのソース · 統合'},
+ko:{brandSub:'여러 공개 TV 목록',menu:'채널',welcome:'목록, 그룹 및 채널을 선택하세요',drawer:'소스 및 채널',sourceLabel:'소스',groupLabel:'국가 또는 그룹',allGroups:'모든 그룹',searchPlaceholder:'채널 검색...',loading:'로딩 중…',noChannels:'채널을 찾을 수 없습니다.',channels:'채널',checked:'확인됨',available:'사용 가능',done:'완료',shown:'표시됨',streams:'사용 가능한 스트림',noStream:'사용 가능한 스트림 없음',try:'시도',connecting:'연결 중…',ready:'준비됨',pressPlay:'Play를 누르세요',playing:'재생 중',buffering:'버퍼링 중…',streamUnavailable:'스트림을 사용할 수 없음',streamError:'스트림 오류',loadingCatalog:'카탈로그 로딩 중…',loadingList:'목록 로딩 중…',records:'항목',unique:'고유 채널',merged:'병합됨',sources:'소스',unavailableSources:'사용 불가 소스',catalogError:'카탈로그 오류',loadFail:'목록을 불러올 수 없습니다. 소스가 일시적으로 사용할 수 없거나 브라우저가 요청을 차단할 수 있습니다.',chooseGroup:'채널 확인을 위해 특정 그룹/국가를 선택하세요.',allSources:'모든 소스 · 병합'},
+hi:{brandSub:'कई सार्वजनिक टीवी सूचियाँ',menu:'चैनल',welcome:'सूची, समूह और चैनल चुनें',drawer:'स्रोत और चैनल',sourceLabel:'स्रोत',groupLabel:'देश या समूह',allGroups:'सभी समूह',searchPlaceholder:'चैनल खोजें...',loading:'लोड हो रहा है…',noChannels:'कोई चैनल नहीं मिला।',channels:'चैनल',checked:'जाँचे गए',available:'उपलब्ध',done:'पूर्ण',shown:'दिखाए गए',streams:'उपलब्ध स्ट्रीम',noStream:'कोई उपलब्ध स्ट्रीम नहीं',try:'प्रयास',connecting:'कनेक्ट हो रहा है…',ready:'तैयार',pressPlay:'Play दबाएँ',playing:'चल रहा है',buffering:'बफरिंग…',streamUnavailable:'स्ट्रीम उपलब्ध नहीं',streamError:'स्ट्रीम त्रुटि',loadingCatalog:'कैटलॉग लोड हो रहा है…',loadingList:'सूची लोड हो रही है…',records:'रिकॉर्ड',unique:'अद्वितीय चैनल',merged:'मर्ज किया गया',sources:'स्रोत',unavailableSources:'अनुपलब्ध स्रोत',catalogError:'कैटलॉग त्रुटि',loadFail:'सूची लोड नहीं हो सकी। स्रोत अस्थायी रूप से अनुपलब्ध हो सकता है या ब्राउज़र अनुरोध को रोक सकता है।',chooseGroup:'चैनल जाँचने के लिए कोई विशिष्ट समूह/देश चुनें।',allSources:'सभी स्रोत · मर्ज'},
+id:{brandSub:'Beberapa daftar TV publik',menu:'Saluran',welcome:'Pilih daftar, grup, dan saluran',drawer:'Sumber dan saluran',sourceLabel:'Sumber',groupLabel:'Negara atau grup',allGroups:'Semua grup',searchPlaceholder:'Cari saluran...',loading:'Memuat…',noChannels:'Tidak ada saluran ditemukan.',channels:'saluran',checked:'Diperiksa',available:'tersedia',done:'Selesai',shown:'ditampilkan',streams:'stream tersedia',noStream:'Tidak ada stream tersedia',try:'Percobaan',connecting:'Menghubungkan…',ready:'Siap',pressPlay:'Tekan Play',playing:'Memutar',buffering:'Buffering…',streamUnavailable:'Stream tidak tersedia',streamError:'Kesalahan stream',loadingCatalog:'Memuat katalog…',loadingList:'Memuat daftar…',records:'catatan',unique:'saluran unik',merged:'Digabung',sources:'sumber',unavailableSources:'sumber tidak tersedia',catalogError:'Kesalahan katalog',loadFail:'Daftar tidak dapat dimuat. Sumber mungkin sementara tidak tersedia atau browser memblokir permintaan.',chooseGroup:'Pilih grup/negara tertentu untuk memeriksa saluran.',allSources:'Semua sumber · digabung'},
+vi:{brandSub:'Nhiều danh sách TV công khai',menu:'Kênh',welcome:'Chọn danh sách, nhóm và kênh',drawer:'Nguồn và kênh',sourceLabel:'Nguồn',groupLabel:'Quốc gia hoặc nhóm',allGroups:'Tất cả nhóm',searchPlaceholder:'Tìm kênh...',loading:'Đang tải…',noChannels:'Không tìm thấy kênh.',channels:'kênh',checked:'Đã kiểm tra',available:'khả dụng',done:'Hoàn tất',shown:'được hiển thị',streams:'luồng khả dụng',noStream:'Không có luồng khả dụng',try:'Thử',connecting:'Đang kết nối…',ready:'Sẵn sàng',pressPlay:'Nhấn Play',playing:'Đang phát',buffering:'Đang đệm…',streamUnavailable:'Luồng không khả dụng',streamError:'Lỗi luồng',loadingCatalog:'Đang tải danh mục…',loadingList:'Đang tải danh sách…',records:'mục',unique:'kênh duy nhất',merged:'Đã hợp nhất',sources:'nguồn',unavailableSources:'nguồn không khả dụng',catalogError:'Lỗi danh mục',loadFail:'Không thể tải danh sách. Nguồn có thể tạm thời không khả dụng hoặc trình duyệt đang chặn yêu cầu.',chooseGroup:'Chọn một nhóm/quốc gia cụ thể để kiểm tra kênh.',allSources:'Tất cả nguồn · hợp nhất'},
+th:{brandSub:'รายการทีวีสาธารณะหลายรายการ',menu:'ช่อง',welcome:'เลือกรายการ กลุ่ม และช่อง',drawer:'แหล่งที่มาและช่อง',sourceLabel:'แหล่งที่มา',groupLabel:'ประเทศหรือกลุ่ม',allGroups:'ทุกกลุ่ม',searchPlaceholder:'ค้นหาช่อง...',loading:'กำลังโหลด…',noChannels:'ไม่พบช่อง',channels:'ช่อง',checked:'ตรวจสอบแล้ว',available:'พร้อมใช้งาน',done:'เสร็จสิ้น',shown:'แสดง',streams:'สตรีมที่พร้อมใช้งาน',noStream:'ไม่มีสตรีมที่พร้อมใช้งาน',try:'ลอง',connecting:'กำลังเชื่อมต่อ…',ready:'พร้อม',pressPlay:'กด Play',playing:'กำลังเล่น',buffering:'กำลังบัฟเฟอร์…',streamUnavailable:'สตรีมไม่พร้อมใช้งาน',streamError:'ข้อผิดพลาดสตรีม',loadingCatalog:'กำลังโหลดแคตตาล็อก…',loadingList:'กำลังโหลดรายการ…',records:'รายการ',unique:'ช่องไม่ซ้ำ',merged:'รวมแล้ว',sources:'แหล่งที่มา',unavailableSources:'แหล่งที่มาไม่พร้อมใช้งาน',catalogError:'ข้อผิดพลาดแคตตาล็อก',loadFail:'ไม่สามารถโหลดรายการได้ แหล่งที่มาอาจไม่พร้อมใช้งานชั่วคราวหรือเบราว์เซอร์อาจบล็อกคำขอ',chooseGroup:'เลือกกลุ่ม/ประเทศเฉพาะเพื่อตรวจสอบช่อง',allSources:'ทุกแหล่งที่มา · รวมแล้ว'}
+ };
+const PLAYER_I18N={
+ bg:{play:'Пускане/Пауза',mute:'Звук',volume:'Сила на звука',timeline:'Времева линия',cc:'Субтитри',settings:'Настройки',fullscreen:'Цял екран',subtitles:'Субтитри',off:'Изключени'},
+ en:{play:'Play/Pause',mute:'Mute',volume:'Volume',timeline:'Timeline',cc:'Subtitles',settings:'Settings',fullscreen:'Fullscreen',subtitles:'Subtitles',off:'Off'},
+ de:{play:'Wiedergabe/Pause',mute:'Stumm',volume:'Lautstärke',timeline:'Zeitleiste',cc:'Untertitel',settings:'Einstellungen',fullscreen:'Vollbild',subtitles:'Untertitel',off:'Aus'},
+ fr:{play:'Lecture/Pause',mute:'Muet',volume:'Volume',timeline:'Chronologie',cc:'Sous-titres',settings:'Paramètres',fullscreen:'Plein écran',subtitles:'Sous-titres',off:'Désactivés'},
+ es:{play:'Reproducir/Pausa',mute:'Silenciar',volume:'Volumen',timeline:'Línea de tiempo',cc:'Subtítulos',settings:'Configuración',fullscreen:'Pantalla completa',subtitles:'Subtítulos',off:'Desactivados'},
+ it:{play:'Riproduci/Pausa',mute:'Muto',volume:'Volume',timeline:'Timeline',cc:'Sottotitoli',settings:'Impostazioni',fullscreen:'Schermo intero',subtitles:'Sottotitoli',off:'Disattivati'},
+ pt:{play:'Reproduzir/Pausa',mute:'Silenciar',volume:'Volume',timeline:'Linha do tempo',cc:'Legendas',settings:'Definições',fullscreen:'Ecrã inteiro',subtitles:'Legendas',off:'Desativadas'},
+ nl:{play:'Afspelen/Pauze',mute:'Dempen',volume:'Volume',timeline:'Tijdlijn',cc:'Ondertitels',settings:'Instellingen',fullscreen:'Volledig scherm',subtitles:'Ondertitels',off:'Uit'},
+ pl:{play:'Odtwórz/Pauza',mute:'Wycisz',volume:'Głośność',timeline:'Oś czasu',cc:'Napisy',settings:'Ustawienia',fullscreen:'Pełny ekran',subtitles:'Napisy',off:'Wyłączone'},
+ ro:{play:'Redare/Pauză',mute:'Fără sunet',volume:'Volum',timeline:'Cronologie',cc:'Subtitrări',settings:'Setări',fullscreen:'Ecran complet',subtitles:'Subtitrări',off:'Dezactivate'},
+ el:{play:'Αναπαραγωγή/Παύση',mute:'Σίγαση',volume:'Ένταση',timeline:'Χρονογραμμή',cc:'Υπότιτλοι',settings:'Ρυθμίσεις',fullscreen:'Πλήρης οθόνη',subtitles:'Υπότιτλοι',off:'Απενεργοποίηση'},
+ tr:{play:'Oynat/Duraklat',mute:'Sessiz',volume:'Ses düzeyi',timeline:'Zaman çizelgesi',cc:'Altyazılar',settings:'Ayarlar',fullscreen:'Tam ekran',subtitles:'Altyazılar',off:'Kapalı'},
+ ru:{play:'Воспроизведение/Пауза',mute:'Без звука',volume:'Громкость',timeline:'Шкала времени',cc:'Субтитры',settings:'Настройки',fullscreen:'Полный экран',subtitles:'Субтитры',off:'Выкл.'},
+ uk:{play:'Відтворення/Пауза',mute:'Без звуку',volume:'Гучність',timeline:'Шкала часу',cc:'Субтитри',settings:'Налаштування',fullscreen:'Повний екран',subtitles:'Субтитри',off:'Вимкнено'},
+ sr:{play:'Пусти/Пауза',mute:'Без звука',volume:'Јачина звука',timeline:'Временска линија',cc:'Титлови',settings:'Подешавања',fullscreen:'Цео екран',subtitles:'Титлови',off:'Искључено'},
+ hr:{play:'Reproduciraj/Pauza',mute:'Isključi zvuk',volume:'Glasnoća',timeline:'Vremenska crta',cc:'Titlovi',settings:'Postavke',fullscreen:'Cijeli zaslon',subtitles:'Titlovi',off:'Isključeno'},
+ cs:{play:'Přehrát/Pauza',mute:'Ztlumit',volume:'Hlasitost',timeline:'Časová osa',cc:'Titulky',settings:'Nastavení',fullscreen:'Celá obrazovka',subtitles:'Titulky',off:'Vypnuto'},
+ sk:{play:'Prehrať/Pauza',mute:'Stlmiť',volume:'Hlasitosť',timeline:'Časová os',cc:'Titulky',settings:'Nastavenia',fullscreen:'Celá obrazovka',subtitles:'Titulky',off:'Vypnuté'},
+ hu:{play:'Lejátszás/Szünet',mute:'Némítás',volume:'Hangerő',timeline:'Idővonal',cc:'Feliratok',settings:'Beállítások',fullscreen:'Teljes képernyő',subtitles:'Feliratok',off:'Ki'},
+ sv:{play:'Spela/Pausa',mute:'Tysta',volume:'Volym',timeline:'Tidslinje',cc:'Undertexter',settings:'Inställningar',fullscreen:'Helskärm',subtitles:'Undertexter',off:'Av'},
+ no:{play:'Spill/Pause',mute:'Demp',volume:'Volum',timeline:'Tidslinje',cc:'Undertekster',settings:'Innstillinger',fullscreen:'Fullskjerm',subtitles:'Undertekster',off:'Av'},
+ da:{play:'Afspil/Pause',mute:'Lydløs',volume:'Lydstyrke',timeline:'Tidslinje',cc:'Undertekster',settings:'Indstillinger',fullscreen:'Fuld skærm',subtitles:'Undertekster',off:'Fra'},
+ fi:{play:'Toista/Tauko',mute:'Mykistä',volume:'Äänenvoimakkuus',timeline:'Aikajana',cc:'Tekstitykset',settings:'Asetukset',fullscreen:'Koko näyttö',subtitles:'Tekstitykset',off:'Pois'},
+ ar:{play:'تشغيل/إيقاف مؤقت',mute:'كتم الصوت',volume:'مستوى الصوت',timeline:'الخط الزمني',cc:'الترجمة',settings:'الإعدادات',fullscreen:'ملء الشاشة',subtitles:'الترجمة',off:'إيقاف'},
+ he:{play:'הפעלה/השהיה',mute:'השתקה',volume:'עוצמת קול',timeline:'ציר זמן',cc:'כתוביות',settings:'הגדרות',fullscreen:'מסך מלא',subtitles:'כתוביות',off:'כבוי'},
+ 'zh-CN':{play:'播放/暂停',mute:'静音',volume:'音量',timeline:'时间轴',cc:'字幕',settings:'设置',fullscreen:'全屏',subtitles:'字幕',off:'关闭'},
+ 'zh-TW':{play:'播放/暫停',mute:'靜音',volume:'音量',timeline:'時間軸',cc:'字幕',settings:'設定',fullscreen:'全螢幕',subtitles:'字幕',off:'關閉'},
+ ja:{play:'再生/一時停止',mute:'ミュート',volume:'音量',timeline:'タイムライン',cc:'字幕',settings:'設定',fullscreen:'全画面',subtitles:'字幕',off:'オフ'},
+ ko:{play:'재생/일시정지',mute:'음소거',volume:'볼륨',timeline:'타임라인',cc:'자막',settings:'설정',fullscreen:'전체 화면',subtitles:'자막',off:'끄기'},
+ hi:{play:'चलाएँ/रोकें',mute:'म्यूट',volume:'आवाज़',timeline:'समयरेखा',cc:'उपशीर्षक',settings:'सेटिंग्स',fullscreen:'पूर्ण स्क्रीन',subtitles:'उपशीर्षक',off:'बंद'},
+ id:{play:'Putar/Jeda',mute:'Bisukan',volume:'Volume',timeline:'Linimasa',cc:'Subtitel',settings:'Setelan',fullscreen:'Layar penuh',subtitles:'Subtitel',off:'Nonaktif'},
+ vi:{play:'Phát/Tạm dừng',mute:'Tắt tiếng',volume:'Âm lượng',timeline:'Dòng thời gian',cc:'Phụ đề',settings:'Cài đặt',fullscreen:'Toàn màn hình',subtitles:'Phụ đề',off:'Tắt'},
+ th:{play:'เล่น/หยุดชั่วคราว',mute:'ปิดเสียง',volume:'ระดับเสียง',timeline:'ไทม์ไลน์',cc:'คำบรรยาย',settings:'การตั้งค่า',fullscreen:'เต็มหน้าจอ',subtitles:'คำบรรยาย',off:'ปิด'}
 };
-const langParam=new URLSearchParams(location.search).get('lang')||'en';const t=UI[langParam]||UI.en;document.documentElement.lang=langParam;document.documentElement.dir=['ar','he'].includes(langParam)?'rtl':'ltr';
-function applyI18n(){document.getElementById('menuText').textContent=t.channels;document.getElementById('drawerTitle').textContent=t.byCountry;document.getElementById('allCountriesOption').textContent=t.allCountries;search.placeholder=t.search;document.getElementById('centerHint').textContent=t.choose;document.getElementById('brandSub').textContent=t.live;const l=document.getElementById('initialLoading');if(l)l.textContent=t.loading}
+function detectLanguage(){let n=(localStorage.getItem('awiptv-language')||navigator.language||'en');if(/^zh-(tw|hk)/i.test(n))return 'zh-TW';if(/^zh/i.test(n))return 'zh-CN';const base=n.split('-')[0];return LANGS.some(([c])=>c===n)?n:(LANGS.some(([c])=>c===base)?base:'en')}
+let currentLang=detectLanguage();
+function tr(k){return (I18N[currentLang]&&I18N[currentLang][k])||I18N.en[k]||k}
+function ptr(k){return (PLAYER_I18N[currentLang]&&PLAYER_I18N[currentLang][k])||PLAYER_I18N.en[k]||k}
+function localeCode(){return currentLang==='zh-CN'?'zh-CN':currentLang==='zh-TW'?'zh-TW':currentLang}
+function applyLanguage(){document.documentElement.lang=currentLang;document.documentElement.dir=['ar','he'].includes(currentLang)?'rtl':'ltr';$('brandSub').textContent=tr('brandSub');$('menuText').textContent=tr('menu');$('welcomeText').textContent=tr('welcome');$('drawerTitle').textContent=tr('drawer');searchEl.placeholder=tr('searchPlaceholder');sourceEl.setAttribute('aria-label',tr('sourceLabel'));groupEl.setAttribute('aria-label',tr('groupLabel'));playBtn.title=playBtn.ariaLabel=ptr('play');muteBtn.title=muteBtn.ariaLabel=ptr('mute');volumeEl.ariaLabel=ptr('volume');timeline.ariaLabel=ptr('timeline');ccBtn.title=ccBtn.ariaLabel=ptr('cc');settingsBtn.title=settingsBtn.ariaLabel=ptr('settings');fullscreenBtn.title=fullscreenBtn.ariaLabel=ptr('fullscreen');rebuildSourceOptions();rebuildGroups();if(countEl)countEl.textContent=`${filtered.length.toLocaleString(localeCode())} ${tr('channels')}`;if(groupEl&&!groupEl.value&&metaEl)metaEl.textContent=tr('chooseGroup');rebuildSubtitleUI();if(!currentChannel)setStatus(tr('ready'),'ok')}
+const SOURCES = [
+  {id:'all', nameKey:'allSources', name:'Всички източници · обединени', note:'Обединява всички каталози по-долу и премахва дубликатите'},
+  {id:'iptv-org', name:'IPTV-org · глобален каталог', url:'https://iptv-org.github.io/iptv/index.country.m3u', note:'Публичният глобален каталог на IPTV-org'},
+  {id:'free-tv', name:'Free-TV/IPTV · free only', url:'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlist.m3u8', note:'Куриран списък само с безплатни канали'},
+  {id:'freecasthub', name:'FreeCastHub · official/public', url:'https://raw.githubusercontent.com/freecasthub/public-iptv/main/playlist.m3u', note:'Куриран списък с официално публични безплатни потоци'},
+  {id:'dearbulut', name:'DearBulut IPTV · working only', url:'https://dearbulut.github.io/iptv/playlists/online.m3u', note:'Автоматично проверяван каталог само с потоци, минали последния health check'},
+  {id:'shovo', name:'IPTV By Shovo · auto-updated', url:'https://shovo127.github.io/IPTV-By-Shovo/index.m3u', note:'Автоматично обновяван публичен M3U каталог; използва и публични upstream данни'}
+];
+const $=id=>document.getElementById(id); const video=$('video'),drawer=$('drawer'),scrim=$('scrim'),sourceEl=$('source'),groupEl=$('group'),searchEl=$('search'),listEl=$('list'),countEl=$('count'),metaEl=$('meta'),statusEl=$('status'),welcome=$('welcome'),now=$('now'),nowName=$('nowName'),nowMeta=$('nowMeta'),languageEl=$('language');
+const player=$('player'),playerControls=$('playerControls'),playBtn=$('playBtn'),muteBtn=$('muteBtn'),volumeEl=$('volume'),timeline=$('timeline'),liveLabel=$('liveLabel'),ccBtn=$('ccBtn'),settingsBtn=$('settingsBtn'),settingsMenu=$('settingsMenu'),subtitleMenu=$('subtitleMenu'),fullscreenBtn=$('fullscreenBtn');
+let subtitleTracks=[],selectedSubtitle=-1,controlsTimer=0,timelineDragging=false;
+const subtitleTrackBindings=new WeakSet();
+let subtitleLayoutRaf=0;
+function applyDynamicSubtitleLayout(){
+  subtitleLayoutRaf=0;
+  const playerRect=player.getBoundingClientRect();
+  if(!playerRect.height)return;
+  const controlsVisible=!playerControls.classList.contains('hidden');
+  const controlsHeight=controlsVisible?playerControls.getBoundingClientRect().height:0;
+  // Keep cues near the bottom, but always above the visible control bar.
+  const baseGap=Math.max(10,Math.min(24,playerRect.height*.025));
+  const safeBottom=controlsHeight+baseGap;
+  const linePercent=Math.max(55,Math.min(94,100-(safeBottom/playerRect.height*100)));
+  try{
+    for(let i=0;i<video.textTracks.length;i++){
+      const track=video.textTracks[i];
+      if(track.kind!=='subtitles'&&track.kind!=='captions')continue;
+      const cues=track.cues;
+      if(!cues)continue;
+      for(let j=0;j<cues.length;j++){
+        const cue=cues[j];
+        if(!cue||typeof cue.line==='undefined')continue;
+        try{cue.snapToLines=false;cue.line=linePercent;cue.lineAlign='end'}catch{}
+      }
+    }
+  }catch{}
+}
+function scheduleSubtitleLayout(){
+  if(subtitleLayoutRaf)cancelAnimationFrame(subtitleLayoutRaf);
+  subtitleLayoutRaf=requestAnimationFrame(applyDynamicSubtitleLayout);
+}
+function bindSubtitleTrack(track){
+  if(!track||subtitleTrackBindings.has(track))return;
+  subtitleTrackBindings.add(track);
+  try{track.addEventListener('cuechange',scheduleSubtitleLayout)}catch{}
+}
+function bindAllSubtitleTracks(){
+  try{for(let i=0;i<video.textTracks.length;i++)bindSubtitleTrack(video.textTracks[i])}catch{}
+  scheduleSubtitleLayout();
+}
+function setControlsVisible(show=true){playerControls.classList.toggle('hidden',!show);scheduleSubtitleLayout();clearTimeout(controlsTimer);if(show&&!video.paused)controlsTimer=setTimeout(()=>{playerControls.classList.add('hidden');scheduleSubtitleLayout()},2600)}
+function resetSubtitleUI(){subtitleTracks=[];selectedSubtitle=-1;ccBtn.disabled=true;ccBtn.classList.remove('cc-active');subtitleMenu.replaceChildren()}
+function syncTextTrackModes(){try{for(let i=0;i<video.textTracks.length;i++)video.textTracks[i].mode=(i===selectedSubtitle?'showing':'disabled')}catch{}}
+function rebuildSubtitleUI(){bindAllSubtitleTracks();const list=[];if(hls&&Array.isArray(hls.subtitleTracks))hls.subtitleTracks.forEach((t,i)=>list.push({index:i,name:t.name||t.lang||`Track ${i+1}`,kind:'hls'}));if(!list.length&&video.textTracks?.length){for(let i=0;i<video.textTracks.length;i++){const t=video.textTracks[i];if(t.kind==='subtitles'||t.kind==='captions')list.push({index:i,name:t.label||t.language||`Track ${i+1}`,kind:'native'})}}subtitleTracks=list;ccBtn.disabled=!list.length;subtitleMenu.replaceChildren();const off=document.createElement('button');off.className='settings-item'+(selectedSubtitle<0?' active':'');off.type='button';off.textContent=ptr('off');off.onclick=()=>setSubtitle(-1);subtitleMenu.appendChild(off);list.forEach((t,i)=>{const b=document.createElement('button');b.className='settings-item'+(selectedSubtitle===i?' active':'');b.type='button';b.textContent=t.name;b.onclick=()=>setSubtitle(i);subtitleMenu.appendChild(b)});const st=settingsMenu.querySelector('.settings-title');st.textContent=ptr('subtitles');st.style.display=list.length?'block':'none'}
+function setSubtitle(index){selectedSubtitle=index;if(hls){hls.subtitleDisplay=index>=0;if(subtitleTracks[index]?.kind==='hls')hls.subtitleTrack=subtitleTracks[index].index;else if(index<0)hls.subtitleTrack=-1}syncTextTrackModes();ccBtn.classList.toggle('cc-active',index>=0);rebuildSubtitleUI();settingsMenu.classList.remove('open')}
+function updatePlayerControls(){playBtn.textContent=video.paused?'▶':'❚❚';muteBtn.textContent=(video.muted||video.volume===0)?'🔇':'🔊';if(timelineDragging)return;try{if(video.seekable&&video.seekable.length){const i=video.seekable.length-1,start=video.seekable.start(i),end=video.seekable.end(i),span=end-start;timeline.disabled=!(span>0);timeline.value=span>0?Math.max(0,Math.min(1000,((video.currentTime-start)/span)*1000)):1000;liveLabel.classList.toggle('off',end-video.currentTime>=3)}else if(Number.isFinite(video.duration)&&video.duration>0){timeline.disabled=false;timeline.value=Math.max(0,Math.min(1000,(video.currentTime/video.duration)*1000));liveLabel.classList.add('off')}else{timeline.disabled=true;timeline.value=1000;liveLabel.classList.add('off')}}catch{timeline.disabled=true}}
+playBtn.addEventListener('click',()=>video.paused?video.play().catch(()=>{}):video.pause());muteBtn.addEventListener('click',()=>{video.muted=!video.muted;updatePlayerControls()});volumeEl.addEventListener('input',()=>{video.volume=Number(volumeEl.value);video.muted=video.volume===0;updatePlayerControls()});timeline.addEventListener('pointerdown',()=>timelineDragging=true);timeline.addEventListener('input',()=>{try{const v=Number(timeline.value)/1000;if(video.seekable?.length){const i=video.seekable.length-1,start=video.seekable.start(i),end=video.seekable.end(i);video.currentTime=start+(end-start)*v}else if(Number.isFinite(video.duration))video.currentTime=video.duration*v}catch{}});timeline.addEventListener('change',()=>{timelineDragging=false;updatePlayerControls()});ccBtn.addEventListener('click',()=>{if(ccBtn.disabled)return;setSubtitle(selectedSubtitle>=0?-1:0)});settingsBtn.addEventListener('click',e=>{e.stopPropagation();settingsMenu.classList.toggle('open')});document.addEventListener('click',e=>{if(!settingsMenu.contains(e.target)&&e.target!==settingsBtn)settingsMenu.classList.remove('open')});fullscreenBtn.addEventListener('click',async()=>{try{if(!document.fullscreenElement)await player.requestFullscreen();else await document.exitFullscreen()}catch{}});player.addEventListener('mousemove',()=>setControlsVisible(true));player.addEventListener('touchstart',()=>setControlsVisible(true),{passive:true});player.addEventListener('mouseleave',()=>{if(!video.paused)setControlsVisible(false)});video.addEventListener('click',()=>video.paused?video.play().catch(()=>{}):video.pause());['play','pause','volumechange','timeupdate','progress','durationchange','loadedmetadata'].forEach(ev=>video.addEventListener(ev,updatePlayerControls));video.addEventListener('play',()=>setControlsVisible(true));video.addEventListener('pause',()=>setControlsVisible(true));
+try{video.textTracks.addEventListener('addtrack',e=>{bindSubtitleTrack(e.track);scheduleSubtitleLayout()});video.textTracks.addEventListener('removetrack',scheduleSubtitleLayout)}catch{}
+window.addEventListener('resize',scheduleSubtitleLayout,{passive:true});
+if('ResizeObserver' in window){new ResizeObserver(scheduleSubtitleLayout).observe(player)}
 
-function setDrawer(open){drawer.classList.toggle('closed',!open);scrim.classList.toggle('hidden',!open)}
-menu.onclick=()=>setDrawer(drawer.classList.contains('closed'));scrim.onclick=()=>setDrawer(false);
-function attrs(line){const out={};const re=/([\w-]+)="([^"]*)"/g;let m;while((m=re.exec(line))!==null)out[m[1]]=m[2];return out}
-function parseM3U(text){const lines=text.split(/\r?\n/);const result=[];let meta=null;for(const raw of lines){const line=raw.trim();if(!line)continue;if(line.startsWith('#EXTINF:')){const a=attrs(line),comma=line.indexOf(',');meta={name:comma>=0?line.slice(comma+1).trim():(a['tvg-name']||'Без име'),logo:a['tvg-logo']||'',id:a['tvg-id']||'',country:a['group-title']||'Неизвестна държава'}}else if(!line.startsWith('#')&&meta){result.push({...meta,url:line});meta=null}}return result}
+let channels=[],filtered=[],hls=null,activeBtn=null,loadToken=0,currentChannel=null,currentStream=null,playbackCapabilities={dvrSeconds:0,catchupDays:null,hasCatchup:false},showOnlyPlayable=false;
+const health=new Map(), visibleDots=new Map();
+let checkRunId=0;
+function rebuildSourceOptions(){const v=sourceEl.value||'all';sourceEl.innerHTML=SOURCES.map(s=>`<option value="${s.id}">${s.nameKey?tr(s.nameKey):s.name}</option>`).join('');sourceEl.value=SOURCES.some(s=>s.id===v)?v:'all'}
+languageEl.innerHTML=LANGS.map(([c,n])=>`<option value="${c}">${n}</option>`).join('');
+function setLanguage(next){
+  if(!LANGS.some(([code])=>code===next)) next='en';
+  currentLang=next;
+  try{localStorage.setItem('awiptv-language',currentLang)}catch{}
+  languageEl.value=currentLang;
+  applyLanguage();
+}
+window.setLanguage=setLanguage;
+languageEl.value=currentLang;
+languageEl.onchange=function(){setLanguage(this.value)};
+languageEl.addEventListener('click',e=>e.stopPropagation());
+rebuildSourceOptions();
+function setDrawer(open){drawer.classList.toggle('closed',!open);scrim.classList.toggle('hidden',!open)} $('menuBtn').onclick=()=>setDrawer(drawer.classList.contains('closed')); scrim.onclick=()=>setDrawer(false);
+function setStatus(t,c=''){statusEl.textContent=t;statusEl.className='status'+(c?' '+c:'')}
 function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
-function buildCountries(){const arr=[...new Set(channels.map(c=>c.country).filter(Boolean))].sort((a,b)=>a.localeCompare(b));country.innerHTML='<option value="">'+esc(t.allCountries)+'</option>'+arr.map(c=>'<option value="'+esc(c)+'">'+esc(c)+'</option>').join('')}
-function apply(){const q=search.value.trim().toLowerCase(),ct=country.value;filtered=channels.filter(ch=>(!ct||ch.country===ct)&&(!q||(`${ch.name} ${ch.country} ${ch.id}`).toLowerCase().includes(q)));count.textContent=filtered.length.toLocaleString(langParam)+' '+t.channels.toLowerCase();render()}
-function render(){if(!filtered.length){list.innerHTML='<div class="loading">'+esc(t.noResults)+'</div>';return}const frag=document.createDocumentFragment();for(const ch of filtered){const b=document.createElement('button');b.className='channel';const st=channelHealth.get(ch.url)||'idle';b.innerHTML='<span class="dot '+(st==='checking'?'checking':st==='ok'?'ok':st==='bad'?'bad':'')+'"></span>'+(ch.logo?'<img class="logo" src="'+esc(ch.logo)+'" alt="" loading="lazy">':'<div class="fallback">TV</div>')+'<div><div class="name">'+esc(ch.name)+'</div><div class="country">'+esc(ch.country)+'</div></div>';b.onclick=()=>{if(active)active.classList.remove('active');active=b;b.classList.add('active');play(ch);setTimeout(()=>setDrawer(false),250)};frag.appendChild(b)}list.replaceChildren(frag)}
-function setStatus(t,type=''){status.textContent=t;status.className='status'+(type?' '+type:'')}
-function destroy(){if(hls){hls.destroy();hls=null}}
-function play(ch){destroy();video.pause();video.removeAttribute('src');video.load();center.classList.add('hidden');now.classList.remove('hidden');nowTitle.textContent=ch.name;nowCountry.textContent=ch.country;setStatus(t.connecting);const isHls=/\.m3u8($|\?)/i.test(ch.url);if(isHls&&window.Hls&&Hls.isSupported()){hls=new Hls({enableWorker:true,lowLatencyMode:true,backBufferLength:30});hls.loadSource(ch.url);hls.attachMedia(video);hls.on(Hls.Events.MANIFEST_PARSED,()=>{setStatus(t.ready,'ok');video.play().catch(()=>setStatus(t.pressPlay,'ok'))});hls.on(Hls.Events.ERROR,(_,d)=>{if(d.fatal)setStatus(t.streamBad,'bad')})}else{video.src=ch.url;video.play().then(()=>setStatus(t.playing,'ok')).catch(()=>setStatus(t.pressPlay+' / '+t.streamBad,'bad'))}}
-function updateDots(){const buttons=list.querySelectorAll('.channel');buttons.forEach((btn,i)=>{const ch=filtered[i];if(!ch)return;const dot=btn.querySelector('.dot');if(!dot)return;const st=channelHealth.get(ch.url)||'idle';dot.className='dot '+(st==='checking'?'checking':st==='ok'?'ok':st==='bad'?'bad':'')})}
-async function probeChannel(ch,runId,timeoutMs=7000){if(runId!==checkRunId)return null;channelHealth.set(ch.url,'checking');updateDots();const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),timeoutMs);try{const r=await fetch(ch.url,{method:'GET',mode:'cors',cache:'no-store',signal:ctrl.signal,headers:{'Range':'bytes=0-2048'}});clearTimeout(timer);if(runId!==checkRunId)return null;const ok=r.ok||r.status===206;channelHealth.set(ch.url,ok?'ok':'bad');updateDots();return ok}catch(e){clearTimeout(timer);if(runId!==checkRunId)return null;channelHealth.set(ch.url,'bad');updateDots();return false}}
-async function startCountryCheck(ct){const runId=++checkRunId;const items=channels.filter(c=>c.country===ct);let cursor=0;const concurrency=6;async function worker(){while(cursor<items.length&&runId===checkRunId){const idx=cursor++;await probeChannel(items[idx],runId)}}await Promise.all(Array.from({length:Math.min(concurrency,items.length)},()=>worker()))}
-video.onplaying=()=>setStatus(t.playing,'ok');video.onwaiting=()=>setStatus(t.buffering);video.onerror=()=>setStatus(t.error,'bad');country.onchange=()=>{checkRunId++;apply();if(country.value)startCountryCheck(country.value)};search.oninput=apply;
-applyI18n();
-(async()=>{try{setStatus(t.catalogLoading);const r=await fetch(PLAYLIST,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);channels=parseM3U(await r.text());buildCountries();apply();setStatus('Готов','ok')}catch(e){console.error(e);count.textContent=t.error;list.innerHTML='<div class="loading">'+esc(t.catalogFail)+'</div>';setStatus(t.catalogFail,'bad')}})();
+function attrs(line){const o={};const re=/([\w-]+)="([^"]*)"/g;let m;while((m=re.exec(line)))o[m[1]]=m[2];return o}
+function parseM3U(text,sourceId=''){
+  const out=[];let m=null;
+  for(const raw of text.split(/\r?\n/)){
+    const line=raw.trim();if(!line)continue;
+    if(line.startsWith('#EXTINF:')){
+      const a=attrs(line),i=line.indexOf(',');
+      const legacyTimeshift=a['timeshift']||'';
+      const daysRaw=a['catchup-days']||legacyTimeshift||'';
+      const daysNum=Number.parseFloat(daysRaw);
+      m={
+        name:i>=0?line.slice(i+1).trim():(a['tvg-name']||'Без име'),
+        logo:a['tvg-logo']||'',id:a['tvg-id']||'',group:a['group-title']||'Други',
+        catchupMode:a['catchup']||'',catchupSource:a['catchup-source']||'',
+        catchupDays:Number.isFinite(daysNum)&&daysNum>0?daysNum:null
+      };
+    }else if(!line.startsWith('#')&&m){
+      const stream={url:line,sourceId,catchupMode:m.catchupMode,catchupSource:m.catchupSource,catchupDays:m.catchupDays};
+      out.push({...m,url:line,sourceId,streams:[stream]});m=null;
+    }
+  }
+  return out;
+}
+function rebuildGroups(){const v=groupEl.value;const groups=[...new Set(channels.map(c=>c.group).filter(Boolean))].sort((a,b)=>a.localeCompare(b,localeCode()));groupEl.innerHTML=`<option value="">${esc(tr('allGroups'))}</option>`+groups.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join('');if(groups.includes(v))groupEl.value=v}
+function applyFilters(){const g=groupEl.value,q=searchEl.value.trim().toLowerCase();filtered=channels.filter(c=>(!g||c.group===g)&&(!q||`${c.name} ${c.group} ${c.id}`.toLowerCase().includes(q))&&(!showOnlyPlayable||health.get(c.url)==='ok'));countEl.textContent=`${filtered.length.toLocaleString(localeCode())} ${tr('channels')}`;render()}
+function stateClass(url){const s=health.get(url);return s==='checking'?' checking':s==='ok'?' ok':s==='bad'?' bad':''}
+function setHealth(url,state){
+  health.set(url,state);
+  const dot=visibleDots.get(url);
+  if(dot)dot.className='dot'+stateClass(url);
+}
+function render(){
+  visibleDots.clear();
+  if(!filtered.length){listEl.innerHTML=`<div class="empty">${esc(tr('noChannels'))}</div>`;return}
+  const f=document.createDocumentFragment();
+  filtered.forEach(ch=>{
+    const b=document.createElement('button');
+    b.className='channel';
+    const media=ch.logo?`<img class="logo" src="${esc(ch.logo)}" alt="" loading="lazy" decoding="async">`:'<div class="fallback">TV</div>';
+    b.innerHTML=`<span class="dot${stateClass(ch.url)}"></span>${media}<div><div class="name">${esc(ch.name)}</div><div class="sub">${esc(ch.group)}</div></div>`;
+    visibleDots.set(ch.url,b.querySelector('.dot'));
+    const img=b.querySelector('img');
+    if(img)img.onerror=()=>{const d=document.createElement('div');d.className='fallback';d.textContent='TV';img.replaceWith(d)};
+    b.onclick=()=>{if(activeBtn)activeBtn.classList.remove('active');activeBtn=b;b.classList.add('active');play(ch);setTimeout(()=>setDrawer(false),350)};
+    f.appendChild(b);
+  });
+  listEl.replaceChildren(f);
+}
+function destroyHls(){if(hls){hls.destroy();hls=null}}
+async function probeUrl(url,runId,timeoutMs=7000){
+  if(runId!==checkRunId)return null;
+  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),timeoutMs);
+  try{
+    const r=await fetch(url,{method:'GET',mode:'cors',cache:'no-store',signal:ctrl.signal,headers:{'Range':'bytes=0-2048'}});
+    clearTimeout(timer); if(runId!==checkRunId)return null;
+    return r.ok||r.status===206;
+  }catch(e){clearTimeout(timer);if(runId!==checkRunId)return null;return false}
+}
+async function probeChannel(ch,runId){
+  if(runId!==checkRunId)return null;
+  setHealth(ch.url,'checking');
+  const candidates=(ch.streams&&ch.streams.length?ch.streams:[{url:ch.url}]);
+  for(const st of candidates){
+    const ok=await probeUrl(st.url,runId);
+    if(ok===null)return null;
+    if(ok){setHealth(ch.url,'ok');return true}
+  }
+  setHealth(ch.url,'bad');return false;
+}
+async function startGroupCheck(group){
+  const runId=++checkRunId;
+  const items=channels.filter(c=>c.group===group);
+  let done=0,ok=0,cursor=0;
+  metaEl.textContent=`${tr('checked')} 0/${items.length} · 0 ${tr('available')}`;
+  const concurrency=6;
+  async function worker(){
+    while(cursor<items.length&&runId===checkRunId){
+      const ch=items[cursor++],result=await probeChannel(ch,runId);
+      if(result===null)return; done++; if(result)ok++;
+      metaEl.textContent=`${tr('checked')} ${done}/${items.length} · ${ok} ${tr('available')}`;
+    }
+  }
+  await Promise.all(Array.from({length:Math.min(concurrency,items.length)},()=>worker()));
+  if(runId===checkRunId){
+    showOnlyPlayable=true;
+    applyFilters();
+    metaEl.textContent=`${tr('done')} · ${tr('shown')} ${ok}/${items.length} ${tr('available')}`;
+  }
+}
+function sourceLabel(id){const s=SOURCES.find(x=>x.id===id);return s?(s.nameKey?tr(s.nameKey):s.name):id}
+
+function resetPlaybackCapabilities(){playbackCapabilities={dvrSeconds:0,catchupDays:null,hasCatchup:false};resetSubtitleUI()}
+// Internal detection only; the standard video controls remain the only DVR timeline.
+function updatePlaybackCapabilities(){
+  let dvrSeconds=0;
+  try{
+    if(video.seekable?.length){
+      const i=video.seekable.length-1,start=video.seekable.start(i),end=video.seekable.end(i);
+      if(Number.isFinite(start)&&Number.isFinite(end)&&end>start)dvrSeconds=end-start;
+    }
+  }catch{}
+  const st=currentStream||{},ch=currentChannel||{};
+  const days=Number.isFinite(st.catchupDays)?st.catchupDays:(Number.isFinite(ch.catchupDays)?ch.catchupDays:null);
+  const source=st.catchupSource||ch.catchupSource||'';
+  playbackCapabilities={dvrSeconds,catchupDays:Number.isFinite(days)&&days>0?days:null,hasCatchup:!!(source&&(days==null||days>0))};
+}
+
+function play(ch){
+  resetPlaybackCapabilities();currentChannel=ch;currentStream=null;
+  destroyHls(); video.pause(); video.removeAttribute('src'); video.load();
+  welcome.classList.add('hidden'); now.classList.remove('hidden'); nowName.textContent=ch.name;
+  const candidates=(ch.streams&&ch.streams.length?ch.streams:[{url:ch.url,sourceId:ch.sourceId,catchupMode:ch.catchupMode,catchupSource:ch.catchupSource,catchupDays:ch.catchupDays}]);
+  nowMeta.textContent=`${ch.group} · ${candidates.length>1?candidates.length+' '+tr('streams'):sourceLabel(candidates[0]?.sourceId||sourceEl.value)}`;
+  let idx=0;
+  const tryNext=()=>{
+    if(idx>=candidates.length){setStatus(tr('noStream'),'bad');return;}
+    const cand=candidates[idx++], url=cand.url;currentStream={...cand};destroyHls(); video.pause(); video.removeAttribute('src'); video.load();
+    setStatus(candidates.length>1?`${tr('try')} ${idx}/${candidates.length}…`:tr('connecting')); setHealth(ch.url,'checking');
+    const isHls=/\.m3u8($|\?)/i.test(url);
+    if(isHls&&window.Hls&&Hls.isSupported()){
+      hls=new Hls({enableWorker:true,lowLatencyMode:true}); hls.loadSource(url); hls.attachMedia(video);
+      let failed=false;
+      hls.on(Hls.Events.MANIFEST_PARSED,()=>{if(failed)return;setHealth(ch.url,'ok');setStatus(tr('ready'),'ok');rebuildSubtitleUI();video.play().catch(()=>setStatus(tr('pressPlay'),'ok'));setTimeout(updatePlaybackCapabilities,250)});
+      hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED,()=>rebuildSubtitleUI());
+      hls.on(Hls.Events.SUBTITLE_TRACK_SWITCH,(_,d)=>{selectedSubtitle=d.id;rebuildSubtitleUI()});
+      hls.on(Hls.Events.LEVEL_UPDATED,()=>updatePlaybackCapabilities());
+      hls.on(Hls.Events.ERROR,(_,d)=>{if(d.fatal&&!failed){failed=true;if(idx<candidates.length)tryNext();else{setHealth(ch.url,'bad');setStatus(tr('streamUnavailable'),'bad')}}});
+    } else {
+      video.src=url; video.play().then(()=>{setHealth(ch.url,'ok');setStatus(tr('playing'),'ok');setTimeout(updatePlaybackCapabilities,250)}).catch(()=>{if(idx<candidates.length)tryNext();else{setHealth(ch.url,'bad');setStatus(tr('streamUnavailable'),'bad')}});
+    }
+  };
+  tryNext();
+}
+video.addEventListener('playing',()=>{setStatus(tr('playing'),'ok');updatePlaybackCapabilities()});video.textTracks?.addEventListener?.('addtrack',()=>setTimeout(rebuildSubtitleUI,0));video.textTracks?.addEventListener?.('removetrack',()=>setTimeout(rebuildSubtitleUI,0));video.addEventListener('waiting',()=>setStatus(tr('buffering')));video.addEventListener('error',()=>setStatus(tr('streamError'),'bad'));video.addEventListener('progress',updatePlaybackCapabilities);video.addEventListener('durationchange',updatePlaybackCapabilities);video.addEventListener('loadedmetadata',updatePlaybackCapabilities);
+function norm(s=''){return String(s).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
+function mergeChannels(items){
+  const map=new Map();
+  for(const ch of items){
+    const key=ch.id?`id:${norm(ch.id)}`:`name:${norm(ch.name)}|${norm(ch.group)}`;
+    const existing=map.get(key);
+    if(!existing){map.set(key,{...ch,streams:[...(ch.streams||[{url:ch.url,sourceId:ch.sourceId}])]});continue;}
+    const seen=new Set(existing.streams.map(x=>x.url));
+    for(const st of (ch.streams||[{url:ch.url,sourceId:ch.sourceId}])) if(!seen.has(st.url)){existing.streams.push(st);seen.add(st.url)}
+    if(!existing.logo&&ch.logo)existing.logo=ch.logo;
+  }
+  return [...map.values()];
+}
+async function fetchCatalog(src){
+  const r=await fetch(src.url,{cache:'no-store'}); if(!r.ok)throw new Error(`${src.id}: HTTP ${r.status}`);
+  return parseM3U(await r.text(),src.id);
+}
+async function loadSource(){
+  const token=++loadToken,selected=sourceEl.value,src=SOURCES.find(s=>s.id===selected)||SOURCES[0];checkRunId++;
+  showOnlyPlayable=false;
+  channels=[];filtered=[];health.clear();groupEl.innerHTML=`<option value="">${esc(tr('allGroups'))}</option>`;
+  listEl.innerHTML=`<div class="empty">${esc(tr('loadingList'))}</div>`;countEl.textContent=tr('loading');metaEl.textContent=src.note;setStatus(tr('loadingCatalog'));
+  try{
+    if(selected==='all'){
+      const real=SOURCES.filter(s=>s.url); const results=await Promise.allSettled(real.map(fetchCatalog)); if(token!==loadToken)return;
+      const ok=results.filter(r=>r.status==='fulfilled').flatMap(r=>r.value); const failed=results.filter(r=>r.status==='rejected').length;
+      channels=mergeChannels(ok); rebuildGroups(); applyFilters();
+      metaEl.textContent=`${tr('merged')} ${results.length-failed}/${results.length} ${tr('sources')} · ${channels.length.toLocaleString(localeCode())} ${tr('unique')}${failed?` · ${failed} ${tr('unavailableSources')}`:''}`;
+    }else{
+      channels=await fetchCatalog(src); if(token!==loadToken)return; rebuildGroups(); applyFilters();
+      metaEl.textContent=`${src.note} · ${channels.length.toLocaleString(localeCode())} ${tr('records')}`;
+    }
+    setStatus(tr('ready'),'ok');
+  }catch(e){console.error(e);if(token!==loadToken)return;countEl.textContent=tr('catalogError');listEl.innerHTML=`<div class="empty">${esc(tr('loadFail'))}</div>`;setStatus(tr('catalogError'),'bad')}
+}
+applyLanguage();sourceEl.addEventListener('change',loadSource);groupEl.addEventListener('change',()=>{checkRunId++;showOnlyPlayable=false;applyFilters();const g=groupEl.value;if(g)startGroupCheck(g);else metaEl.textContent=tr('chooseGroup')});searchEl.addEventListener('input',applyFilters);loadSource();
 </script>
-</body></html>
+</body>
+</html>
