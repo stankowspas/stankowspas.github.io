@@ -4,27 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>All World IPTV</title>
+<!-- build: 2026-08-30-language-mobile-fix-1 -->
 <meta name="theme-color" content="#07111f">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<script>
-window.__AW_APP_VERSION__='2026.08.30.0024.1';
-window.__AW_FRESHNESS_PROMISE__=(async()=>{
-  try{
-    const freshUrl='https://raw.githubusercontent.com/stankowspas/stankowspas.github.io/main/projects/all-world-tv/app/index.html?cb='+Date.now();
-    const response=await fetch(freshUrl,{cache:'no-store'});
-    if(!response.ok)return;
-    const freshHtml=await response.text();
-    const match=freshHtml.match(/window\.__AW_APP_VERSION__='([^']+)'/);
-    if(match&&match[1]&&match[1]!==window.__AW_APP_VERSION__){
-      document.open();
-      document.write(freshHtml);
-      document.close();
-    }
-  }catch(e){}
-})();
-</script>
+
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 <style>
 :root{--bg:#07111f;--bg2:#0b1830;--panel:rgba(17,29,52,.56);--panel2:rgba(22,38,68,.72);--line:rgba(148,180,225,.18);--text:#f5f8ff;--muted:#aebbd2;--accent:#79b2ff;--accent2:#8fe4ff;--warn:#f1c75b;--danger:#ff6b6b;--shadow:0 24px 70px rgba(0,0,0,.28)}
@@ -258,29 +243,32 @@ let currentLang='en';
 function tr(k){return (I18N[currentLang]&&I18N[currentLang][k])||I18N.en[k]||k}
 function localeCode(){return currentLang==='zh-CN'?'zh-CN':currentLang==='zh-TW'?'zh-TW':currentLang}
 function applyLanguage(){
+  const t=I18N[currentLang]||I18N.en;
   document.documentElement.lang=currentLang;
-  document.documentElement.dir=['ar','he'].includes(currentLang)?'rtl':'ltr';
+  document.documentElement.dir=(currentLang==='ar'||currentLang==='he')?'rtl':'ltr';
+
   const developerLink=$('developerLink');
-  if(developerLink)developerLink.textContent=tr('developerWebsite');
-  $('menuText').textContent=tr('menu');
-  $('welcomeText').textContent=tr('welcome');
-  $('drawerTitle').textContent=tr('drawer');
-  searchEl.placeholder=tr('searchPlaceholder');
-  sourceEl.setAttribute('aria-label',tr('sourceLabel'));
-  groupEl.setAttribute('aria-label',tr('groupLabel'));
-  playBtn.title=playBtn.ariaLabel=tr('play');
-  muteBtn.title=muteBtn.ariaLabel=tr('mute');
-  volumeEl.ariaLabel=tr('volume');
-  timeline.ariaLabel=tr('timeline');
-  ccBtn.title=ccBtn.ariaLabel=tr('cc');
-  settingsBtn.title=settingsBtn.ariaLabel=tr('settings');
-  fullscreenBtn.title=fullscreenBtn.ariaLabel=tr('fullscreen');
-  const allSourceOption=sourceEl.querySelector('option[value="all"]');
-  if(allSourceOption)allSourceOption.textContent=tr('allSources');
-  const allGroupOption=groupEl.querySelector('option[value=""]');
-  if(allGroupOption)allGroupOption.textContent=tr('allGroups');
-  if(countEl&&filtered)countEl.textContent=`${filtered.length.toLocaleString(localeCode())} ${tr('channels')}`;
-  rebuildSubtitleUI();
+  if(developerLink)developerLink.textContent=t.developerWebsite||I18N.en.developerWebsite;
+
+  $('menuText').textContent=t.menu;
+  $('welcomeText').textContent=t.welcome;
+  $('drawerTitle').textContent=t.drawer;
+  searchEl.placeholder=t.searchPlaceholder;
+  sourceEl.setAttribute('aria-label',t.sourceLabel);
+  groupEl.setAttribute('aria-label',t.groupLabel);
+
+  playBtn.title=playBtn.ariaLabel=t.play;
+  muteBtn.title=muteBtn.ariaLabel=t.mute;
+  volumeEl.ariaLabel=t.volume;
+  timeline.ariaLabel=t.timeline;
+  ccBtn.title=ccBtn.ariaLabel=t.cc;
+  settingsBtn.title=settingsBtn.ariaLabel=t.settings;
+  fullscreenBtn.title=fullscreenBtn.ariaLabel=t.fullscreen;
+
+  const allSourceOption=sourceEl.options[0];
+  if(allSourceOption&&allSourceOption.value==='all')allSourceOption.textContent=t.allSources;
+  const allGroupOption=groupEl.options[0];
+  if(allGroupOption&&allGroupOption.value==='')allGroupOption.textContent=t.allGroups;
 }
 const SOURCES = [
   {id:'all', nameKey:'allSources', name:'Всички източници · обединени', note:'Обединява всички каталози по-долу и премахва дубликатите'},
@@ -352,8 +340,8 @@ function setLanguage(next){
   if(!LANGS.some(([code])=>code===next))next='en';
   if(next===currentLang)return;
   currentLang=next;
-  languageEl.value=currentLang;
-  applyLanguage();
+  languageEl.value=next;
+  requestAnimationFrame(applyLanguage);
 }
 window.setLanguage=setLanguage;
 languageEl.value=currentLang;
