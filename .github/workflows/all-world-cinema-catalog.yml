@@ -26,7 +26,10 @@ jobs:
         with:
           node-version: '20'
       - name: Build lightweight catalog
-        run: node projects/all-world-cinema/app/tools/build-catalog.mjs
+        run: |
+          sed -i 's/const IA=/const IA=/' projects/all-world-cinema/app/tools/build-catalog.mjs
+          sed -i 's/,ROWS=200;/,ROWS=1000;/' projects/all-world-cinema/app/tools/build-catalog.mjs
+          node projects/all-world-cinema/app/tools/build-catalog.mjs
       - name: Validate catalog
         run: |
           node - <<'NODE'
@@ -39,6 +42,7 @@ jobs:
           NODE
       - name: Commit catalog if changed
         run: |
+          git checkout -- projects/all-world-cinema/app/tools/build-catalog.mjs
           if git diff --quiet -- projects/all-world-cinema/app/catalog.json; then
             echo 'Catalog unchanged.'
             exit 0
