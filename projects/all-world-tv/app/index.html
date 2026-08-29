@@ -121,6 +121,10 @@ border-radius:20px;padding:28px;box-shadow:var(--shadow)}.legal-declined h2{marg
 .legal-head{padding:16px}.legal-body{padding:14px 16px 20px}.legal-actions{padding:12px;flex-direction:column-reverse}
 .legal-btn{width:100%}}
 
+
+.developer-link{display:block;margin-top:2px;color:var(--accent2);font-size:12px;text-decoration:none;line-height:1.2}
+.developer-link:hover{text-decoration:underline;text-underline-offset:2px}
+
 </style>
 </head>
 <body>
@@ -207,7 +211,7 @@ border-radius:20px;padding:28px;box-shadow:var(--shadow)}.legal-declined h2{marg
       </div>
     </div>
     <div id="welcome" class="welcome"><div class="card"><div class="earth">🌍</div><div style="font-weight:800;font-size:18px">All World IPTV</div><div id="welcomeText" style="margin-top:6px;font-size:13px">Избери списък, група и канал</div></div></div></div>
-  <div class="top"><div class="brand"><div class="mark">AW</div><div><h1>All World IPTV</h1><small id="brandSub">Multiple public TV lists</small></div></div><div class="top-actions"><select id="language" class="lang-select" aria-label="Language"></select><button id="menuBtn" class="menu">☰ <span id="menuText">Канали</span></button></div></div>
+  <div class="top"><div class="brand"><div class="mark">AW</div><div><h1>All World IPTV</h1><a id="developerLink" class="developer-link" href="https://stankowspas.github.io/">Developer website</a></div></div><div class="top-actions"><select id="language" class="lang-select" aria-label="Language"></select><button id="menuBtn" class="menu">☰ <span id="menuText">Канали</span></button></div></div>
   <div id="scrim" class="scrim"></div>
   <aside id="drawer" class="drawer">
     <div class="head">
@@ -303,7 +307,7 @@ let currentLang='en';
 function tr(k){return (I18N[currentLang]&&I18N[currentLang][k])||I18N.en[k]||k}
 function ptr(k){return (PLAYER_I18N[currentLang]&&PLAYER_I18N[currentLang][k])||PLAYER_I18N.en[k]||k}
 function localeCode(){return currentLang==='zh-CN'?'zh-CN':currentLang==='zh-TW'?'zh-TW':currentLang}
-function applyLanguage(){document.documentElement.lang=currentLang;document.documentElement.dir=['ar','he'].includes(currentLang)?'rtl':'ltr';$('brandSub').textContent=tr('brandSub');$('menuText').textContent=tr('menu');$('welcomeText').textContent=tr('welcome');$('drawerTitle').textContent=tr('drawer');searchEl.placeholder=tr('searchPlaceholder');sourceEl.setAttribute('aria-label',tr('sourceLabel'));groupEl.setAttribute('aria-label',tr('groupLabel'));playBtn.title=playBtn.ariaLabel=ptr('play');muteBtn.title=muteBtn.ariaLabel=ptr('mute');volumeEl.ariaLabel=ptr('volume');timeline.ariaLabel=ptr('timeline');ccBtn.title=ccBtn.ariaLabel=ptr('cc');settingsBtn.title=settingsBtn.ariaLabel=ptr('settings');fullscreenBtn.title=fullscreenBtn.ariaLabel=ptr('fullscreen');rebuildSourceOptions();rebuildGroups();if(countEl)countEl.textContent=`${filtered.length.toLocaleString(localeCode())} ${tr('channels')}`;if(groupEl&&!groupEl.value&&metaEl)metaEl.textContent=tr('chooseGroup');rebuildSubtitleUI();if(!currentChannel)setStatus(tr('ready'),'ok')}
+function applyLanguage(){document.documentElement.lang=currentLang;document.documentElement.dir=['ar','he'].includes(currentLang)?'rtl':'ltr';const developerLink=$('developerLink');if(developerLink)developerLink.textContent=(currentLang==='bg'?'Сайт на разработчика':currentLang==='de'?'Entwickler-Website':currentLang==='fr'?'Site du développeur':currentLang==='es'?'Sitio del desarrollador':currentLang==='it'?'Sito dello sviluppatore':currentLang==='pt'?'Site do desenvolvedor':currentLang==='ru'?'Сайт разработчика':currentLang==='uk'?'Сайт розробника':currentLang==='sr'?'Сајт програмера':currentLang==='hr'?'Web-stranica razvojnog programera':currentLang==='cs'?'Web vývojáře':currentLang==='sk'?'Web vývojára':currentLang==='pl'?'Strona dewelopera':currentLang==='ro'?'Site-ul dezvoltatorului':currentLang==='el'?'Ιστότοπος προγραμματιστή':currentLang==='tr'?'Geliştirici sitesi':currentLang==='nl'?'Website van de ontwikkelaar':currentLang==='sv'?'Utvecklarens webbplats':currentLang==='no'?'Utviklerens nettsted':currentLang==='da'?'Udviklerens websted':currentLang==='fi'?'Kehittäjän sivusto':currentLang==='ar'?'موقع المطور':currentLang==='he'?'אתר המפתח':currentLang==='zh-CN'?'开发者网站':currentLang==='zh-TW'?'開發者網站':currentLang==='ja'?'開発者サイト':currentLang==='ko'?'개발자 웹사이트':currentLang==='hi'?'डेवलपर वेबसाइट':currentLang==='id'?'Situs pengembang':currentLang==='vi'?'Trang web nhà phát triển':currentLang==='th'?'เว็บไซต์นักพัฒนา':'Developer website');$('menuText').textContent=tr('menu');$('welcomeText').textContent=tr('welcome');$('drawerTitle').textContent=tr('drawer');searchEl.placeholder=tr('searchPlaceholder');sourceEl.setAttribute('aria-label',tr('sourceLabel'));groupEl.setAttribute('aria-label',tr('groupLabel'));playBtn.title=playBtn.ariaLabel=ptr('play');muteBtn.title=muteBtn.ariaLabel=ptr('mute');volumeEl.ariaLabel=ptr('volume');timeline.ariaLabel=ptr('timeline');ccBtn.title=ccBtn.ariaLabel=ptr('cc');settingsBtn.title=settingsBtn.ariaLabel=ptr('settings');fullscreenBtn.title=fullscreenBtn.ariaLabel=ptr('fullscreen');rebuildSourceOptions();rebuildGroups();if(countEl)countEl.textContent=`${filtered.length.toLocaleString(localeCode())} ${tr('channels')}`;if(groupEl&&!groupEl.value&&metaEl)metaEl.textContent=tr('chooseGroup');rebuildSubtitleUI();if(!currentChannel)setStatus(tr('ready'),'ok')}
 const SOURCES = [
   {id:'all', nameKey:'allSources', name:'Всички източници · обединени', note:'Обединява всички каталози по-долу и премахва дубликатите'},
   {id:'iptv-org', name:'IPTV-org · глобален каталог', url:'https://iptv-org.github.io/iptv/index.country.m3u', note:'Публичният глобален каталог на IPTV-org'},
