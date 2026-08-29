@@ -36,7 +36,7 @@ jobs:
           const fs = require('fs');
           const p = 'projects/all-world-cinema/app/catalog.json';
           const d = JSON.parse(fs.readFileSync(p, 'utf8'));
-          if (d.version !== 3 || !Array.isArray(d.movie) || !Array.isArray(d.series)) process.exit(1);
+          if (d.version !== 4 || !Array.isArray(d.movie) || !Array.isArray(d.series)) process.exit(1);
           if ((d.movie.length + d.series.length) < 100) process.exit(2);
           console.log(d.counts);
           NODE
