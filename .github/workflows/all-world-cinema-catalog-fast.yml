@@ -1,0 +1,51 @@
+name: All-World Cinema catalog fast
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/all-world-cinema-catalog-fast.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: all-world-cinema-catalog-fast
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build catalog
+        run: |
+          sed -i 's/,ROWS=200;/,ROWS=1000;/' projects/all-world-cinema/app/tools/build-catalog.mjs
+          sed -i "s/fetch(u,{headers:/fetch(u,{signal:AbortSignal.timeout(30000),headers:/" projects/all-world-cinema/app/tools/build-catalog.mjs
+          node projects/all-world-cinema/app/tools/build-catalog.mjs
+      - name: Validate catalog
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const p = 'projects/all-world-cinema/app/catalog.json';
+          const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+          if (d.version !== 3 || !Array.isArray(d.movie) || !Array.isArray(d.series)) process.exit(1);
+          if ((d.movie.length + d.series.length) < 100) process.exit(2);
+          console.log(JSON.stringify(d.counts));
+          NODE
+      - name: Commit catalog
+        run: |
+          git checkout -- projects/all-world-cinema/app/tools/build-catalog.mjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add projects/all-world-cinema/app/catalog.json
+          if git diff --cached --quiet; then
+            echo 'Catalog unchanged.'
+            exit 0
+          fi
+          git commit -m 'Generate All-World Cinema catalog'
+          git push
