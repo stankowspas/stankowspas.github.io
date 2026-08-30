@@ -1,3 +1,4 @@
+
 function renderMovieList(items){
   if(!items.length){disableVirtualList();mediaList.innerHTML=`<div class="empty-list">${esc(t('noItems'))}</div>`;return}
   mountVirtualList('movie',items);
@@ -41,6 +42,7 @@ async function selectItem(item){
     loadProgress.textContent=`${t('catalogReady')} · ${t('detailsOnSelect')}`;playResolvedItem(details);
   }catch(e){console.error(e);setStatus(t('videoLoadFail'),'bad');loadProgress.textContent=t('videoLoadFail')}
 }
+
 
 function destroyHls(){if(hls){hls.destroy();hls=null}}
 function clearSubtitleState(){subtitleCues=[];subtitleLayer.innerHTML='';subtitleObjectUrls.forEach(URL.revokeObjectURL);subtitleObjectUrls=[]}
@@ -91,6 +93,7 @@ video.addEventListener('play',syncPlayerUi);video.addEventListener('pause',syncP
 document.addEventListener('click',e=>{if(!settingsMenu.contains(e.target)&&e.target!==settingsBtn)settingsMenu.classList.remove('open')});
 document.addEventListener('fullscreenchange',()=>fullscreenBtn.classList.toggle('active',!!document.fullscreenElement));
 window.addEventListener('resize',()=>{});
+
 
 languageEl.innerHTML=LANGS.map(([code,name])=>`<option value="${code}">${name}</option>`).join('');
 currentLang='en';
