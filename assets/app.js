@@ -7,7 +7,42 @@ const PROJECTS={
 'alpha-2':{name:'Alpha Chat 2.0',icon:'α',bg:'Изкуствен интелект – олекотен езиков модел.',en:'Artificial intelligence – lightweight language model.',tags:['AI','Language Model','Lightweight'],repo:'https://github.com/stankowspas/Alpha-2',app:'https://stankowspas.github.io/Alpha-2/'}
 };
 const pathParts=location.pathname.split('/').filter(Boolean);const isProject=pathParts[0]==='projects';const queryLang=new URLSearchParams(location.search).get('lang');const pathLang=!isProject&&LANGS[pathParts[0]]?pathParts[0]:null;const code=queryLang&&LANGS[queryLang]?queryLang:(pathLang||localStorage.getItem('siteLang')||'en');const c=COPY[code]||COPY.en;localStorage.setItem('siteLang',code);document.documentElement.lang=code;document.documentElement.dir=['ar','he'].includes(code)?'rtl':'ltr';
-function renderHome(){const eyebrow=document.querySelector('#eyebrow');const intro=document.querySelector('#intro');if(eyebrow){eyebrow.textContent='';eyebrow.style.display='none'}if(intro)intro.textContent=c[1];const panel=document.querySelector('.panel');if(panel)panel.remove();const hero=document.querySelector('.hero');const section=document.createElement('section');section.className='fade-in';section.innerHTML=`<div class="section-head"><div><div class="eyebrow">${c[2]}</div><h2>${c[3]}</h2></div><p>${Object.keys(PROJECTS).length}</p></div><div class="projects-grid" id="projectsGrid"></div>`;hero.insertAdjacentElement('afterend',section);const grid=section.querySelector('#projectsGrid');Object.entries(PROJECTS).forEach(([slug,p],i)=>{const desc=code==='bg'?p.bg:p.en;const a=document.createElement('a');a.href=p.app||`/projects/${slug}/?lang=${encodeURIComponent(code)}`;a.className='project-card fade-in';a.style.animationDelay=`${i*70}ms`;a.innerHTML=`<div class="project-icon">${p.icon}</div><h3>${p.name}</h3><p>${desc}</p><div class="card-link">${c[5]} <span>→</span></div>`;grid.appendChild(a)})}
+function renderHome(){
+ const eyebrow=document.querySelector('#eyebrow'),intro=document.querySelector('#intro');
+ if(eyebrow){eyebrow.textContent='';eyebrow.style.display='none'} if(intro)intro.textContent=c[1];
+ const panel=document.querySelector('.panel');if(panel)panel.remove();
+ const hero=document.querySelector('.hero'),section=document.createElement('section');
+ section.className='app-showcase fade-in';
+ section.innerHTML=`<div class="section-head carousel-heading"><div><div class="eyebrow">${code==='bg'?'Приложения':'Apps'}</div><h2>${code==='bg'?'Избери приложение':'Choose an app'}</h2></div><p>${Object.keys(PROJECTS).length}</p></div><div class="app-carousel" aria-label="Applications"><button class="carousel-arrow prev" type="button" aria-label="Previous">‹</button><div class="carousel-stage" id="carouselStage"></div><button class="carousel-arrow next" type="button" aria-label="Next">›</button></div><div class="carousel-dots" id="carouselDots"></div><div class="swipe-hint">${code==='bg'?'Плъзни наляво или надясно':'Swipe left or right'}</div>`;
+ hero.insertAdjacentElement('afterend',section);
+ const stage=section.querySelector('#carouselStage'),dots=section.querySelector('#carouselDots'),entries=Object.entries(PROJECTS);
+ let active=0,startX=0,dragging=false,moved=false;
+ entries.forEach(([slug,p],i)=>{
+  const desc=code==='bg'?p.bg:p.en,card=document.createElement('article');
+  card.className='carousel-card';card.dataset.index=i;card.tabIndex=0;
+  card.innerHTML=`<div class="project-icon">${p.icon}</div><h3>${p.name}</h3><p>${desc}</p><div class="card-link">${code==='bg'?'Отвори приложение':'Open app'} <span>→</span></div>`;
+  card.addEventListener('click',()=>{if(moved){moved=false;return}if(i!==active){active=i;update()}else location.href=p.app||`/projects/${slug}/?lang=${encodeURIComponent(code)}`});
+  card.addEventListener('keydown',e=>{if(e.key==='Enter'){if(i!==active){active=i;update()}else location.href=p.app||`/projects/${slug}/?lang=${encodeURIComponent(code)}`}});
+  stage.appendChild(card);
+  const dot=document.createElement('button');dot.type='button';dot.setAttribute('aria-label',p.name);dot.addEventListener('click',()=>{active=i;update()});dots.appendChild(dot);
+ });
+ const cards=[...stage.children],dotEls=[...dots.children];
+ function update(){
+  cards.forEach((card,i)=>{
+   let d=i-active;if(d>entries.length/2)d-=entries.length;if(d<-entries.length/2)d+=entries.length;
+   card.style.setProperty('--offset',d);card.classList.toggle('active',d===0);card.classList.toggle('far',Math.abs(d)>1);
+   card.setAttribute('aria-current',d===0?'true':'false');
+  });dotEls.forEach((d,i)=>d.classList.toggle('active',i===active));
+ }
+ const go=n=>{active=(active+n+entries.length)%entries.length;update()};
+ section.querySelector('.prev').addEventListener('click',()=>go(-1));section.querySelector('.next').addEventListener('click',()=>go(1));
+ stage.addEventListener('pointerdown',e=>{dragging=true;moved=false;startX=e.clientX;stage.setPointerCapture?.(e.pointerId)});
+ stage.addEventListener('pointermove',e=>{if(dragging&&Math.abs(e.clientX-startX)>12)moved=true});
+ stage.addEventListener('pointerup',e=>{if(!dragging)return;const dx=e.clientX-startX;dragging=false;if(Math.abs(dx)>45)go(dx<0?1:-1)});
+ stage.addEventListener('wheel',e=>{if(Math.abs(e.deltaX)>Math.abs(e.deltaY)||Math.abs(e.deltaY)>20){e.preventDefault();go((e.deltaX||e.deltaY)>0?1:-1)}},{passive:false});
+ document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')go(-1);if(e.key==='ArrowRight')go(1)});
+ update();
+}
 function renderProject(){const slug=pathParts[1];const p=PROJECTS[slug];const hero=document.querySelector('.hero');if(!p){hero.innerHTML='<h1>Project</h1><p>Not found.</p>';return}document.title=p.name+' · Spas Stankov';const desc=code==='bg'?p.bg:p.en;hero.innerHTML=`<a class="back" href="/${code}/">← ${c[6]}</a><div class="project-view glass fade-in"><div class="eyebrow">${c[7]}</div><h2>${p.name}</h2><p>${desc}</p><div class="project-meta">${p.tags.map(t=>`<span class="chip">${t}</span>`).join('')}</div>${slug==='all-world-tv'?`<div class="embedded-demo"><div class="embedded-demo-bar"><span>Live demo</span><button class="demo-fullscreen" type="button" title="Full screen">⛶</button></div><iframe id="tvDemo" src="/projects/all-world-tv/app/?lang=${encodeURIComponent(code)}&v=3" title="All-World TV interactive demo" allow="autoplay; fullscreen" allowfullscreen></iframe></div>`:''}<div class="action-row">${p.app?`<a class="btn" href="${p.app}" target="_blank" rel="noopener">Open ${p.name} ↗</a>`:''}${p.repo?`<a class="btn" href="${p.repo}" target="_blank" rel="noopener">GitHub ↗</a>`:''}<a class="btn" href="/${code}/">${c[6]}</a></div></div>`;if(slug==='all-world-tv'){const frame=document.querySelector('#tvDemo');const fs=document.querySelector('.demo-fullscreen');if(fs&&frame)fs.addEventListener('click',()=>{if(frame.requestFullscreen)frame.requestFullscreen()})}}
 if(isProject)renderProject();else renderHome();
 const CONTACT_COPY={
