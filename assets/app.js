@@ -13,14 +13,14 @@ function renderHome(){
  const panel=document.querySelector('.panel');if(panel)panel.remove();
  const hero=document.querySelector('.hero'),section=document.createElement('section');
  section.className='app-showcase fade-in';
- section.innerHTML=`<div class="section-head carousel-heading"><div><div class="eyebrow">${code==='bg'?'Приложения':'Apps'}</div><h2>${code==='bg'?'Избери приложение':'Choose an app'}</h2></div><p>${Object.keys(PROJECTS).length}</p></div><div class="app-carousel" aria-label="Applications"><button class="carousel-arrow prev" type="button" aria-label="Previous">‹</button><div class="carousel-stage" id="carouselStage"></div><button class="carousel-arrow next" type="button" aria-label="Next">›</button></div><div class="carousel-dots" id="carouselDots"></div><div class="swipe-hint">${code==='bg'?'Плъзни наляво или надясно':'Swipe left or right'}</div>`;
+ section.innerHTML=`<div class="section-head carousel-heading"><div><div class="eyebrow">${c[2]}</div><h2>${c[3]}</h2></div><p>${Object.keys(PROJECTS).length}</p></div><div class="app-carousel" aria-label="${c[2]}"><button class="carousel-arrow prev" type="button" aria-label="Previous">‹</button><div class="carousel-stage" id="carouselStage"></div><button class="carousel-arrow next" type="button" aria-label="Next">›</button></div><div class="carousel-dots" id="carouselDots"></div>`;
  hero.insertAdjacentElement('afterend',section);
  const stage=section.querySelector('#carouselStage'),dots=section.querySelector('#carouselDots'),entries=Object.entries(PROJECTS);
  let active=0,startX=0,dragging=false,moved=false;
  entries.forEach(([slug,p],i)=>{
   const desc=code==='bg'?p.bg:p.en,card=document.createElement('article');
   card.className='carousel-card';card.dataset.index=i;card.tabIndex=0;
-  card.innerHTML=`<div class="project-icon">${p.icon}</div><h3>${p.name}</h3><p>${desc}</p><div class="card-link">${code==='bg'?'Отвори приложение':'Open app'} <span>→</span></div>`;
+  card.innerHTML=`<div class="project-icon">${p.icon}</div><h3>${p.name}</h3><p>${desc}</p><div class="card-link">${c[5]} <span>→</span></div>`;
   card.addEventListener('click',()=>{if(moved){moved=false;return}if(i!==active){active=i;update()}else location.href=p.app||`/projects/${slug}/?lang=${encodeURIComponent(code)}`});
   card.addEventListener('keydown',e=>{if(e.key==='Enter'){if(i!==active){active=i;update()}else location.href=p.app||`/projects/${slug}/?lang=${encodeURIComponent(code)}`}});
   stage.appendChild(card);
