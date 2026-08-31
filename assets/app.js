@@ -197,9 +197,9 @@ function renderHome(){
  entries.forEach(([slug,p],i)=>{
   const desc=(PROJECT_COPY[slug]&&PROJECT_COPY[slug][code])||p.en,card=document.createElement('article');
   card.className='carousel-card';card.dataset.index=i;card.tabIndex=0;
-  card.innerHTML=`<div class="project-icon">${p.icon}</div><h3>${p.name}</h3><p>${desc}</p><div class="card-link">${cc.open} <span>→</span></div>`;
-  card.addEventListener('click',()=>{if(moved){moved=false;return}if(i!==active){active=i;update()}else location.href=p.app||`/projects/${slug}/?lang=${encodeURIComponent(code)}`});
-  card.addEventListener('keydown',e=>{if(e.key==='Enter'){if(i!==active){active=i;update()}else location.href=p.app||`/projects/${slug}/?lang=${encodeURIComponent(code)}`}});
+  const target=p.app||`/projects/${slug}/?lang=${encodeURIComponent(code)}`;card.innerHTML=`<div class="project-icon">${p.icon}</div><h3>${p.name}</h3><p>${desc}</p><a class="card-link" href="${target}">${cc.open} <span>→</span></a>`;card.querySelector('.card-link').addEventListener('click',e=>e.stopPropagation());
+  card.addEventListener('click',()=>{if(moved){moved=false;return}if(i!==active){active=i;update()}else location.href=target});
+  card.addEventListener('keydown',e=>{if(e.key==='Enter'){if(i!==active){active=i;update()}else location.href=target}});
   stage.appendChild(card);
   const dot=document.createElement('button');dot.type='button';dot.setAttribute('aria-label',p.name);dot.addEventListener('click',()=>{active=i;update()});dots.appendChild(dot);
  });
