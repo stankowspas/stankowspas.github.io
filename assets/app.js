@@ -195,11 +195,9 @@ function renderHome(){
  const stage=section.querySelector('#carouselStage'),dots=section.querySelector('#carouselDots'),entries=Object.entries(PROJECTS);
  let active=0,startX=0,dragging=false,moved=false;
  entries.forEach(([slug,p],i)=>{
-  const desc=(PROJECT_COPY[slug]&&PROJECT_COPY[slug][code])||p.en,card=document.createElement('article');
-  card.className='carousel-card';card.dataset.index=i;card.tabIndex=0;
-  const target=p.app||`/projects/${slug}/?lang=${encodeURIComponent(code)}`;card.innerHTML=`<div class="project-icon">${p.icon}</div><h3>${p.name}</h3><p>${desc}</p><a class="card-link" href="${target}">${cc.open} <span>→</span></a>`;card.querySelector('.card-link').addEventListener('click',e=>e.stopPropagation());
-  card.addEventListener('click',()=>{if(moved){moved=false;return}if(i!==active){active=i;update()}else location.href=target});
-  card.addEventListener('keydown',e=>{if(e.key==='Enter'){if(i!==active){active=i;update()}else location.href=target}});
+  const desc=(PROJECT_COPY[slug]&&PROJECT_COPY[slug][code])||p.en,target=p.app||`/projects/${slug}/?lang=${encodeURIComponent(code)}`,card=document.createElement('a');
+  card.className='carousel-card';card.dataset.index=i;card.href=target;card.innerHTML=`<div class="project-icon">${p.icon}</div><h3>${p.name}</h3><p>${desc}</p><span class="card-link">${cc.open} <span>→</span></span>`;
+  card.addEventListener('click',e=>{if(moved){e.preventDefault();moved=false;return}if(i!==active){e.preventDefault();active=i;update()}});
   stage.appendChild(card);
   const dot=document.createElement('button');dot.type='button';dot.setAttribute('aria-label',p.name);dot.addEventListener('click',()=>{active=i;update()});dots.appendChild(dot);
  });
@@ -213,7 +211,7 @@ function renderHome(){
  }
  const go=n=>{active=(active+n+entries.length)%entries.length;update()};
  section.querySelector('.prev').addEventListener('click',()=>go(-1));section.querySelector('.next').addEventListener('click',()=>go(1));
- stage.addEventListener('pointerdown',e=>{dragging=true;moved=false;startX=e.clientX;stage.setPointerCapture?.(e.pointerId)});
+ stage.addEventListener('pointerdown',e=>{dragging=true;moved=false;startX=e.clientX});
  stage.addEventListener('pointermove',e=>{if(dragging&&Math.abs(e.clientX-startX)>12)moved=true});
  stage.addEventListener('pointerup',e=>{if(!dragging)return;const dx=e.clientX-startX;dragging=false;if(Math.abs(dx)>45)go(dx<0?1:-1)});
  stage.addEventListener('wheel',e=>{if(Math.abs(e.deltaX)>Math.abs(e.deltaY)||Math.abs(e.deltaY)>20){e.preventDefault();go((e.deltaX||e.deltaY)>0?1:-1)}},{passive:false});
