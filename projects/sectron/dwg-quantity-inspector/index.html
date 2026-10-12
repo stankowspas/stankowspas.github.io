@@ -1,0 +1,367 @@
+<!doctype html><html lang="bg"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DWG Quantity Inspector V2 — Browser WASM</title><link rel="icon" href="data:,"><style>
+:root{color-scheme:dark;font:14px Segoe UI,Arial}*{box-sizing:border-box}body{margin:0;background:#101722;color:#dce7f4}header{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;background:#182333;border-bottom:1px solid #33465b}h1{font-size:19px;margin:0}button,input{font:inherit}button{border:1px solid #426181;color:#e2edf9;background:#23354c;padding:7px 11px;border-radius:7px;cursor:pointer}button:hover{background:#335173}.tag{font-size:12px;color:#f0b772}main{display:grid;grid-template-columns:255px 1fr 290px;height:calc(100vh - 67px)}aside{overflow:auto;padding:16px;background:#151f2e;border-right:1px solid #33465b}aside:last-child{border-right:0;border-left:1px solid #33465b}h2{font-size:15px;margin:0 0 15px}h3{font-size:12px;color:#a2b7d3;margin:18px 0 8px;text-transform:uppercase}label{display:block;padding:5px 0;font-size:12px}label input{accent-color:#40c6ae}.view{position:relative;overflow:hidden;background:#0c1420;background-image:linear-gradient(#ffffff09 1px,transparent 1px),linear-gradient(90deg,#ffffff09 1px,transparent 1px);background-size:25px 25px}svg{width:100%;height:100%;touch-action:none;cursor:crosshair}.toolbar{position:absolute;top:12px;left:12px;z-index:3;display:flex;gap:6px}.footer{position:absolute;bottom:10px;left:12px;font-size:12px;color:#a7bbd1}.item{padding:6px;margin-bottom:4px;cursor:pointer;border-radius:5px;overflow-wrap:anywhere}.item:hover,.item.active{background:#294760}.muted{color:#879db7}.kv{border-bottom:1px solid #273a52;padding:9px 0;font-size:12px;display:flex;justify-content:space-between;gap:5px}.kv b{font-weight:500;text-align:right}#messages{font-size:12px;line-height:1.6;color:#d6b16b}small{display:block;margin-top:10px;color:#96a9c0;line-height:1.5}@media(max-width:750px){main{grid-template-columns:170px 1fr}aside:last-child{display:none}header{flex-wrap:wrap;gap:10px}}
+#dwg-loading{position:fixed;inset:0;z-index:50;background:rgba(8,14,24,.82);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)}#dwg-loading[hidden]{display:none}#dwg-loading .loading-card{min-width:min(380px,90vw);max-width:90vw;padding:28px 24px;text-align:center;background:#19293d;border:1px solid #48698b;border-radius:14px;box-shadow:0 14px 50px #0008}#dwg-loading .spinner{width:52px;height:52px;border:5px solid #38526b;border-top-color:#42c6e9;border-radius:50%;margin:0 auto 16px;animation:dwg-spin .9s linear infinite}@keyframes dwg-spin{to{transform:rotate(360deg)}}#dwg-loading .loading-title{font-size:18px;font-weight:600}#dwg-loading .loading-file{margin-top:8px;color:#c0d5e9;overflow-wrap:anywhere}#dwg-loading .loading-note{font-size:12px;color:#93b1cd;margin-top:12px}
+.v2-modal{width:min(1000px,96vw);height:min(90vh,900px);max-height:90vh;background:#152135;border:1px solid #476887;color:#e5edf8;border-radius:12px;padding:12px;overflow:hidden}.v2-modal[open]{display:flex;flex-direction:column}.v2-modal::backdrop{background:#050a12df}.v2-modal-top{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:6px 8px 12px}.v2-modal iframe{width:100%;flex:1;min-height:130px;border:1px solid #2c435c;border-radius:8px;background:#101722}.v2-consent{padding:9px 4px 2px}.v2-consent label{font-size:13px;line-height:1.5}.v2-consent input{vertical-align:middle}.v2-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}.v2-actions a{color:#9de6fa;margin-left:auto}.v2-actions button:disabled{opacity:.35;cursor:not-allowed}
+</style><script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script><script>window.v2Ready=import("./v2-client.mjs");</script><header><div><h1>DWG Quantity Inspector V2</h1><span class="tag">Developed by Spas Stankov</span></div><div><button id="open-help" type="button">Ръководство за работа — DWG Quantity Inspector V2</button><button id="open-dwg">Отвори DWG</button><input id="dwg-file" type="file" accept=".dwg" hidden><button id="create-ks">Създай КС</button><button id="reset">Покажи всички</button></div></header>
+<dialog id="help-dialog" class="v2-modal"><div class="v2-modal-top"><strong>Ръководство за работа — DWG Quantity Inspector V2</strong><button id="close-help" type="button">Затвори</button></div><iframe title="Ръководство за работа" src="./help.html"></iframe></dialog>
+<dialog id="terms-dialog" class="v2-modal" aria-labelledby="terms-title"><div class="v2-modal-top"><strong id="terms-title">Общи условия за безплатно ползване — версия 2.0</strong></div><iframe title="Пълни общи условия" src="./terms.html"></iframe><div class="v2-consent"><label><input type="checkbox" id="terms-check"> Прочетох и приемам Общите условия за безплатно ползване на DWG Quantity Inspector V2. Разбирам, че резултатите са помощни и подлежат на независима проверка преди професионално използване.</label><div class="v2-actions"><button id="terms-accept" type="button" disabled>Приемам и продължавам</button><button id="terms-decline" type="button">Отказвам</button><a href="./terms.html" download="DWG_Quantity_Inspector_V2_Terms_2.0.html">Запази условията</a></div></div></dialog>
+<div id="dwg-loading" role="status" aria-live="polite" aria-label="Зареждане на DWG" hidden><div class="loading-card"><div class="spinner" aria-hidden="true"></div><div class="loading-title">Зареждане на DWG чертеж...</div><div class="loading-file" id="dwg-loading-file"></div><div class="loading-note">Файлът се обработва локално в браузъра. При големи чертежи може да отнеме повече време.</div></div></div><dialog id="ks-dialog" style="width:min(1100px,95vw);max-height:90vh;background:#172438;color:#e3edf8;border:1px solid #426181;border-radius:12px;padding:20px"><h2>Количествена сметка — CAD блокове</h2><p style="font-size:12px;color:#f0b772">Количествата са RAW INSERT преброяване. Провери кои блокове са реално оборудване, преди запис.</p><div id="ks-grid" style="overflow:auto;max-height:60vh"></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button id="ks-add">Добави позиция</button><button id="ks-save">Запиши КС в Excel</button><button id="ks-close">Затвори</button></div><div id="ks-status" style="margin-top:10px;font-size:12px"></div></dialog><main><aside><h2>CAD Object Explorer</h2><h3>Слоеве</h3><div id="layers"></div><div id="real-layers"></div><h3>Типове обекти</h3><div id="types"></div><h3>Обекти</h3><div id="objects"></div></aside><section class="view"><div class="toolbar"><button id="zoomin">+</button><button id="zoomout">−</button><button id="fit">Fit</button><button id="clear-markings">Премахни маркировката</button></div><canvas id="real-canvas" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none"></canvas><svg id="canvas" viewBox="0 0 700 520"><g id="scene"></g></svg><div class="footer">Колело: Zoom • Влачене на фон: Pan • Клик: Inspector</div></section><aside><h2>Object Inspector</h2><div id="inspector" class="muted">Избери CAD елемент.</div><h3>Преброяване на CAD блокове</h3><div id="quantity"></div><h3>Контрол</h3><div id="messages">Няма зареден DWG. Използвай „Отвори DWG“.</div></aside></main><script>
+let view={x:0,y:0,w:700,h:520},drag=null;
+const $=id=>document.getElementById(id);
+const draw=()=>{if(window.drawReal)window.drawReal()};
+$('reset').onclick=()=>{if(window.resetReal){window.resetReal();return}draw()};$('fit').onclick=()=>{if(window.fitReal){window.fitReal();return}view={x:0,y:0,w:700,h:520};draw()};$('zoomin').onclick=()=>zoom(.8);$('zoomout').onclick=()=>zoom(1.25);function zoom(f){view.x+=view.w*(1-f)/2;view.y+=view.h*(1-f)/2;view.w*=f;view.h*=f;draw()}$('canvas').addEventListener('wheel',e=>{e.preventDefault();zoom(e.deltaY<0?.88:1.12)},{passive:false});$('canvas').onpointerdown=e=>{if(e.target===$('canvas'))drag={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y}};$('canvas').onpointermove=e=>{if(!drag)return;const r=$('canvas').getBoundingClientRect();view.x=drag.vx-(e.clientX-drag.x)*view.w/r.width;view.y=drag.vy-(e.clientY-drag.y)*view.h/r.height;draw()};window.onpointerup=()=>drag=null;
+</script><script>
+(function(){
+let raw=null,active=new Set(),activeTypes=new Set(),hiddenHandles=new Set(),hiddenBlocks=new Set(),markedBlocks=new Set(),blockIndex=new Map(),selectedReal=null,bounds=null,mainBounds=null;
+const layerBox=document.getElementById('real-layers'),canvas=document.getElementById('real-canvas'),svg=document.getElementById('canvas');
+function extents(all){
+let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+const include=(x,y)=>{if(Number.isFinite(x)&&Number.isFinite(y)){minX=Math.min(minX,x);minY=Math.min(minY,y);maxX=Math.max(maxX,x);maxY=Math.max(maxY,y)}};
+for(const e of all){if(e.type==='LINE'){include(e.x1,e.y1);include(e.x2,e.y2)}else if(e.type==='INSERT'){include(e.x,e.y)}else if(e.pts)for(const pt of e.pts)include(pt[0],pt[1]);}
+return {minX,minY,maxX,maxY};
+}
+function centralBounds(all){
+ const xs=[],ys=[];
+ for(const e of all){if(e.type==='LINE'){xs.push(e.x1,e.x2);ys.push(e.y1,e.y2)}else if(e.pts){for(const p of e.pts){xs.push(p[0]);ys.push(p[1])}}else if(e.type==='INSERT'){xs.push(e.x);ys.push(e.y)}}
+ xs.sort((a,b)=>a-b);ys.sort((a,b)=>a-b);
+ const q=(arr,t)=>arr[Math.min(arr.length-1,Math.floor(t*(arr.length-1)))];
+ return {minX:q(xs,.05),maxX:q(xs,.95),minY:q(ys,.05),maxY:q(ys,.95)};
+}
+function paint(){
+if(!raw)return;
+const rect=svg.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+canvas.width=Math.max(1,Math.floor(rect.width*dpr));canvas.height=Math.max(1,Math.floor(rect.height*dpr));
+const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,rect.width,rect.height);
+const X=x=>(x-view.x)/view.w*rect.width,Y=y=>(y-view.y)/view.h*rect.height;
+ctx.lineWidth=.85;ctx.strokeStyle='#b1bfd0';ctx.beginPath();
+let n=0, missing=0;
+function render(e,transform,depth,layer){
+ if(depth>6)return;
+ const T=(x,y)=>[transform.a*x+transform.c*y+transform.tx,transform.b*x+transform.d*y+transform.ty];
+ const segment=(x1,y1,x2,y2)=>{const p=T(x1,y1),q=T(x2,y2);ctx.moveTo(X(p[0]),Y(p[1]));ctx.lineTo(X(q[0]),Y(q[1]))};
+ if(e.type==='LINE'){segment(e.x1,e.y1,e.x2,e.y2)}
+ else if(e.type==='POLYLINE'){
+  const pts=e.pts||[];
+  for(let i=0;i<pts.length-(e.closed?0:1);i++){
+   const u=pts[i],v=pts[(i+1)%pts.length],bulge=e.bulges?.[i]||0;
+   if(!bulge){segment(u[0],u[1],v[0],v[1]);continue}
+   const dx=v[0]-u[0],dy=v[1]-u[1],ch=Math.hypot(dx,dy);
+   const theta=-4*Math.atan(bulge),steps=Math.max(4,Math.ceil(Math.abs(theta)*12)),radius=ch/(2*Math.sin(Math.abs(theta)/2));
+   const midX=(u[0]+v[0])/2,midY=(u[1]+v[1])/2,dist=ch*(1-bulge*bulge)/(4*bulge);
+   const cx=midX-dy/ch*dist,cy=midY+dx/ch*dist,angle=Math.atan2(u[1]-cy,u[0]-cx);
+   let prev=u;for(let k=1;k<=steps;k++){const az=angle+theta*k/steps;const next=k===steps?v:[cx+Math.abs(radius)*Math.cos(az),cy+Math.abs(radius)*Math.sin(az)];segment(prev[0],prev[1],next[0],next[1]);prev=next}
+  }
+ }
+ else if(e.type==='CIRCLE'||e.type==='ARC'){
+  const start=e.type==='ARC'?-e.a1:0;
+  let sweep=e.type==='ARC'?((e.a2-e.a1+Math.PI*2)%(Math.PI*2)):(Math.PI*2);
+  if(e.type==='ARC'&&sweep===0)sweep=Math.PI*2;
+  const steps=Math.max(16,Math.ceil(sweep*10));let old=null;
+  for(let k=0;k<=steps;k++){const angle=(start-sweep*k/steps);const v=[e.x+e.r*Math.cos(angle),e.y+e.r*Math.sin(angle)];if(old)segment(old[0],old[1],v[0],v[1]);old=v;}
+ }
+ else if(e.type==='INSERT'){
+  const def=raw.blocks?.[e.block];if(!def){missing++;return}
+  const radians=(e.rotation||0),cos=Math.cos(radians),sin=Math.sin(radians),sx=e.sx||1,sy=e.sy||1;
+  // Reflect Y was applied when exporting coordinates.
+  const tx=e.x-(def.baseX||0)*sx*cos-(def.baseY||0)*sy*sin;
+  const ty=e.y+(def.baseX||0)*sx*sin-(def.baseY||0)*sy*cos;
+  const local={a:sx*cos,b:-sx*sin,c:sy*sin,d:sy*cos,tx,ty};
+  const next={a:transform.a*local.a+transform.c*local.b,b:transform.b*local.a+transform.d*local.b,c:transform.a*local.c+transform.c*local.d,d:transform.b*local.c+transform.d*local.d,tx:transform.a*local.tx+transform.c*local.ty+transform.tx,ty:transform.b*local.tx+transform.d*local.ty+transform.ty};
+  for(const sub of def.items)render(sub,next,depth+1,layer);
+ }
+ else if(e.type==='TEXT'){
+  const p=T(e.x,e.y);ctx.stroke();ctx.fillStyle='#adc6da';ctx.font='11px Segoe UI';ctx.fillText(e.text||'',X(p[0]),Y(p[1]));ctx.beginPath();
+ }
+ if(++n%5000===0){ctx.stroke();ctx.beginPath();}
+}
+const identity={a:1,b:0,c:0,d:1,tx:0,ty:0};
+const palette={1:'#ff4a4a',2:'#ffff46',3:'#48ff71',4:'#40ffff',5:'#6391ff',6:'#ff51ff',7:'#d6e2f2',8:'#777777',9:'#b5b5b5'};
+const color=e=>{
+ if(e.rgb>0)return '#'+(e.rgb&0xffffff).toString(16).padStart(6,'0');
+ const i=e.ci;if(palette[i])return palette[i];
+ if(i>=10&&i<=249){const family=Math.floor((i-10)/10),tone=(i-10)%10;
+  const hue=(family*15)%360,light=[50,50,40,40,30,30,20,20,65,80][tone],sat=tone%2?55:95;
+  return 'hsl('+hue+' '+sat+'% '+light+'%)'}
+ if(i>=250&&i<=255){const val=Math.round(55+(i-250)*34);return 'rgb('+val+' '+val+' '+val+')'}
+ return '#a9bed0';
+};
+const grouped=new Map();
+for(const e of raw.objects){if(!active.has(e.layer)||!activeTypes.has(e.type)||hiddenHandles.has(e.h)||(e.type==='INSERT'&&hiddenBlocks.has(e.block)))continue;const col=color(e);if(!grouped.has(col))grouped.set(col,[]);grouped.get(col).push(e)}
+for(const [col,items] of grouped){ctx.stroke();ctx.beginPath();ctx.strokeStyle=col;for(const e of items)render(e,identity,0,e.layer);ctx.stroke();ctx.beginPath()}
+for(const block of markedBlocks){const members=blockIndex.get(block)||[];ctx.save();ctx.strokeStyle='#fff000';ctx.lineWidth=3.5;ctx.shadowColor='#ffef00';ctx.shadowBlur=12;ctx.beginPath();for(const e of members){if(hiddenBlocks.has(block)||hiddenHandles.has(e.h)||!active.has(e.layer)||!activeTypes.has('INSERT'))continue;render(e,identity,0,e.layer)}ctx.stroke();ctx.restore();ctx.beginPath();for(const e of members){if(hiddenBlocks.has(block)||hiddenHandles.has(e.h)||!active.has(e.layer)||!activeTypes.has('INSERT'))continue;const px=X(e.x),py=Y(e.y);ctx.beginPath();ctx.arc(px,py,8,0,2*Math.PI);ctx.fillStyle='rgba(255,235,0,.25)';ctx.fill();ctx.strokeStyle='#fff600';ctx.lineWidth=2;ctx.stroke()}}
+if(selectedReal&&!hiddenHandles.has(selectedReal.h)&&!(selectedReal.type==='INSERT'&&hiddenBlocks.has(selectedReal.block))){ctx.strokeStyle='#ffcf55';ctx.lineWidth=3;ctx.beginPath();render(selectedReal,identity,0,selectedReal.layer);ctx.stroke();ctx.lineWidth=.85;}
+
+
+}
+function fit(all=false){const b=all?bounds:mainBounds;if(!b)return;const rect=svg.getBoundingClientRect(),w=Math.max(1,b.maxX-b.minX),h=Math.max(1,b.maxY-b.minY);let ratio=Math.max(w/Math.max(1,rect.width),h/Math.max(1,rect.height))*1.07;view={x:(b.minX+b.maxX-rect.width*ratio)/2,y:(b.minY+b.maxY-rect.height*ratio)/2,w:rect.width*ratio,h:rect.height*ratio};paint()}
+function renderRawCounts(){
+ if(!raw)return;
+ const inserts=raw.objects.filter(e=>e.type==='INSERT');
+ const buckets=new Map();
+ for(const e of inserts){
+  const key=e.block||'(без име)';let b=buckets.get(key);
+  if(!b){b={name:key,count:0,handles:[],layers:new Set()};buckets.set(key,b)}
+  b.count++;b.layers.add(e.layer);if(b.handles.length<5)b.handles.push(e.h);
+ }
+ const wrap=document.getElementById('quantity');wrap.replaceChildren();
+ const title=document.createElement('h3');title.textContent='RAW блокове от DWG';wrap.append(title);
+ const total=document.createElement('div');total.className='kv';total.textContent='Всички INSERT записи: '+inserts.length;wrap.append(total);
+ const note=document.createElement('small');note.textContent='Това е техническо преброяване на INSERT, не потвърдено количество оборудване. Легенди, фонови и вложени блокове не са класифицирани.';wrap.append(note);
+ const search=document.createElement('input');search.placeholder='Търси блок';search.style.width='100%';wrap.append(search);
+ const list=document.createElement('div');wrap.append(list);
+ function update(){
+  list.replaceChildren();
+  let shown=0;
+  for(const b of [...buckets.values()].sort((a,b)=>b.count-a.count)){
+   if(search.value&&!b.name.toLowerCase().includes(search.value.toLowerCase()))continue;
+   if(++shown>120)break;
+   const row=document.createElement('div');row.className='kv';
+   const label=document.createElement('span');label.textContent=b.name;label.title=[...b.layers].join(', ');
+   const count=document.createElement('b');count.textContent=b.count+' бр. RAW';row.append(label,count);list.append(row);
+  }
+ }
+ search.oninput=update;update();
+ const exportButton=document.createElement('button');exportButton.textContent='CSV — RAW INSERT по блокове';exportButton.onclick=()=>{
+ const escapeCsv=x=>'"'+String(x).replaceAll('"','""')+'"';
+ const rows=[['Block','RAW_INSERT','Layers','Sample_handles'],...[...buckets.values()].sort((a,b)=>b.count-a.count).map(b=>[b.name,b.count,[...b.layers].join(';'),b.handles.join(';')])];
+ const csv='\\uFEFF'+rows.map(cols=>cols.map(escapeCsv).join(',')).join('\\r\\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='PARTER-PB_RAW_INSERT.csv';a.click();URL.revokeObjectURL(url);
+ };
+ wrap.append(exportButton);
+}
+function renderRealExplorer(){
+ const typesBox=document.getElementById('types'),objBox=document.getElementById('objects');
+ typesBox.replaceChildren();objBox.replaceChildren();
+ const counts=new Map();for(const e of raw.objects)counts.set(e.type,(counts.get(e.type)||0)+1);
+ for(const [type,count] of [...counts].sort((a,b)=>a[0].localeCompare(b[0]))){
+  const label=document.createElement('label'),cb=document.createElement('input');cb.type='checkbox';cb.checked=activeTypes.has(type);
+  cb.onchange=()=>{if(cb.checked)activeTypes.add(type);else activeTypes.delete(type);renderRealObjects();paint()};
+  label.append(cb,document.createTextNode(' '+type+' ('+count+')'));typesBox.append(label);
+ }
+ const search=document.createElement('input');search.placeholder='Търси Handle / блок / слой';search.style.width='100%';search.id='real-object-search';
+ search.oninput=()=>renderRealObjects();objBox.append(search);
+ const list=document.createElement('div');list.id='real-object-list';objBox.append(list);renderRealObjects();
+}
+function renderRealObjects(){
+ if(!raw)return;
+ const q=(document.getElementById('real-object-search')?.value||'').toLowerCase().trim();
+ const list=document.getElementById('real-object-list');if(!list)return;list.replaceChildren();
+ let total=0,shown=0;
+ for(const e of raw.objects){
+  if(!active.has(e.layer)||!activeTypes.has(e.type))continue;
+  if(q&&!String(e.h).toLowerCase().includes(q)&&!String(e.block||'').toLowerCase().includes(q)&&!String(e.layer).toLowerCase().includes(q))continue;
+  total++;if(shown>=250)continue;shown++;
+  const row=document.createElement('div');row.className='item';row.style.display='flex';row.style.alignItems='center';
+  const cb=document.createElement('input');cb.type='checkbox';cb.checked=!hiddenHandles.has(e.h);cb.onclick=event=>event.stopPropagation();
+  cb.onchange=()=>{if(cb.checked)hiddenHandles.delete(e.h);else hiddenHandles.add(e.h);paint()};
+  const name=document.createElement('span');name.textContent=' '+e.type+' #'+e.h+(e.block?' · '+e.block:'');name.style.marginLeft='6px';name.style.cursor='pointer';
+  name.onclick=()=>selectReal(e);
+  row.append(cb,name);list.append(row);
+ }
+ const count=document.createElement('small');count.textContent='Показани '+shown+' от '+total+' обекта. Използвай търсенето за останалите.';list.prepend(count);
+}
+function blockControls(e,inspector){
+ if(e.type!=='INSERT'||!e.block)return;
+ const members=blockIndex.get(e.block)||[];
+ const panel=document.createElement('div');panel.style.cssText='border:1px solid #426181;border-radius:8px;padding:10px;margin:10px 0';
+ const heading=document.createElement('b');heading.textContent='Блок: '+e.block;heading.style.overflowWrap='anywhere';panel.append(heading);
+ const count=document.createElement('div');count.style.margin='8px 0';count.textContent='Общо INSERT екземпляри в DWG: '+members.length;panel.append(count);
+ const status=document.createElement('div');status.style.marginBottom='8px';panel.append(status);
+ const hide=document.createElement('button');hide.textContent='Скрий всички';hide.style.marginRight='6px';
+ const show=document.createElement('button');show.textContent='Покажи всички';
+ const highlight=document.createElement('button');highlight.textContent='Маркирай всички';highlight.style.marginTop='6px';
+ const unmark=document.createElement('button');unmark.textContent='Премахни маркировката';unmark.style.marginTop='6px';
+ function refresh(){const hidden=hiddenBlocks.has(e.block),marked=markedBlocks.has(e.block);status.textContent=(hidden?'Статус: скрити':'Статус: видими (според филтрите)')+(marked?' · маркирани':'');hide.disabled=hidden;show.disabled=!hidden;highlight.disabled=marked;unmark.disabled=!marked}
+ hide.onclick=()=>{hiddenBlocks.add(e.block);refresh();paint()};
+ show.onclick=()=>{hiddenBlocks.delete(e.block);activeTypes.add('INSERT');for(const item of members){active.add(item.layer);hiddenHandles.delete(item.h)}renderRealExplorer();layerBox.querySelectorAll('input').forEach(c=>{const name=c.parentElement?.textContent?.trim();if(name&&active.has(name))c.checked=true});refresh();paint()};
+ highlight.onclick=()=>{markedBlocks.add(e.block);hiddenBlocks.delete(e.block);activeTypes.add('INSERT');for(const item of members){active.add(item.layer);hiddenHandles.delete(item.h)}renderRealExplorer();refresh();paint();const focus=members.filter(x=>Number.isFinite(x.x)&&Number.isFinite(x.y));if(!focus.length)return;const xs=focus.map(x=>x.x),ys=focus.map(x=>x.y),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys),rect=svg.getBoundingClientRect();const scale=Math.max((maxX-minX)/Math.max(1,rect.width),(maxY-minY)/Math.max(1,rect.height),Math.min(view.w/rect.width,view.h/rect.height)*.03)*1.25;view={x:(minX+maxX-rect.width*scale)/2,y:(minY+maxY-rect.height*scale)/2,w:rect.width*scale,h:rect.height*scale};paint()};
+ unmark.onclick=()=>{markedBlocks.delete(e.block);if(selectedReal?.block===e.block)selectedReal=null;refresh();paint()};
+ panel.append(hide,show,highlight,unmark);inspector.prepend(panel);refresh();
+}
+window.addEventListener('keydown',event=>{
+ if(event.key!=='Escape'||(!selectedReal&&!markedBlocks.size))return;
+ markedBlocks.clear();selectedReal=null;
+ document.getElementById('inspector').textContent='Няма избран обект.';
+ const search=document.getElementById('real-object-search');
+ if(search){search.value='';renderRealObjects()}
+ paint();
+});
+function selectReal(e){
+ selectedReal=e;const inspector=document.getElementById('inspector');inspector.replaceChildren();
+ for(const [k,v] of Object.entries(e)){const line=document.createElement('div');line.className='kv';const a=document.createElement('span'),b=document.createElement('b');a.textContent=k;b.textContent=typeof v==='object'?JSON.stringify(v).slice(0,500):String(v);line.append(a,b);inspector.append(line)}
+ blockControls(e,inspector);paint();
+}
+svg.addEventListener('click',event=>{
+ if(!raw||event.target!==svg)return;
+ const rc=svg.getBoundingClientRect(),px=event.clientX-rc.left,py=event.clientY-rc.top;
+ const xx=x=>(x-view.x)/view.w*rc.width,yy=y=>(y-view.y)/view.h*rc.height;
+ const distSegment=(ax,ay,bx,by)=>{const dx=bx-ax,dy=by-ay,t=Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1)));return Math.hypot(px-ax-t*dx,py-ay-t*dy)};
+ const T=(m,x,y)=>[xx(m.a*x+m.c*y+m.tx),yy(m.b*x+m.d*y+m.ty)];
+ const identity={a:1,b:0,c:0,d:1,tx:0,ty:0};
+ function hitShape(e,m,depth){
+  if(depth>5)return Infinity;
+  if(e.type==='LINE'){const a=T(m,e.x1,e.y1),b=T(m,e.x2,e.y2);return distSegment(...a,...b)}
+  if(e.type==='POLYLINE'){
+   const points=e.pts||[];let min=Infinity;
+   for(let i=1;i<points.length;i++){const a=T(m,...points[i-1]),b=T(m,...points[i]);min=Math.min(min,distSegment(...a,...b))}
+   if(e.closed&&points.length>2){const a=T(m,...points.at(-1)),b=T(m,...points[0]);min=Math.min(min,distSegment(...a,...b))}
+   return min;
+  }
+  if(e.type==='CIRCLE'||e.type==='ARC'){const p=T(m,e.x,e.y),radius=Math.abs((e.r||0)*m.a*rc.width/view.w);return Math.abs(Math.hypot(px-p[0],py-p[1])-radius)}
+  if(e.type==='TEXT'){const p=T(m,e.x,e.y);return Math.hypot(px-p[0],py-p[1])}
+  if(e.type==='INSERT'){
+   const def=raw.blocks?.[e.block];if(!def)return Math.hypot(px-xx(e.x),py-yy(e.y));
+   const angle=e.rotation||0,co=Math.cos(angle),si=Math.sin(angle),sx=e.sx??1,sy=e.sy??1;
+   const baseX=def.baseX||0,baseY=def.baseY||0;
+   const local={a:sx*co,b:-sx*si,c:sy*si,d:sy*co,tx:e.x-baseX*sx*co-baseY*sy*si,ty:e.y+baseX*sx*si-baseY*sy*co};
+   const next={a:m.a*local.a+m.c*local.b,b:m.b*local.a+m.d*local.b,c:m.a*local.c+m.c*local.d,d:m.b*local.c+m.d*local.d,tx:m.a*local.tx+m.c*local.ty+m.tx,ty:m.b*local.tx+m.d*local.ty+m.ty};
+   let result=Infinity;for(const sub of def.items){result=Math.min(result,hitShape(sub,next,depth+1));if(result<2)break}
+   return result;
+  }
+  return Infinity;
+ }
+ let best=null,score=14;
+ // When a symbol overlaps ordinary CAD linework, favor the INSERT that owns its geometry.
+ for(const e of raw.objects){
+  if(e.type!=='INSERT'||!active.has(e.layer)||!activeTypes.has(e.type)||hiddenHandles.has(e.h)||hiddenBlocks.has(e.block))continue;
+  const dist=hitShape(e,identity,0);if(dist<score){score=dist;best=e}
+ }
+ if(!best||score>7){
+  for(const e of raw.objects){
+   if(e.type==='INSERT'||!active.has(e.layer)||!activeTypes.has(e.type)||hiddenHandles.has(e.h))continue;
+   const dist=hitShape(e,identity,0);if(dist<score){score=dist;best=e}
+  }
+ }
+ if(best){selectReal(best);const search=document.getElementById('real-object-search');if(search){search.value=best.h;renderRealObjects()}}
+});
+document.getElementById('open-dwg').onclick=()=>document.getElementById('dwg-file').click();
+document.getElementById('dwg-file').onchange=async event=>{
+ const f=event.target.files?.[0];if(!f)return;
+ const msg=document.getElementById('messages'),loading=document.getElementById('dwg-loading');
+ msg.textContent='Локално четене на '+f.name+' чрез LibreDWG WebAssembly...';
+ document.getElementById('dwg-loading-file').textContent=f.name;
+ loading.hidden=false;
+ document.getElementById('open-dwg').disabled=true;
+ try{
+  // Allow the loading overlay to paint before WebAssembly starts synchronous DWG conversion.
+  await new Promise(resolve=>requestAnimationFrame(()=>setTimeout(resolve,40)));
+  const parser=await window.v2Ready;const data=await parser.readDwg(f);
+  await loadReal({ok:true,json:async()=>data});
+ }
+ catch(err){msg.textContent='Грешка при отваряне на DWG: '+err.message}
+ finally{loading.hidden=true;document.getElementById('open-dwg').disabled=false;event.target.value=''}
+};
+
+async function loadReal(response){
+const msg=document.getElementById('messages');
+try{
+if(!response.ok)throw Error((await response.text()).slice(0,500));
+raw=await response.json();ksRows=null;blockIndex=new Map();hiddenBlocks.clear();markedBlocks.clear();for(const item of raw.objects){if(item.type==='INSERT'){if(!blockIndex.has(item.block))blockIndex.set(item.block,[]);blockIndex.get(item.block).push(item)}}active=new Set(raw.objects.map(e=>e.layer));activeTypes=new Set(raw.objects.map(e=>e.type));hiddenHandles.clear();selectedReal=null;bounds=extents(raw.objects);mainBounds=centralBounds(raw.objects);
+objects=[];selected=null;document.getElementById('scene').replaceChildren();document.getElementById('objects').replaceChildren();document.getElementById('layers').replaceChildren();document.getElementById('types').replaceChildren();renderRawCounts();
+document.getElementById('inspector').textContent='Реална DWG геометрия. Избери слой отляво.';
+layerBox.replaceChildren();const allBtn=document.createElement('button');allBtn.textContent='Fit всички обекти';allBtn.onclick=()=>fit(true);layerBox.append(allBtn);for(const l of [...active].sort()){const label=document.createElement('label'),check=document.createElement('input');check.type='checkbox';check.checked=true;check.onchange=()=>{if(check.checked)active.add(l);else active.delete(l);renderRealObjects();paint()};label.append(check,document.createTextNode(' '+l));layerBox.append(label)}
+renderRealExplorer();canvas.style.display='block';window.drawReal=paint;window.fitReal=()=>fit(false);window.resetReal=()=>{active=new Set(raw.objects.map(e=>e.layer));activeTypes=new Set(raw.objects.map(e=>e.type));hiddenHandles.clear();hiddenBlocks.clear();markedBlocks.clear();selectedReal=null;renderRealExplorer();layerBox.querySelectorAll('input').forEach(c=>c.checked=true);paint()};fit(false);
+msg.textContent=raw.file+' — '+raw.objects.length+' графични записа; блокови дефиниции: '+Object.keys(raw.blocks||{}).length+'. Необработените CAD типове не са включени в геометричния списък.';
+}catch(e){msg.textContent='Грешка: '+e.message}
+};
+let ksRows=null;
+function ksPreview(block,size=90){
+ const box=document.createElement('canvas');box.width=size*2;box.height=size*2;box.style.cssText='width:'+size+'px;height:'+size+'px;background:#ffffff;border:1px solid #aab5c2;border-radius:6px;cursor:zoom-in;vertical-align:middle';
+ const c=box.getContext('2d');c.fillStyle='#ffffff';c.fillRect(0,0,box.width,box.height);c.scale(2,2);c.strokeStyle='#000000';c.lineWidth=1.5;c.lineCap='round';c.lineJoin='round';
+ const shapes=[],def=raw?.blocks?.[block];
+ const M={a:1,b:0,c:0,d:1,tx:0,ty:0};
+ const apply=(m,x,y)=>[m.a*x+m.c*y+m.tx,m.b*x+m.d*y+m.ty];
+ const collect=(e,m,depth)=>{
+  if(depth>6||shapes.length>2500)return;
+  const path=[];
+  const segment=(x,y,x2,y2)=>{const a=apply(m,x,y),b=apply(m,x2,y2);path.push([a,b])};
+  if(e.type==='LINE')segment(e.x1,e.y1,e.x2,e.y2);
+  else if(e.type==='POLYLINE'){const pts=e.pts||[];for(let i=0;i<pts.length-(e.closed?0:1);i++){const a=pts[i],b=pts[(i+1)%pts.length];segment(a[0],a[1],b[0],b[1])}}
+  else if(e.type==='ARC'||e.type==='CIRCLE'){const start=e.type==='ARC'?-e.a1:0;let sweep=e.type==='ARC'?((e.a2-e.a1+Math.PI*2)%(Math.PI*2)):Math.PI*2;if(!sweep)sweep=Math.PI*2;const steps=40;for(let i=0;i<steps;i++){const a=start-sweep*i/steps,b=start-sweep*(i+1)/steps;segment(e.x+e.r*Math.cos(a),e.y+e.r*Math.sin(a),e.x+e.r*Math.cos(b),e.y+e.r*Math.sin(b))}}
+  else if(e.type==='INSERT'){
+   const child=raw.blocks?.[e.block];if(!child)return;
+   const a=e.rotation||0,co=Math.cos(a),si=Math.sin(a),sx=e.sx||1,sy=e.sy||1;
+   const tx=e.x-(child.baseX||0)*sx*co-(child.baseY||0)*sy*si,ty=e.y+(child.baseX||0)*sx*si-(child.baseY||0)*sy*co;
+   const n={a:sx*co,b:-sx*si,c:sy*si,d:sy*co,tx,ty};
+   const q={a:m.a*n.a+m.c*n.b,b:m.b*n.a+m.d*n.b,c:m.a*n.c+m.c*n.d,d:m.b*n.c+m.d*n.d,tx:m.a*n.tx+m.c*n.ty+m.tx,ty:m.b*n.tx+m.d*n.ty+m.ty};
+   for(const sub of child.items||[])collect(sub,q,depth+1);
+  }
+  if(path.length)shapes.push(...path);
+ };
+ if(def){const origin={...M,tx:-(def.baseX||0),ty:-(def.baseY||0)};for(const e of def.items||[])collect(e,origin,0)}
+ if(!shapes.length){c.fillStyle='#222222';c.font='11px Segoe UI';c.fillText('Няма геометрия',5,size/2);return box}
+ const xy=shapes.flat(),xs=xy.map(p=>p[0]),ys=xy.map(p=>p[1]),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys);
+ const scale=Math.min((size-18)/Math.max(maxX-minX,0.001),(size-18)/Math.max(maxY-minY,0.001));
+ const draw=p=>[(p[0]-(minX+maxX)/2)*scale+size/2,(p[1]-(minY+maxY)/2)*scale+size/2];
+ c.beginPath();for(const [p,q] of shapes){const a=draw(p),b=draw(q);c.moveTo(...a);c.lineTo(...b)}c.stroke();
+ return box;
+}
+function ksZoomPreview(block){
+ const modal=document.createElement('dialog');modal.style.cssText='background:#142237;color:#e5eef8;border:1px solid #426181;border-radius:12px;max-width:96vw';
+ const h=document.createElement('div');h.textContent='CAD блок: '+block;h.style.cssText='margin-bottom:10px;overflow-wrap:anywhere';modal.append(h);
+ modal.append(ksPreview(block,420));
+ const close=document.createElement('button');close.textContent='Затвори';close.onclick=()=>modal.close();modal.append(close);
+ modal.onclose=()=>modal.remove();document.body.append(modal);modal.showModal();
+}
+document.getElementById('clear-markings').onclick=()=>{markedBlocks.clear();selectedReal=null;document.getElementById('inspector').textContent='Няма избран обект.';const search=document.getElementById('real-object-search');if(search){search.value='';renderRealObjects()}if(raw)paint()};
+function ksShowInDrawing(block){
+ const members=blockIndex.get(block)||[];if(!members.length)return;
+ document.getElementById('ks-dialog').close();markedBlocks.add(block);hiddenBlocks.delete(block);activeTypes.add('INSERT');
+ for(const item of members){active.add(item.layer);hiddenHandles.delete(item.h)}
+ renderRealExplorer();
+ const focus=members.filter(e=>Number.isFinite(e.x)&&Number.isFinite(e.y));
+ if(focus.length){const xs=focus.map(e=>e.x),ys=focus.map(e=>e.y),minX=Math.min(...xs),maxX=Math.max(...xs),minY=Math.min(...ys),maxY=Math.max(...ys),rect=svg.getBoundingClientRect(),scale=Math.max((maxX-minX)/Math.max(1,rect.width),(maxY-minY)/Math.max(1,rect.height),view.w/Math.max(1,rect.width)*.03)*1.25;view={x:(minX+maxX-rect.width*scale)/2,y:(minY+maxY-rect.height*scale)/2,w:rect.width*scale,h:rect.height*scale}}
+ paint();
+}
+
+function ksRender(){
+ const host=document.getElementById('ks-grid');host.replaceChildren();
+ const table=document.createElement('table');table.style.cssText='width:100%;border-collapse:collapse;font-size:12px';
+ const head=document.createElement('tr');for(const label of ['В КС','№','Визуализация','Наименование','CAD блок','Мярка','Количество','RAW','Действия']){const c=document.createElement('th');c.textContent=label;c.style.cssText='padding:7px;border-bottom:1px solid #426181;text-align:left';head.append(c)}table.append(head);
+ ksRows.forEach((r,i)=>{
+  const tr=document.createElement('tr'),cell=()=>{const c=document.createElement('td');c.style.cssText='padding:5px;border-bottom:1px solid #304158';tr.append(c);return c};
+  const check=document.createElement('input');check.type='checkbox';check.checked=r.include;check.onchange=()=>r.include=check.checked;cell().append(check);
+  cell().textContent=i+1;
+  const imageCell=cell();
+  const preview=ksPreview(r.block);preview.title='Увеличи CAD блока';preview.onclick=()=>ksZoomPreview(r.block);imageCell.append(preview);
+  for(const key of ['name','block','unit','quantity']){
+   const input=document.createElement('input');input.value=r[key];input.style.cssText='width:'+(key==='name'?'235px':key==='block'?'175px':'78px')+';max-width:100%;padding:5px;background:#101c2d;color:#fff;border:1px solid #46617c';
+   if(key==='quantity'){input.type='number';input.min='0';input.step='any'}
+   input.oninput=()=>{r[key]=input.value};cell().append(input);
+  }
+  cell().textContent=String(r.raw??'—');
+  const actions=cell();
+  if(blockIndex.has(r.block)){const locate=document.createElement('button');locate.textContent='Покажи в чертежа';locate.style.marginRight='5px';locate.onclick=()=>ksShowInDrawing(r.block);actions.append(locate)}
+  const del=document.createElement('button');del.textContent='×';del.title='Премахни позиция';del.onclick=()=>{ksRows.splice(i,1);ksRender()};actions.append(del);
+  table.append(tr);
+ });
+ host.append(table);document.getElementById('ks-status').textContent='Общо позиции: '+ksRows.length+' · Провери кои блокове са действително оборудване.';
+}
+document.getElementById('create-ks').onclick=()=>{
+ if(!raw){document.getElementById('messages').textContent='Първо отвори DWG чертеж.';return}
+ if(!ksRows){ksRows=[...blockIndex].sort((a,b)=>a[0].localeCompare(b[0])).map(([block,members])=>({name:block,block,unit:'бр.',quantity:members.length,raw:members.length,include:true}))}
+ ksRender();document.getElementById('ks-dialog').showModal();
+};
+document.getElementById('ks-add').onclick=()=>{ksRows.push({name:'',block:'',unit:'бр.',quantity:0,raw:null,include:true});ksRender()};
+document.getElementById('ks-close').onclick=()=>document.getElementById('ks-dialog').close();
+document.getElementById('ks-save').onclick=async()=>{
+ const status=document.getElementById('ks-status');
+ const rows=ksRows.filter(r=>r.include).map(r=>({...r,quantity:Number(r.quantity)}));
+ if(!rows.length){status.textContent='Няма включени позиции.';return}
+ if(rows.some(r=>!r.name.trim()||!r.unit.trim()||!Number.isFinite(r.quantity)||r.quantity<0)){status.textContent='Провери наименованията, мерките и количествата.';return}
+ try{
+  status.textContent='Генериране на Excel...';
+  for(const r of rows){if(raw.blocks?.[r.block])r.symbol=ksPreview(r.block,300).toDataURL('image/png')}
+  const exporter=await window.v2Ready;
+  const blob=await exporter.saveExcel(rows,raw.file||'drawing.dwg'),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='KS_'+String(raw.file||'drawing').replace(/\.[^.]+$/,'').replace(/[^\w\u0400-\u04FF-]/g,'_')+'.xlsx';a.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
+  status.textContent='Excel файлът е подготвен за запис.';
+ }catch(error){status.textContent='Грешка при запис: '+error.message}
+};
+
+window.addEventListener('resize',()=>{if(raw)paint()});
+})();
+</script></html>
+<script>
+(()=>{const terms=document.getElementById('terms-dialog'),guide=document.getElementById('help-dialog'),check=document.getElementById('terms-check'),accept=document.getElementById('terms-accept');let agreed=false;const gate=()=>{if(!agreed&&!terms.open){check.checked=false;accept.disabled=true;terms.showModal()}};document.getElementById('open-help').addEventListener('click',()=>guide.showModal());document.getElementById('close-help').addEventListener('click',()=>guide.close());check.addEventListener('change',()=>accept.disabled=!check.checked);accept.addEventListener('click',()=>{if(!check.checked)return;agreed=true;terms.close();document.getElementById('open-dwg').disabled=false});document.getElementById('terms-decline').addEventListener('click',()=>{check.checked=false;accept.disabled=true;document.getElementById('open-dwg').disabled=true;gate()});terms.addEventListener('cancel',e=>{if(!agreed)e.preventDefault()});document.getElementById('open-dwg').addEventListener('click',e=>{if(!agreed){e.stopImmediatePropagation();gate()}},true);document.getElementById('create-ks').addEventListener('click',e=>{if(!agreed){e.stopImmediatePropagation();gate()}},true);document.getElementById('dwg-file').addEventListener('change',e=>{if(!agreed){e.stopImmediatePropagation();e.target.value='';gate()}},true);gate();})();
+</script>
