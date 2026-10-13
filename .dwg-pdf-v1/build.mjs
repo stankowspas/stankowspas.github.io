@@ -12,7 +12,7 @@ await build({root:app,base:'/projects/sectron/dwg-to-pdf/',publicDir:false,confi
 fs.renameSync(path.join(target,'index.deploy.html'),path.join(target,'index.html'));
 for(const name of ['style.css','help.html','terms.html'])fs.copyFileSync(path.join(app,name),path.join(target,name));
 const mkdir=p=>fs.mkdirSync(path.join(target,p),{recursive:true});mkdir('workers');mkdir('wasm');
-const from=(src,dst)=>{const file=path.join(root,'node_modules/@mlightcad',src);if(!fs.existsSync(file))throw Error('Missing runtime asset: '+file);fs.copyFileSync(file,path.join(target,dst))};
+const from=(src,dst)=>{const file=path.join(app,'node_modules/@mlightcad',src);if(!fs.existsSync(file))throw Error('Missing runtime asset: '+file);fs.copyFileSync(file,path.join(target,dst))};
 from('libredwg-converter/dist/libredwg-parser-worker.js','workers/libredwg-parser-worker.js');
 from('libredwg-converter/dist/libredwg-web.wasm','workers/libredwg-web.wasm');
 from('cad-simple-viewer/dist/mtext-renderer-worker.js','workers/mtext-renderer-worker.js');
