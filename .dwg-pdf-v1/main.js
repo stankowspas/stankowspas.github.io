@@ -46,5 +46,3 @@ function bindInspector(){
  }
  update();
 }
-
-[executed on device: HQMOB-28ENG (6237fe31-add7-4fdb-bf10-6219600c8818)]
