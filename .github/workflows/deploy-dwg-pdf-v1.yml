@@ -1,0 +1,43 @@
+name: Build and publish DWG PDF Converter V1
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.dwg-pdf-v1/**'
+      - '.github/workflows/deploy-dwg-pdf-v1.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: npm install --prefix .dwg-pdf-v1 --no-audit --no-fund
+      - name: Build static production app
+        run: node .dwg-pdf-v1/build.mjs
+      - name: Verify deployment assets
+        shell: bash
+        run: |
+          test -s projects/sectron/dwg-to-pdf/index.html
+          test -s projects/sectron/dwg-to-pdf/help.html
+          test -s projects/sectron/dwg-to-pdf/terms.html
+          test -s projects/sectron/dwg-to-pdf/workers/libredwg-parser-worker.js
+          test -s projects/sectron/dwg-to-pdf/workers/libredwg-web.wasm
+          test -s projects/sectron/dwg-to-pdf/workers/mtext-renderer-worker.js
+          test -s projects/sectron/dwg-to-pdf/wasm/libredwg-web.wasm
+      - name: Commit only compiled DWG PDF application
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add projects/sectron/dwg-to-pdf
+          if ! git diff --cached --quiet; then
+            git commit -m "Deploy DWG PDF Converter V1"
+            git push
+          fi
