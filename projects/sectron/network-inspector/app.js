@@ -121,7 +121,7 @@ function devicesTable(ds){if(!ds?.length)return `<div class="empty">${icon('moni
 return `<div class="table-wrap"><table><thead><tr><th>УСТРОЙСТВО</th><th>IP АДРЕС</th><th>MAC АДРЕС</th><th>ICMP</th><th>RTT</th><th>ОТВОРЕНИ TCP ПОРТОВЕ</th><th>ИЗТОЧНИК</th></tr></thead><tbody>${ds.map(d=>`<tr data-device="${esc(d.id)}"><td class="table-name">${esc(d.name||'Неидентифицирано')}</td><td class="mono">${esc(d.ip)}</td><td class="mono">${esc(d.mac||'—')}</td><td>${d.ping?'<span class="pill good">ОТГОВАРЯ</span>':'<span class="pill warn">БЛОКИРАН / НЕИЗВЕСТЕН</span>'}</td><td>${d.rttMs===null?'—':esc(d.rttMs)+' ms'}</td><td class="mono">${esc((d.openPorts||[]).join(', ')||'—')}</td><td>${esc(d.source)}</td></tr>`).join('')}</tbody></table></div>`}
 function scanner(){const ds=state.snapshot.scan?.devices||[],discovery=state.autoScopes||{scopes:[],warnings:[],totalHosts:0};
 const scopePreview=`<div class="notice" style="margin-top:15px"><strong>Открити мрежи: ${discovery.scopes.length} · до ${discovery.totalHosts} адреса в избираеми обхвати</strong>
-<div style="margin:10px 0">${discovery.scopes.length?discovery.scopes.map(s=>`<label style="display:flex;align-items:start;gap:10px;margin:7px 0;line-height:1.5"><input type="checkbox" class="scope-choice" value="${esc(s.cidr)}" ${!s.selectable?'disabled':''} ${state.selectedCidrs.includes(s.cidr)&&s.selectable?'checked':''} style="margin-top:4px"><span><strong class="mono">${esc(s.cidr)}</strong> · ${esc(s.source==='route'?'Маршрут Windows':s.source==='snmp'?'SNMP маршрутизатор':'Локален адаптер')} · ${esc(s.adapter)} ${s.via?' · през '+esc(s.via):''} ${s.limitedTo24?' · ограничено до /24':''}${!s.selectable?' · голям обхват: избери конкретен /24 ръчно':''}</span></label>`).join(''):'Няма открити обхвати'}</div>
+<div style="margin:10px 0">${discovery.scopes.length?discovery.scopes.map(s=>`<label style="display:flex;align-items:start;gap:10px;margin:7px 0;line-height:1.5"><input type="checkbox" class="scope-choice" value="${esc(s.cidr)}" ${!s.selectable?'disabled':''} ${state.selectedCidrs.includes(s.cidr)&&s.selectable?'checked':''} style="margin-top:4px"><span><strong class="mono">${esc(s.cidr)}</strong> · ${esc(s.source==='route'?'Маршрут Windows':s.source==='snmp'?'SNMP маршрутизатор':'Локален адаптер')} · ${esc(s.adapter)} ${s.via?' · през '+esc(s.via):''} ${s.limitedTo24?' · ограничено до /16':''}${!s.selectable?' · голям обхват: избери конкретен /16–/32 ръчно':''}</span></label>`).join(''):'Няма открити обхвати'}</div>
 <small>${(discovery.warnings||[]).map(esc).join(' · ')}</small>
 <details style="margin-top:14px"><summary>Допълнително откриване през SNMP маршрутизатор (по желание)</summary>
 <div class="form-grid" style="margin-top:10px"><div class="field"><label for="route-host">IPv4 на маршрутизатор</label><input id="route-host" class="input mono" placeholder="172.17.206.1"></div>
@@ -135,7 +135,7 @@ return `<div class="view-header"><h2>Откриване на LAN / MAN / WAN у�
 <section class="card gap-bottom">${section('Ново сканиране','Изисква мрежов достъп и разрешение за проверявания адресен обхват')}
 <div class="form-grid"><div class="field"><label for="cidr">Ръчен IPv4 обхват (CIDR)</label><input id="cidr" class="input mono" value="${esc(state.scanCidr)}" placeholder="172.17.206.0/24"/></div><div class="field"><label for="timeout">Timeout / устройство</label><select class="input" id="timeout"><option value="400">400 ms</option><option value="600" selected>600 ms</option><option value="1200">1200 ms</option></select></div><div class="field"><label>Метод</label><div class="input">ICMP + TCP fallback</div></div></div>
 ${scopePreview}<div style="margin:18px 0 15px" class="checks"><input type="checkbox" id="authorized"><label for="authorized">Потвърждавам, че имам разрешение за избрания ръчен CIDR или за ВСИЧКИ маркирани обхвати при автоматично сканиране.</label></div>
-<div class="toolbar-row"><div class="card-actions">${btn(`${icon('play')} Сканирай избраните мрежи`,'scan-auto','primary')}${btn('Сканирай един CIDR','scan','ghost')}${state.busy?btn('Прекрати','abort','ghost'):''}</div><small class="muted">До 16 избрани обхвата /24–/32 · последователно · 12 едновременни хоста · Без ICMP отговор ≠ изключено устройство</small></div>${state.busy?'<div class="progress" style="margin-top:15px"></div>':''}</section>
+<div class="toolbar-row"><div class="card-actions">${btn(`${icon('play')} Сканирай избраните мрежи`,'scan-auto','primary')}${btn('Сканирай един CIDR','scan','ghost')}${state.busy?btn('Прекрати','abort','ghost'):''}</div><small class="muted">До 16 избрани обхвата /16–/32 · общо до 65 536 IP адреса · последователно · 12 едновременни хоста · Без ICMP отговор ≠ изключено устройство</small></div>${state.busy?'<div class="progress" style="margin-top:15px"></div>':''}</section>
 <section class="card">${section(`Устройства (${ds.length})`,state.snapshot.scan?'Последно сканиране: '+fmtTime(state.snapshot.scan.completed):'Очакват се резултати',btn(`${icon('download')} XLSX`,'xlsx','small'))}${state.snapshot.scan?.scannedRanges?.length?`<p class="note">Проверени CIDR: ${state.snapshot.scan.scannedRanges.map(esc).join(' · ')}</p>`:''}${devicesTable(ds)}${state.snapshot.scan?.warnings?.length?`<p class="note">${state.snapshot.scan.warnings.map(esc).join(' · ')}</p>`:''}</section>`;}
 function speedtestPanel(){
  const v=state.lastSpeedtest, running=!!state.speedtestRunning;
@@ -307,9 +307,10 @@ function infrastructurePanel(){
  const edges=(i.links||[]).map(e=>`<tr><td>${esc(e.from)}</td><td>${esc(e.to)}</td><td>${esc(e.kind)}</td><td>${esc(e.confidence)}</td><td>${esc([e.localPort,e.remotePort].filter(Boolean).join(' → ')||'-')}</td></tr>`).join('');
  return `<section class="card gap-bottom"><h3>Инвентар L2 / L3 — ${i.networks.length} мрежи, ${i.devices.length} възела, ${i.links.length} връзки</h3><p class="note">Маршрути ≠ физически кабели. LLDP връзките са наблюдавани записи, не кабелен тест.</p><div class="table-wrap"><table><thead><tr><th>CIDR</th><th>Източник</th><th>Next hop</th><th>Сканиране</th></tr></thead><tbody>${rows}</tbody></table></div><h3>Връзки между възли</h3><div class="table-wrap"><table><thead><tr><th>От</th><th>Към</th><th>Тип</th><th>Достоверност</th><th>Портове</th></tr></thead><tbody>${edges}</tbody></table></div></section>`;
 }
-function networkMapSvg(){
+function networkMapSvg(svgId='network-map-svg'){
  const inv=state.universalInventory||{prefixes:[],addresses:[]},scan=state.snapshot.scan;
- const prefixes=(inv.prefixes||[]).filter(p=>p.addressFamily==='IPv4');
+ const prefixes=(inv.prefixes||[]).filter(p=>p.addressFamily==='IPv4').slice();
+ for(const cidr of (scan?.scannedRanges||[])){if(!prefixes.some(p=>p.cidr===cidr))prefixes.push({cidr,source:'SCANNED RANGE'});}
  const scanned=(scan?.devices||[]).map(d=>({ip:d.ip,label:d.name||d.ip,source:'CIDR SCAN',status:'OBSERVED'}));
  const discovered=(state.discoveryResult?.devices||[]).map(d=>({ip:d.ip,label:d.name||d.ip,source:'NETWORK DISCOVERY',status:'OBSERVED'}));
  const candidates=[...scanned,...discovered,...(inv.addresses||[])];
@@ -349,7 +350,7 @@ function networkMapSvg(){
  }).join('');
  body=lines+body;
  return '<div class="notice">Логическо групиране по CIDR. Правоъгълниците са наблюдавани IP адреси, не потвърдени физически устройства. Линии между тях умишлено не се чертаят без LLDP доказателства.</div>'+
- '<div style="overflow:auto"><svg id="network-map-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+w+' '+(y+15)+'" role="img" aria-label="Логическа карта на наблюдавани IP адреси по мрежи" style="width:980px;max-width:none;min-width:980px;height:auto;background:#0b1728;border-radius:12px">'+body+'</svg></div>';
+ '<div style="overflow:auto"><svg id="'+esc(svgId)+'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+w+' '+(y+15)+'" role="img" aria-label="Логическа карта на наблюдавани IP адреси по мрежи" style="width:980px;max-width:none;min-width:980px;height:auto;background:#0b1728;border-radius:12px">'+body+'</svg></div>';
 }
 function exportNetworkMap(){
  const svg=document.getElementById('network-map-svg');
@@ -384,7 +385,7 @@ return `<div class="inspector"><div class="split"><strong>Инспектор н�
 ${found?`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:20px;margin-top:12px"><div class="kv"><span>Име</span><strong>${esc(found.name||'Неизвестно')}</strong></div><div class="kv"><span>IP</span><strong class="mono">${esc(found.ip)}</strong></div><div class="kv"><span>MAC</span><strong class="mono">${esc(found.mac||"-")}</strong></div><div class="kv"><span>RTT</span><strong>${found.rttMs??'—'} ms</strong></div><div class="kv"><span>Доказателство</span><strong>${esc(found.source)}</strong></div></div>`:`<p class="muted" style="margin-bottom:0">Избери устройство с клик върху възел от схемата.</p>`}</div>`;}
 function topologySvg(full){
  const ds=state.snapshot.scan?.devices||[];
- if((state.snapshot.scan?.scannedRanges?.length||0)>1) return `<div class="notice">Открити са устройства в няколко IP подмрежи (${state.snapshot.scan.scannedRanges.map(esc).join(', ')}). Не се чертае фиктивна обща подсистема или физическа връзка между тях. Виж пълния списък на устройствата и LLDP наблюденията.</div>`;
+ if((state.snapshot.scan?.scannedRanges?.length||0)>1) return networkMapSvg('topology-multi-svg');
  const countAll=ds.length, n=countAll, w=880, h=full?Math.max(480,380+Math.max(0,Math.ceil((n-5)/5)-1)*88):340;
  const cx=w/2,cy=full?235:165,layout=[];
  if(n<=10){const first=Math.ceil(n/2);const last=n-first;
@@ -593,7 +594,7 @@ async function runNetworkDiscovery(){
 }
 async function runScan(){if(state.demo){toast('Демо режимът не изпълнява мрежови сканирания.',true);return;}if(!state.connected){toast('Първо стартирай локалния агент.',true);return;}
  if(!$('#authorized')?.checked){toast('Потвърди разрешението за сканиране.',true);return;}
- const cidr=$('#cidr').value.trim();if(!/^\d{1,3}(\.\d{1,3}){3}\/(2[4-9]|3[0-2])$/.test(cidr)){toast('Разрешени са IPv4 мрежи /24 до /32.',true);return;}
+ const cidr=$('#cidr').value.trim();if(!/^\d{1,3}(\.\d{1,3}){3}\/(1[6-9]|2[0-9]|3[0-2])$/.test(cidr)){toast('Разрешени са IPv4 мрежи /16 до /32.',true);return;}
  state.userCidr=true;state.scanCidr=cidr;const timeoutMs=Number($('#timeout').value);controller=new AbortController();setBusy(true);
  try{const res=await api('/scan','POST',{cidr,timeoutMs,tcpFallback:true,authorized:true});state.snapshot.scan=res;state.selectedDevice=null;toast(`Сканирането приключи: ${res.devices.length} открити устройства.`);}catch(e){toast('Сканиране: '+e.message,true)}finally{controller=null;setBusy(false)}}
 async function runProfile(){

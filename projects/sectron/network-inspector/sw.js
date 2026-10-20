@@ -1,4 +1,4 @@
-const CACHE='network-inspector-static-v2013';
+const CACHE='network-inspector-static-v2014';
 const ASSETS=['./','./index.html','./styles.css','./app.js','./guide.html','./terms.html','./terms-gate.js','./manifest.webmanifest','./icons/app.svg','./icons/app-192.png','./icons/app-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
