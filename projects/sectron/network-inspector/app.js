@@ -309,16 +309,17 @@ function infrastructurePanel(){
 }
 function networkMapSvg(){
  const inv=state.universalInventory||{prefixes:[],addresses:[]},scan=state.snapshot.scan;
- const prefixes=(inv.prefixes||[]).filter(p=>p.addressFamily==='IPv4').slice(0,12);
+ const prefixes=(inv.prefixes||[]).filter(p=>p.addressFamily==='IPv4');
  const scanned=(scan?.devices||[]).map(d=>({ip:d.ip,label:d.name||d.ip,source:'CIDR SCAN',status:'OBSERVED'}));
- const candidates=[...scanned,...(inv.addresses||[])];
+ const discovered=(state.discoveryResult?.devices||[]).map(d=>({ip:d.ip,label:d.name||d.ip,source:'NETWORK DISCOVERY',status:'OBSERVED'}));
+ const candidates=[...scanned,...discovered,...(inv.addresses||[])];
 
  const ipnum=ip=>{const p=ip.split('.').map(Number);return p.length===4&&p.every(n=>Number.isInteger(n)&&n>=0&&n<=255)?p.reduce((v,n)=>((v<<8)>>>0)+n,0)>>>0:null};
  const seen=new Set(),addresses=candidates.filter(a=>{if(!a.ip||ipnum(a.ip)===null||seen.has(a.ip))return false;seen.add(a.ip);return true});
  const belongs=(ip,cidr)=>{const [base,bits]=cidr.split('/'),p=ipnum(ip),b=ipnum(base),n=Number(bits);return p!==null&&b!==null&&n>=0&&n<=32&&((p&(n===0?0:(0xffffffff<<(32-n))>>>0))>>>0)===((b&(n===0?0:(0xffffffff<<(32-n))>>>0))>>>0)};
- const groups=prefixes.map(p=>({name:p.cidr,origin:p.source,items:addresses.filter(a=>belongs(a.ip,p.cidr)).slice(0,18)})).filter(g=>g.items.length>0);
+ const groups=prefixes.map(p=>({name:p.cidr,origin:p.source,items:addresses.filter(a=>belongs(a.ip,p.cidr))})).filter(g=>g.items.length>0);
  const assigned=new Set(groups.flatMap(g=>g.items.map(a=>a.ip)));
- const other=addresses.filter(a=>!assigned.has(a.ip)).slice(0,18);
+ const other=addresses.filter(a=>!assigned.has(a.ip));
  if(other.length)groups.push({name:'Други наблюдавани адреси',origin:'unassigned',items:other});
  if(!groups.length)return '<div class="notice">Няма събрани мрежови адреси. Стартирай Discovery или прегледай локалните интерфейси.</div>';
  const w=980,col=2,cellW=472,pad=14;
@@ -384,7 +385,7 @@ ${found?`<div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(1
 function topologySvg(full){
  const ds=state.snapshot.scan?.devices||[];
  if((state.snapshot.scan?.scannedRanges?.length||0)>1) return `<div class="notice">Открити са устройства в няколко IP подмрежи (${state.snapshot.scan.scannedRanges.map(esc).join(', ')}). Не се чертае фиктивна обща подсистема или физическа връзка между тях. Виж пълния списък на устройствата и LLDP наблюденията.</div>`;
- const countAll=ds.length, n=Math.min(countAll,60), w=880, h=full?Math.max(480,380+Math.max(0,Math.ceil((n-5)/5)-1)*88):340;
+ const countAll=ds.length, n=countAll, w=880, h=full?Math.max(480,380+Math.max(0,Math.ceil((n-5)/5)-1)*88):340;
  const cx=w/2,cy=full?235:165,layout=[];
  if(n<=10){const first=Math.ceil(n/2);const last=n-first;
    for(let i=0;i<first;i++)layout.push({d:ds[i],x:(i+1)*w/(first+1),y:full?85:65});
@@ -747,4 +748,3 @@ async function activateFromLaunch(){
   }catch(e){await checkAgent();toast('Automatic pairing failed: '+e.message,true);}
 }
 render();activateFromLaunch();
-
