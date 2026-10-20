@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="bg"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a1224"><meta name="description" content="NETWORK INSPECTOR — LAN / MAN / WAN / Wi-Fi диагностика, топология и технически отчети">
+<link rel="manifest" href="./manifest.webmanifest"><link rel="icon" type="image/svg+xml" href="./icons/app.svg">
+<link rel="stylesheet" href="./styles.css"><title>NETWORK INSPECTOR</title></head>
+<body>
+<svg aria-hidden="true" width="0" height="0" class="symbols" xmlns="http://www.w3.org/2000/svg"><defs>
+<symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+<symbol id="i-pulse" viewBox="0 0 24 24"><path d="M2 12h5l3-7 4 14 3-7h5"/></symbol>
+<symbol id="i-nodes" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="2" y="16" width="7" height="6" rx="1"/><rect x="15" y="16" width="7" height="6" rx="1"/><path d="M12 8v4M5.5 16v-4h13v4"/></symbol>
+<symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2 9a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M8 15a6 6 0 0 1 8 0"/><circle cx="12" cy="19" r="1" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M13 2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V10z"/><path d="M13 2v8h8M7 15h10M7 18h7"/></symbol>
+<symbol id="i-settings" viewBox="0 0 24 24"><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m0-12.8-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="4"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 12 7-12 7z"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7V3l-3 3a8 8 0 1 0 2 10M20 7h-6"/></symbol>
+<symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="15" rx="2"/><path d="M8 22h8m-4-4v4"/></symbol>
+<symbol id="i-router" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 11V3M8 8l4-5 4 5M7 16h.01M11 16h.01"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 2 4 6v6c0 6 4 9 8 10 4-1 8-4 8-10V6z"/><path d="m9 12 2 2 4-5"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2c5 6 5 14 0 20M12 2c-5 6-5 14 0 20"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M4 4l16 16M20 4 4 20"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 1 21h22zM12 9v5M12 17v1"/></symbol>
+</defs></svg>
+<div class="app-shell">
+<aside class="sidebar" id="sidebar">
+<div class="brand"><span class="brand-mark"><svg viewBox="0 0 24 24"><use href="#i-nodes"/></svg></span><div><strong>NETWORK<span> INSPECTOR</span></strong></div><button id="nav-close" class="nav-close icon-button"><svg><use href="#i-x"/></svg></button></div>
+<div id="local-computer" class="local-computer" aria-live="polite"><div class="local-computer-title">&#1051;&#1086;&#1082;&#1072;&#1083;&#1077;&#1085; &#1082;&#1086;&#1084;&#1087;&#1102;&#1090;&#1098;&#1088;</div><div id="local-name" class="local-computer-name">&#8212;</div><div class="local-computer-details"><div class="local-computer-line"><span>IPv4</span><strong id="local-ip">&#8212;</strong></div><div class="local-computer-line"><span>MAC</span><strong id="local-mac">&#8212;</strong></div></div><div class="local-computer-link"><span id="local-link">&#1053;&#1103;&#1084;&#1072; &#1074;&#1088;&#1098;&#1079;&#1082;&#1072; &#1089; &#1072;&#1075;&#1077;&#1085;&#1090;&#1072;</span></div></div>
+<div class="sidebar-label">&#1052;&#1056;&#1045;&#1046;&#1054;&#1042;&#1048; &#1048;&#1053;&#1057;&#1058;&#1056;&#1059;&#1052;&#1045;&#1053;&#1058;&#1048;</div>
+<nav id="nav" class="nav"><button class="nav-button active" data-view="dashboard"><svg><use href="#i-grid"/></svg> &#1058;&#1072;&#1073;&#1083;&#1086;</button>
+<button class="nav-button" data-view="scanner"><svg><use href="#i-search"/></svg> &#1057;&#1082;&#1077;&#1085;&#1077;&#1088;</button>
+<button class="nav-button" data-view="tests"><svg><use href="#i-pulse"/></svg> &#1058;&#1077;&#1089;&#1090;&#1086;&#1074;&#1077;</button>
+<button class="nav-button" data-view="topology"><svg><use href="#i-nodes"/></svg> &#1058;&#1086;&#1087;&#1086;&#1083;&#1086;&#1075;&#1080;&#1103;</button>
+<button class="nav-button" data-view="wifi"><svg><use href="#i-wifi"/></svg> Wi-Fi &#1084;&#1088;&#1077;&#1078;&#1080;</button>
+<button class="nav-button" data-view="reports"><svg><use href="#i-file"/></svg> &#1054;&#1090;&#1095;&#1077;&#1090;&#1080;</button>
+<button class="nav-button" data-view="toolkit" type="button">Windows Network Toolkit</button></nav>
+<div class="sidebar-bottom"><button class="nav-button" data-view="settings"><svg><use href="#i-settings"/></svg> &#1053;&#1072;&#1089;&#1090;&#1088;&#1086;&#1081;&#1082;&#1080; &#1080; &#1072;&#1075;&#1077;&#1085;&#1090;</button><div class="agent-box"><span id="agent-led" class="led offline"></span><div><strong id="agent-label">&#1055;&#1088;&#1086;&#1074;&#1077;&#1088;&#1082;&#1072; &#1085;&#1072; &#1072;&#1075;&#1077;&#1085;&#1090;&#1072;...</strong><small id="agent-detail">127.0.0.1:5187</small></div></div><div class="sidebar-footer">NETWORK INSPECTOR <span>v2.0.0</span></div></div>
+</aside>
+<div class="workspace"><header class="topbar"><div class="header-title"><button class="icon-button mobile-menu" id="mobile-menu" aria-label="Отвори меню"><svg><use href="#i-menu"/></svg></button><div><div class="eyebrow" id="breadcrumb">NETWORK CONTROL CENTER</div><h1 id="page-title">Преглед на мрежата</h1></div></div>
+<div class="toolbar"><a class="button small subtle" href="./downloads/NetworkAgent-win-x64.zip" download="NetworkAgent-win-x64.zip" title="Изтегли Windows Network Agent">&#1048;&#1079;&#1090;&#1077;&#1075;&#1083;&#1080; Network Agent</a><button class="button small subtle" id="open-guide" type="button" aria-haspopup="dialog">&#1056;&#1098;&#1082;&#1086;&#1074;&#1086;&#1076;&#1089;&#1090;&#1074;&#1086; &#1079;&#1072; &#1088;&#1072;&#1073;&#1086;&#1090;&#1072;</button><button id="refresh-button" title="Опресни връзката" class="icon-button"><svg><use href="#i-refresh"/></svg></button></div></header>
+<main id="page-content" class="main-content"><div class="loading">Зареждане...</div></main>
+<footer class="bottom-status"><span id="footer-message">Локално приложение · без облачна връзка</span><span>LAN · MAN · WAN · Wi-Fi</span></footer></div></div>
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<style>.ni-terms-modal{width:min(940px,96vw);height:min(850px,94vh);padding:0;border:1px solid #43617d;border-radius:12px;background:#101722;color:#e6edf6}.ni-terms-modal::backdrop{background:rgba(0,0,0,.82)}.ni-terms-modal-header{padding:13px 18px;border-bottom:1px solid #344860;font:600 16px Segoe UI,Arial,sans-serif}.ni-terms-modal iframe{display:block;width:100%;height:calc(100% - 53px);border:0}</style><dialog id="terms-dialog" class="ni-terms-modal" aria-labelledby="terms-title"><div class="ni-terms-modal-header"><strong id="terms-title">Общи условия за безплатно ползване — NETWORK INSPECTOR v2</strong></div><iframe id="terms-frame" title="Общи условия" src="./terms.html?v=1.1"></iframe></dialog><script defer src="./terms-gate.js?v=1.1"></script><script defer src="./app.js?v=2.0.0"></script>
+<dialog id="guide-dialog" class="guide-modal" aria-labelledby="guide-title"><div class="guide-modal-top"><strong id="guide-title">Ръководство за работа — NETWORK INSPECTOR</strong><button id="close-guide" class="button small subtle" type="button">Затвори</button></div><iframe title="Ръководство за работа" src="./guide.html?v=2.0.1" loading="lazy"></iframe></dialog>
+</body></html>
