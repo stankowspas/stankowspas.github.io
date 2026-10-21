@@ -1,0 +1,29 @@
+/* Vector Studio toolbox and native elements library */
+.sidebar .tabs{grid-template-columns:repeat(5,minmax(0,1fr))}.sidebar .tabs button{font-size:10px;padding:10px 1px}.vs-element-search-label{display:block;margin-bottom:7px;color:#bed0e4}.sidebar #vsElementSearch{display:block;width:100%;min-width:0;padding:9px;border:1px solid #34577c;border-radius:5px;background:#102440;color:#fff}.vs-element-categories{display:flex;gap:4px;flex-wrap:wrap;margin:11px 0}.vs-element-categories button{padding:5px 7px;border:1px solid #355473;background:#152b46;font-size:11px}.vs-element-categories button.active{background:#315c8f;color:#fff}.vs-element-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:13px}.vs-element-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-height:83px;border:1px solid #314b70;background:#102440;padding:6px;text-align:center;font-size:11px;line-height:1.2}.vs-element-card:hover{border-color:#88b9ff;background:#1d3b60}.vs-element-glyph{font-size:27px;line-height:1.2;color:#a3d5ff}.vs-element-card span:last-child{overflow-wrap:anywhere}.vs-toolgroup summary{font-size:10px;font-weight:600;color:#cbdff5;padding:6px 2px}.vs-toolgroup[open]{border-color:#527da7}#vsOpenSymbols{border:1px solid #42668a;background:#152c4d;width:100%;margin-top:5px}@media(max-width:900px){.sidebar .tabs button{font-size:9px}}
+
+/* The library must be discoverable in the LEFT toolbox and visible on startup. */
+.tools #vsElementsLaunch{width:44px;min-height:51px;height:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:5px 0;color:#f0b772;border:1px solid #6881a2;background:#1d3656;font-size:25px;line-height:1.1;flex-shrink:0}
+.tools #vsElementsLaunch span{font-size:9px;line-height:1.2;font-weight:600}
+.tools #vsElementsLaunch:hover{background:#2a517d;border-color:#95bcea}
+.sidebar #vsElementsTab{color:#f0b772;font-weight:700}
+.sidebar #vsElementsPanel:not(.hidden){display:flex;flex-direction:column;min-height:0}
+.sidebar #vsElementGrid{align-content:start;overflow-y:auto;min-height:100px;flex:1}
+
+.vs-element-count{font-size:12px;color:#f0b772;margin:0 0 9px;font-weight:600}.vs-element-categories{max-height:115px;overflow-y:auto}.vs-element-grid{max-height:calc(100vh - 360px)}
+
+/* Creation tools live exclusively in the right Elements tab. */
+.vs-creation-tools{border:1px solid #355473;border-radius:6px;padding:9px;margin-bottom:12px;background:#122741}
+.vs-creation-tools h3{margin:0 0 9px;color:#e4eefc;font-size:13px}
+.vs-creation-group{margin:5px 0;border:1px solid #2b4568;border-radius:5px}
+.vs-creation-group summary{padding:7px 8px;cursor:pointer;color:#c8d9f1;font-size:12px;font-weight:600}
+.vs-creation-buttons{display:flex;flex-wrap:wrap;gap:6px;padding:7px}
+.vs-creation-buttons .vs-right-tool{min-width:38px;min-height:36px;padding:6px;cursor:pointer;font-size:20px}
+.vs-creation-buttons .vs-right-tool.active{border-color:#f0b772;outline:2px solid #f0b772}
+
+/* Unified Elements cards: one visual format for both drawing tools and presets. */
+.vs-element-tool-storage{display:none!important}
+.vs-element-tool-card{padding:0;min-width:0}
+.sidebar #vsElementGrid .vs-element-tool-card{display:flex;min-height:83px}
+.sidebar #vsElementGrid .vs-unified-tool{display:flex;flex:1;align-self:stretch;min-width:0;width:100%;min-height:83px;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:6px;font-size:11px;line-height:1.2;background:transparent;border:0;border-radius:0;color:inherit;cursor:pointer;white-space:normal}
+.sidebar #vsElementGrid .vs-unified-tool.active{outline:2px solid #f0b772;outline-offset:-3px;background:#20476d}
+.sidebar #vsElementGrid .vs-unified-tool .vs-element-glyph{font-size:27px}
