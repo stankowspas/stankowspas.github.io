@@ -1,0 +1,62 @@
+/* Vector Studio compact, grouped interface */
+.vs-menubar{height:38px;flex:0 0 38px;background:#09172b;border-bottom:1px solid #294367;display:flex;align-items:center;justify-content:space-between;padding:0 10px;gap:10px;z-index:100}
+.vs-menus,.vs-quick{display:flex;gap:4px;align-items:center}.vs-menu{position:relative}.vs-menu summary{list-style:none;cursor:pointer;padding:7px 11px;color:#f5f8ff;border-radius:4px;white-space:nowrap}.vs-menu summary::-webkit-details-marker{display:none}.vs-menu[open]>summary,.vs-menu summary:hover{background:#214775}.vs-menu-content{position:absolute;top:100%;left:0;min-width:195px;max-height:65vh;overflow:auto;background:#0b1830;border:1px solid #4770a5;border-radius:5px;padding:7px;box-shadow:0 10px 25px #0009;display:flex;flex-direction:column;gap:3px}.vs-menu-content button{width:100%;text-align:left;background:#142846;white-space:nowrap}.vs-menu-content label{display:flex;align-items:center;justify-content:space-between;color:#f5f8ff;font-size:12px;padding:6px 3px}.vs-menu-content input[type=number]{width:55px}.vs-unavailable{color:#aebbd2;max-width:230px;font-size:12px;line-height:1.5}
+.vs-quick button{padding:5px 8px}body.vs-layout-ready header.top{display:none!important}.options.vs-unused-options{display:none!important}.vs-context{height:40px;flex:0 0 40px;display:flex;align-items:center;gap:12px;padding:3px 10px;background:#102039;border-bottom:1px solid #294367;white-space:nowrap;overflow-x:auto;overflow-y:hidden}.vs-context-title{font-size:11px;color:#8fe4ff;font-weight:700;min-width:85px}.vs-context-group{display:flex;align-items:center;gap:9px}.vs-context-group[hidden]{display:none}.vs-context-group label{display:flex;align-items:center;gap:5px;color:#aebbd2;font-size:11px}.vs-context-group input,.vs-context-group select{max-width:85px}.vs-context-group button{padding:4px 7px}
+.tools .vs-toolgroups{width:100%;display:flex;flex-direction:column;gap:8px}.tools .vs-toolgroup{width:100%;border:1px solid #294367;border-radius:4px}.vs-toolgroup summary{cursor:pointer;font-size:9px;text-align:center;color:#aebbd2;overflow-wrap:anywhere;padding:4px 1px}.vs-toolgroup-items{display:flex;flex-direction:column;align-items:center}.tools .vs-toolgroup button{width:36px;height:34px}.sidebar.vs-collapsed{display:none}.palette .vs-color-control{flex-shrink:0;display:flex;align-items:center;gap:3px;font-size:10px}.palette .vs-color-control input{width:28px;height:23px}.stage{min-width:0}@media(max-width:860px){.vs-menu summary{padding:6px;font-size:11px}.vs-menubar{padding:0 4px}.vs-quick button{padding:4px}}
+
+/* Repair: closed native details must not render dropdown bodies. */
+.vs-menu:not([open]) > .vs-menu-content,.vs-toolgroup:not([open]) > .vs-toolgroup-items{display:none!important}
+.vs-menubar{position:relative;z-index:1000;overflow:visible}
+.vs-menu[open]{z-index:1100}
+.vs-menu-content{z-index:1200}
+
+/* v3: keep controls readable, no extra hidden duplicates */
+body.vs-layout-ready .vs-original-header,.vs-original-options{display:none!important}
+.vs-menu-content input[type=checkbox]{accent-color:#4a9cf0}
+.vs-context-group[hidden]{display:none!important}
+.vs-toolgroup[open]>.vs-toolgroup-items{display:flex}
+.vs-menu:not([open])>.vs-menu-content{display:none!important}
+.vs-menubar{flex-shrink:0}
+
+/* Word-inspired File menu: compact, grouped and honest about unavailable commands. */
+.vs-menu-content .vs-file-heading{margin:6px 5px 3px;padding:6px 5px 3px;border-top:1px solid #294367;color:#9cb5d4;font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase}
+.vs-menu-content .vs-file-heading:first-child{margin-top:0;border-top:0}
+.vs-menu-content .vs-file-disabled{opacity:.46;cursor:not-allowed;background:transparent}
+.vs-menu-content .vs-file-submenu{position:relative}
+.vs-menu-content .vs-file-submenu>summary{display:block;padding:8px 10px;border-radius:4px;background:#142846;color:#f5f8ff;font-size:12px;cursor:pointer}
+.vs-menu-content .vs-file-submenu>summary:hover,.vs-menu-content .vs-file-submenu[open]>summary{background:#214775}
+.vs-file-submenu:not([open])>.vs-file-submenu-content{display:none}
+.vs-file-submenu-content{padding:4px 0 4px 14px;display:flex;flex-direction:column;gap:3px;border-left:1px solid #4770a5;margin:3px 0 4px 10px}
+.vs-file-submenu-content button{font-size:12px}
+
+/* Branding: restore project name in the visible menu bar. */
+.vs-brand{color:#8fe4ff;font-size:14px;font-weight:700;white-space:nowrap;letter-spacing:.2px;flex-shrink:0}
+.vs-menus{min-width:0}
+@media(max-width:760px){.vs-brand{font-size:11px}.vs-menubar{gap:4px}.vs-menu summary{padding:6px 4px}}
+
+/* Branding aligned with the DWG Quantity Inspector header: title and gold credit. */
+.vs-menubar{height:52px;flex:0 0 52px;}
+.vs-brand{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:2px;line-height:1.1;min-width:135px;color:#e2edf9;}
+.vs-brand-title{display:block;font-size:18px;font-weight:700;letter-spacing:0;}
+.vs-brand-credit{display:block;font-size:11px;font-weight:400;color:#f0b772;letter-spacing:0;white-space:nowrap;}
+@media(max-width:760px){.vs-brand{min-width:110px}.vs-brand-title{font-size:14px}.vs-brand-credit{font-size:9px}}
+
+/* v3: persistent branding, aligned like DWG Quantity Inspector. */
+header.top .vs-brand{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:3px;min-width:196px}
+.vs-menubar .vs-brand{min-width:196px;max-width:220px;flex:0 0 auto}
+.vs-brand-title{font-size:19px;line-height:1.13;color:#e2edf9;font-weight:700}
+.vs-brand-credit{font-size:12px;line-height:1.2;color:#f0b772;font-weight:400;white-space:nowrap}
+.vs-menubar{justify-content:flex-start;gap:14px;min-height:59px;height:59px;flex-basis:59px}
+.vs-menus{flex:1;display:flex;flex-wrap:nowrap;min-width:0;overflow:visible}
+/* Dropdowns must not be clipped by the menu row. */
+.vs-quick{flex:0 0 auto}
+@media(max-width:860px){.vs-menubar .vs-brand,header.top .vs-brand{min-width:165px}.vs-brand-title{font-size:17px}.vs-brand-credit{font-size:10px}.vs-menubar{gap:6px;padding:0 7px}}
+
+/* Keep menus clickable above the stage and context toolbar. */
+.vs-menubar{overflow:visible!important}
+.vs-menus,.vs-menu,.vs-menu-content,.vs-file-submenu,.vs-file-submenu-content{overflow:visible}
+.vs-menu-content{max-height:65vh;overflow-y:auto;overflow-x:visible}
+
+/* Visible direct print action in the main menubar. */
+.vs-print-quick{margin-left:auto;border:1px solid #7c93ad;background:#eef5fd;color:#183c64;border-radius:6px;padding:7px 13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.vs-print-quick:hover{background:#dbeaff}
