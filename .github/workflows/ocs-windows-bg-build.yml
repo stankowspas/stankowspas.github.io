@@ -1,4 +1,4 @@
-name: Open CAD Studio Windows BG clean UI build
+name: Open CAD Studio Windows BG final clean start
 on:
   push:
     paths:
@@ -76,7 +76,20 @@ jobs:
           part=part.replace('        container(reddit_btn).center_x(Fill),\n','',1)
           assert part.count('        sponsors,') == 1
           part=part.replace('        sponsors,\n','',1)
-          # Disable desktop OCS Web promotion; retain feedback and options.
+          # Hide Send Feedback, keep application settings and plugin tools.
+          feedback='''        outline_btn(
+            crate::tr!("start", "send-feedback"),
+            Message::RibbonToolClick {
+                tool_id: "REPORT".to_string(),
+                event: crate::modules::ModuleEvent::Command("REPORT".to_string()),
+            },
+        )
+        .into(),
+'''
+          assert feedback in part
+          part=part.replace(feedback,'',1)
+          # Preserve other functional controls.
+                    # Disable desktop OCS Web promotion; retain feedback and options.
           needle='    #[cfg(not(target_arch = "wasm32"))]\n    {\n        // Filled with the active theme'
           a=part.index(needle)
           b=part.index('    #[cfg(target_arch = "wasm32")]',a)
@@ -107,7 +120,7 @@ jobs:
       - name: Verify executable and upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OpenCADStudio_BG_CleanUI_Windows
+          name: OpenCADStudio_BG_Final_CleanUI_Windows
           path: source/target/release/OpenCADStudio.exe
           if-no-files-found: error
           retention-days: 7
