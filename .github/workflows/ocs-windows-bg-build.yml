@@ -80,6 +80,10 @@ jobs:
           a=part.index('    let reddit_btn = button(')
           b=part.index('    let sponsors = column![',a)
           part=part[:a]+part[b:]
+          # Remove the unused sponsor widget to avoid type inference errors.
+          a=part.index('    let sponsors = column![')
+          b=part.index('    let content = column![',a)
+          part=part[:a]+part[b:]
           # Hide Send Feedback, keep application settings and plugin tools.
           a=part.index('        outline_btn(\n            crate::tr!("start", "send-feedback"),')
           b=part.index('        outline_btn(crate::tr!("action", "options"),',a)
