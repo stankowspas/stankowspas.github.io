@@ -1,4 +1,4 @@
-name: Open CAD Studio Windows BG build
+name: Open CAD Studio Windows BG clean UI build
 on:
   push:
     paths:
@@ -58,6 +58,46 @@ jobs:
           print("BG default and external promotional link patches applied")
           '@ | Set-Content patch.py -Encoding utf8
           python patch.py
+      - name: Hide promotional widgets from Windows start page
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          p=Path("source/src/app/view/mod.rs")
+          s=p.read_text(encoding="utf-8")
+          start=s.index("fn start_page_content<'a>(")
+          end=s.index("    // Collapse side panels one at a time as width shrinks:",start)
+          part=s[start:end]
+          # Retain New, New from Template and Open, but remove Donate.
+          assert part.count('        donate_btn.into(),') == 1
+          part=part.replace('        donate_btn.into(),\n','',1)
+          # Remove the prominent promotion from the visible center column.
+          assert part.count('        container(reddit_btn).center_x(Fill),') == 1
+          part=part.replace('        container(reddit_btn).center_x(Fill),\n','',1)
+          assert part.count('        sponsors,') == 1
+          part=part.replace('        sponsors,\n','',1)
+          # Disable desktop OCS Web promotion; retain feedback and options.
+          needle='    #[cfg(not(target_arch = "wasm32"))]\n    {\n        // Filled with the active theme'
+          a=part.index(needle)
+          b=part.index('    #[cfg(target_arch = "wasm32")]',a)
+          part=part[:a]+part[b:]
+          s=s[:start]+part+s[end:]
+          # Native Windows only: side promotional rails are not part of layout.
+          a=s.index("    let body: Element<'a, Message> = match start_layout {",start)
+          b=s.index("\n",s.index("\n    };",a)+6)
+          block=s[a:b]
+          replacement='''    #[cfg(target_os = "windows")]
+              let body: Element<'a, Message> = iced::widget::row![recent, welcome]
+                  .spacing(16)
+                  .height(Fill)
+                  .into();
+              #[cfg(not(target_os = "windows"))]
+          '''.replace("              ","    ")
+          s=s[:a]+replacement+block+s[b:]
+          p.write_text(s,encoding="utf-8")
+          print("Promotional buttons and panels hidden on Windows")
+          '@ | Set-Content hide-promo.py -Encoding utf8
+          python hide-promo.py
       - name: Build standalone portable Windows executable
         shell: pwsh
         working-directory: source
@@ -67,7 +107,7 @@ jobs:
       - name: Verify executable and upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: OpenCADStudio_BG_Custom_Windows
+          name: OpenCADStudio_BG_CleanUI_Windows
           path: source/target/release/OpenCADStudio.exe
           if-no-files-found: error
           retention-days: 7
