@@ -76,6 +76,10 @@ jobs:
           part=part.replace('        container(reddit_btn).center_x(Fill),\n','',1)
           assert part.count('        sponsors,') == 1
           part=part.replace('        sponsors,\n','',1)
+          # Prevent Rust's renderer-type inference error from an unused button.
+          a=part.index('    let reddit_btn = button(')
+          b=part.index('    let sponsors = column![',a)
+          part=part[:a]+part[b:]
           # Hide Send Feedback, keep application settings and plugin tools.
           a=part.index('        outline_btn(\n            crate::tr!("start", "send-feedback"),')
           b=part.index('        outline_btn(crate::tr!("action", "options"),',a)
