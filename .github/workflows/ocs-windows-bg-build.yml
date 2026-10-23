@@ -77,7 +77,7 @@ jobs:
           assert part.count('        sponsors,') == 1
           part=part.replace('        sponsors,\n','',1)
           # Hide Send Feedback, keep application settings and plugin tools.
-          a=part.index('        outline_btn(\\n            crate::tr!("start", "send-feedback"),')
+          a=part.index('        outline_btn(\n            crate::tr!("start", "send-feedback"),')
           b=part.index('        outline_btn(crate::tr!("action", "options"),',a)
           part=part[:a]+part[b:]
           # Preserve other functional controls.
