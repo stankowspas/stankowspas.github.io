@@ -77,19 +77,11 @@ jobs:
           assert part.count('        sponsors,') == 1
           part=part.replace('        sponsors,\n','',1)
           # Hide Send Feedback, keep application settings and plugin tools.
-          feedback='''        outline_btn(
-            crate::tr!("start", "send-feedback"),
-            Message::RibbonToolClick {
-                tool_id: "REPORT".to_string(),
-                event: crate::modules::ModuleEvent::Command("REPORT".to_string()),
-            },
-        )
-        .into(),
-'''
-          assert feedback in part
-          part=part.replace(feedback,'',1)
+          a=part.index('        outline_btn(\\n            crate::tr!("start", "send-feedback"),')
+          b=part.index('        outline_btn(crate::tr!("action", "options"),',a)
+          part=part[:a]+part[b:]
           # Preserve other functional controls.
-                    # Disable desktop OCS Web promotion; retain feedback and options.
+          # Disable desktop OCS Web promotion; retain options.
           needle='    #[cfg(not(target_arch = "wasm32"))]\n    {\n        // Filled with the active theme'
           a=part.index(needle)
           b=part.index('    #[cfg(target_arch = "wasm32")]',a)
