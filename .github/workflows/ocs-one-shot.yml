@@ -1,0 +1,35 @@
+name: Publish Open CAD Studio once
+on:
+  push:
+    paths:
+      - '.github/workflows/ocs-one-shot.yml'
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Retrieve verified package
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 5 --retry-delay 4 --connect-timeout 25 --max-time 600 'https://reviewer-production-came-excuse.trycloudflare.com/bundle.zip' -o /tmp/ocs-package.zip
+          unzip -t /tmp/ocs-package.zip >/dev/null
+          unzip -o -q /tmp/ocs-package.zip -d .
+          test -s projects/sectron/open-cad-studio/OpenCADStudio-aa8b21a441e9e104_bg.wasm
+          test -s projects/sectron/open-cad-studio/index.html
+          grep -q 'href="./open-cad-studio/"' projects/sectron/index.html
+      - name: Publish files and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- projects/sectron/index.html projects/sectron/open-cad-studio/
+          git rm -- .github/workflows/ocs-one-shot.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "Publish Open CAD Studio to SECTRON projects"
+          git push origin HEAD:main
