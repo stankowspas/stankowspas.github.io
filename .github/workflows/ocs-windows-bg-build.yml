@@ -1,0 +1,73 @@
+name: Open CAD Studio Windows BG build
+on:
+  push:
+    paths:
+      - .github/workflows/ocs-windows-bg-build.yml
+permissions:
+  contents: read
+jobs:
+  windows-build:
+    runs-on: windows-latest
+    timeout-minutes: 240
+    steps:
+      - name: Fetch exact upstream source snapshot
+        shell: pwsh
+        run: |
+          git clone https://github.com/HakanSeven12/OpenCADStudio.git source
+          cd source
+          git checkout 2476b151bc926f1ee43f32415f451a6ed59b41a2
+      - name: Apply minimal BG and promotional-link patches
+        shell: pwsh
+        run: |
+          @'
+          from pathlib import Path
+          p = Path("source/src/i18n.rs")
+          s = p.read_text(encoding="utf-8")
+          a = '    #[default]\n    #[serde(rename = "system")]'
+          b = '    #[serde(rename = "bg-BG")]'
+          assert s.count(a) == 1 and s.count(b) == 1
+          s = s.replace(a, '    #[serde(rename = "system")]', 1).replace(b, '    #[default]\n'+b, 1)
+          needle = 'load_language(&loader, Language::System)'
+          assert s.count(needle) == 1
+          s = s.replace(needle, 'load_language(&loader, Language::BgBg)', 1)
+          p.write_text(s, encoding="utf-8")
+          p = Path("source/src/sys.rs")
+          s = p.read_text(encoding="utf-8")
+          needle = '#[cfg(all(not(target_arch = "wasm32"), not(target_os = "linux")))]\npub fn open_url<Message>(url: &str, _parent: Option<iced::window::Id>) -> iced::Task<Message> {\n    let _ = open::that_detached(url);'
+          assert s.count(needle) == 1
+          helper = """#[cfg(target_os = "windows")]
+          fn is_promotional_url(url: &str) -> bool {
+              let Ok(parsed) = url::Url::parse(url.trim()) else { return false };
+              let host = parsed.host_str().unwrap_or("").to_ascii_lowercase();
+              let path = parsed.path().to_ascii_lowercase();
+              let blocked = ["patreon.com", "paypal.com", "paypal.me", "ko-fi.com",
+                             "youtube.com", "youtu.be", "reddit.com"];
+              if blocked.iter().any(|domain| host == *domain || host.ends_with(&format!(".{domain}"))) {
+                  return true;
+              }
+              host == "github.com" &&
+                (path.starts_with("/sponsors/") ||
+                 (path.starts_with("/hakanseven12/opencadstudio/") &&
+                  (path.contains("/releases") || path.contains("/discussions"))))
+          }
+
+          """
+          replacement = helper + needle.replace('    let _ = open::that_detached(url);','    #[cfg(target_os = "windows")]\n    if !is_promotional_url(url) { let _ = open::that_detached(url); }\n    #[cfg(target_os = "macos")]\n    let _ = open::that_detached(url);')
+          s = s.replace(needle, replacement, 1)
+          p.write_text(s, encoding="utf-8")
+          print("BG default and external promotional link patches applied")
+          '@ | Set-Content patch.py -Encoding utf8
+          python patch.py
+      - name: Build standalone portable Windows executable
+        shell: pwsh
+        working-directory: source
+        run: |
+          rustup default stable-x86_64-pc-windows-msvc
+          cargo build --locked --release --bin OpenCADStudio
+      - name: Verify executable and upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCADStudio_BG_Custom_Windows
+          path: source/target/release/OpenCADStudio.exe
+          if-no-files-found: error
+          retention-days: 7
