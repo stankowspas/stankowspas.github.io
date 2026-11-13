@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="bg">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Games — Spas Stankov</title>
+<link rel="stylesheet" href="/assets/style.css?v=20260830f">
+<style>
+.games-head{padding:40px 5px 24px}.games-head h1{font-size:clamp(2.4rem,6vw,4.5rem);margin:10px 0 12px}.games-head p{max-width:700px;color:var(--muted);font-size:1.1rem;line-height:1.7}
+.games-back{display:inline-block;color:var(--accent2);padding:12px 2px}
+.game-unavailable{cursor:default}.game-unavailable .card-link{opacity:.7}
+</style>
+</head>
+<body><div class="wrap">
+<header class="top"><a class="games-back" id="backLink" href="/bg/">← Назад към проектите</a><div id="languageHost" class="top-right"></div></header>
+<main><section class="games-head"><div class="eyebrow">PROJECTS / GAMES</div><h1>Games</h1><p>Браузърни игри и интерактивни проекти.</p></section>
+<section class="app-showcase fade-in"><div class="section-head carousel-heading"><div><div class="eyebrow">ИГРИ</div><h2>Избери игра</h2></div><p>1</p></div>
+<div class="app-carousel" aria-label="Каталог с игри"><button class="carousel-arrow prev" type="button" aria-label="Предишна игра">‹</button><div class="carousel-stage" id="carouselStage">
+<div class="carousel-card game-unavailable active" data-index="0" aria-label="WebCraft BG — предстои публикуване"><div class="project-icon">▦</div><h3>WebCraft BG</h3><p>3D свят, български интерфейс и GOD PLUS режим.</p><span class="card-link">Подготвя се за публикуване</span></div>
+</div><button class="carousel-arrow next" type="button" aria-label="Следваща игра">›</button></div><div class="carousel-dots" id="carouselDots"></div>
+</section></main><footer>© 2026 Spas Stankov</footer></div>
+<script src="/assets/lang-menu.js?v=20260830f"></script>
+<script>
+(()=>{
+const saved=localStorage.getItem('siteLang');const lang=new URLSearchParams(location.search).get('lang')||saved||'bg';
+document.getElementById('backLink').href='/'+(lang==='bg'?'bg':lang==='en'?'en':lang)+'/';
+const stage=document.getElementById('carouselStage'), cards=[...stage.querySelectorAll('.carousel-card')], dots=document.getElementById('carouselDots');
+let active=0,startX=0,dragging=false,moved=false;
+cards.forEach((c,i)=>{const d=document.createElement('button');d.type='button';d.setAttribute('aria-label',c.querySelector('h3').textContent);d.addEventListener('click',()=>{active=i;update()});dots.appendChild(d)});
+const dotEls=[...dots.children];
+function update(){cards.forEach((c,i)=>{let d=i-active;if(d>cards.length/2)d-=cards.length;if(d<-cards.length/2)d+=cards.length;c.style.setProperty('--offset',d);c.classList.toggle('active',d===0);c.classList.toggle('far',Math.abs(d)>1)});dotEls.forEach((d,i)=>d.classList.toggle('active',i===active))}
+function go(delta){active=(active+delta+cards.length)%cards.length;update()}
+document.querySelector('.prev').addEventListener('click',()=>go(-1));
+document.querySelector('.next').addEventListener('click',()=>go(1));
+stage.addEventListener('pointerdown',e=>{dragging=true;moved=false;startX=e.clientX});
+stage.addEventListener('pointermove',e=>{if(dragging&&Math.abs(e.clientX-startX)>12)moved=true});
+stage.addEventListener('pointerup',e=>{if(!dragging)return;const dx=e.clientX-startX;dragging=false;if(Math.abs(dx)>45)go(dx<0?1:-1)});
+stage.addEventListener('wheel',e=>{if(Math.abs(e.deltaX)>Math.abs(e.deltaY)||Math.abs(e.deltaY)>20){e.preventDefault();go((e.deltaX||e.deltaY)>0?1:-1)}},{passive:false});
+document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')go(-1);if(e.key==='ArrowRight')go(1)});
+update();
+})();
+</script>
+</body></html>
