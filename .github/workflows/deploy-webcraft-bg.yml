@@ -1,0 +1,102 @@
+name: Deploy WebCraft BG GOD PLUS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-webcraft-bg.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-webcraft-bg
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout GitHub Pages source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Download exact WebCraft BG release archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 5 --retry-all-errors \
+            --output /tmp/webcraft-bg.zip \
+            'https://github.com/stankowspas/stankowspas.github.io/releases/download/webcraft-bg-god-plus-v1/WebCraft_BG_GOD_PLUS.zip'
+          echo '1b7bfb92ad034074e52ad5c5b551e6d9eb7cff261abd2cb031f56d3ada896e9c  /tmp/webcraft-bg.zip' | sha256sum --check
+          unzip -tq /tmp/webcraft-bg.zip
+
+      - name: Expand verified game into Games folder
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, pathlib, shutil, zipfile
+          arc='/tmp/webcraft-bg.zip'
+          stage=pathlib.Path('/tmp/webcraft-bg-unpacked')
+          with zipfile.ZipFile(arc) as z:
+              for item in z.infolist():
+                  p=pathlib.PurePosixPath(item.filename)
+                  if p.is_absolute() or '..' in p.parts or not p.parts or p.parts[0]!='webcraft-main':
+                      raise SystemExit('Unexpected archive path: '+item.filename)
+              z.extractall(stage)
+          source=stage/'webcraft-main'
+          required=['index.html','three.min.js','js/main.js','js/ui.js']
+          for name in required:
+              if not (source/name).is_file():raise SystemExit('Missing required game file: '+name)
+          if not (source/'js/feat_bg.js').is_file():
+              raise SystemExit('Bulgarian game feature missing')
+          destination=pathlib.Path('projects/games/webcraft-bg')
+          if destination.exists():shutil.rmtree(destination)
+          shutil.copytree(source,destination)
+          print('Published files:',sum(1 for x in destination.rglob('*') if x.is_file()))
+          PY
+
+      - name: Validate JavaScript and game entry page
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s projects/games/webcraft-bg/index.html
+          test -s projects/games/webcraft-bg/js/feat_bg.js
+          find projects/games/webcraft-bg/js -name '*.js' -type f -print0 | xargs -0 -n1 node --check
+          grep -q 'feat_bg.js' projects/games/webcraft-bg/index.html
+
+      - name: Enable WebCraft BG game card
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          page=Path('projects/games/index.html')
+          s=page.read_text(encoding='utf-8')
+          old='<div class="carousel-card game-unavailable active" data-index="0" aria-label="WebCraft BG — предстои публикуване">'
+          new='<a class="carousel-card active" data-index="0" href="./webcraft-bg/" aria-label="Играй WebCraft BG">'
+          if old in s:
+              s=s.replace(old,new,1)
+              s=s.replace('<span class="card-link">Подготвя се за публикуване</span></div>','<span class="card-link">Играй сега <span>→</span></span></a>',1)
+          elif 'href="./webcraft-bg/"' not in s:
+              raise SystemExit('Games card markup changed; refusing unsafe update')
+          page.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Commit tested game and catalog link
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add projects/games/index.html projects/games/webcraft-bg
+          if git diff --cached --quiet; then
+            echo 'WebCraft already deployed.'
+            exit 0
+          fi
+          git commit -m 'Deploy WebCraft BG GOD PLUS to GitHub Pages Games'
+          git push
