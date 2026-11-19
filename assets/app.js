@@ -36,6 +36,7 @@ vi:{apps:'Ứng dụng',choose:'Chọn ứng dụng',open:'Mở ứng dụng'},
 th:{apps:'แอป',choose:'เลือกแอป',open:'เปิดแอป'}
 };
 const PROJECT_COPY={
+'devanagari-cryptor':{"bg":"Самостоятелно приложение за обратимо Unicode кодиране и защитено с парола шифроване на текст и файлове.","en":"Offline-capable Unicode encoding and password-protected text and file encryption.","de":"Offlinefähige Unicode-Kodierung sowie passwortgeschützte Verschlüsselung von Texten und Dateien.","fr":"Encodage Unicode réversible et chiffrement de textes et fichiers par mot de passe, utilisables hors ligne.","es":"Codificación Unicode reversible y cifrado de textos y archivos con contraseña, también sin conexión.","it":"Codifica Unicode reversibile e crittografia con password di testi e file, anche offline.","pt":"Codificação Unicode reversível e encriptação de textos e ficheiros com palavra-passe, também offline.","pl":"Odwracalne kodowanie Unicode oraz szyfrowanie tekstu i plików hasłem, także offline.","ro":"Codare Unicode reversibilă și criptarea cu parolă a textelor și fișierelor, inclusiv offline.","el":"Αναστρέψιμη κωδικοποίηση Unicode και κρυπτογράφηση κειμένων και αρχείων με κωδικό, και εκτός σύνδεσης.","cs":"Vratné kódování Unicode a šifrování textů a souborů heslem, také offline.","hi":"यूनिकोड का प्रतिवर्ती एन्कोडिंग और पासवर्ड से सुरक्षित पाठ व फ़ाइल एन्क्रिप्शन, ऑफ़लाइन भी।"},
 'sectron':{
 bg:"Интелигентни инструменти за мениджъри, които оптимизират работните процеси и повишават ефективността.",
 en:"Smart tools for managers to streamline workflows and improve efficiency.",
@@ -213,6 +214,7 @@ th:'ปัญญาประดิษฐ์ – โมเดลภาษาข�
 }
 };
 const PROJECTS={
+'devanagari-cryptor':{name:'Devanagari Cryptor',icon:'🔐',bg:"Самостоятелно приложение за обратимо Unicode кодиране и защитено с парола шифроване на текст и файлове.",en:"Offline-capable Unicode encoding and password-protected text and file encryption.",tags:['Encryption','Unicode','Offline'],app:'https://stankowspas.github.io/projects/devanagari-cryptor/'},
 'all-world-tv':{name:'All World IPTV',icon:'▣',bg:'Многоезичен каталог и интерфейс за телевизионни канали по държави.',en:'A multilingual catalog and interface for television channels by country.',tags:['TV','Streaming','Web'],app:'https://stankowspas.github.io/projects/all-world-tv/app/'},
 'all-world-cinema':{name:'All-World Cinema',icon:'◫',bg:'Уеб приложение за откриване и достъп до аудиовизуално съдържание от публични външни каталози.',en:'A web application for discovering and accessing audiovisual material referenced by public external catalogues.',tags:['Cinema','Catalog','Web'],app:'https://stankowspas.github.io/projects/all-world-cinema/app/'},
 'radio':{name:'SSGPT14 Radio',icon:'◉',bg:'Уеб каталог за интернет радиостанции и директни потоци.',en:'A web catalog for internet radio stations and direct streams.',tags:['Radio','Streaming','Catalog'],app:'https://stankowspas.github.io/projects/radio/'},
