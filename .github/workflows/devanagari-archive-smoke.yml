@@ -224,3 +224,106 @@ jobs:
                           await browser.close()
                   asyncio.run(run())
           PY
+      - name: Test existing archives from disk, automatic preview and real file extraction in 4.3.13
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/dc-playwright/bin/python - <<'PY'
+          import pathlib,zipfile,pyzipper,gzip,io
+          p=pathlib.Path("projects/devanagari-cryptor/test-fixtures")
+          p.mkdir(exist_ok=True)
+          old=b"OLD ARCHIVE 2015: real file bytes \x00\x01\xff"
+          info=zipfile.ZipInfo("document-2015.txt",(2015,4,15,12,30,0))
+          info.compress_type=zipfile.ZIP_DEFLATED
+          with zipfile.ZipFile(p/"old-2015.zip","w") as z:z.writestr(info,old)
+          with zipfile.ZipFile(p/"old-many.zip","w") as z:
+              z.writestr("folder/one.txt",b"OLD-ONE",compress_type=zipfile.ZIP_DEFLATED)
+              z.writestr("folder/two.txt",b"OLD-TWO",compress_type=zipfile.ZIP_STORED)
+          with zipfile.ZipFile(p/"old-force-zip64.zip","w") as z:
+              with z.open("old-zip64.txt","w",force_zip64=True) as writer:writer.write(b"ZIP64-OK")
+          with pyzipper.AESZipFile(p/"old-aes.zip","w",compression=zipfile.ZIP_DEFLATED,encryption=pyzipper.WZ_AES) as z:
+              z.setpassword(b"secret-old-zip")
+              z.setencryption(pyzipper.WZ_AES,nbits=256)
+              z.writestr("old-secret.txt",b"OLD AES-256 CONTENT")
+          with gzip.open(p/"old-gzip.txt.gz","wb") as z:z.write(b"GZIP-OLD-OK")
+          (p/"legacy-data.bin").write_bytes((p/"old-2015.zip").read_bytes())
+          (p/"not-supported.rar").write_bytes(b"Rar!\x1a\x07\x01\x00"+b"\x00"*32)
+          (p/"not-supported.7z").write_bytes(b"7z\xbc\xaf'\x1c"+b"\x00"*32)
+          (p/"protected.bgdev").write_bytes(b"BGDF"+b"\x00"*40)
+          print("Prepared independent existing archives")
+          PY
+          /tmp/dc-playwright/bin/python - <<'PY'
+          import asyncio,pathlib,shutil
+          from playwright.async_api import async_playwright
+          root=pathlib.Path("projects/devanagari-cryptor/test-fixtures")
+          async def main():
+              exe=shutil.which("google-chrome") or shutil.which("chromium")
+              async with async_playwright() as pw:
+                  browser=await pw.chromium.launch(headless=True,executable_path=exe,args=["--no-sandbox"])
+                  page=await browser.new_page(viewport={"width":1280,"height":900},accept_downloads=True)
+                  errors=[]
+                  page.on("pageerror",lambda e:errors.append(str(e)))
+                  await page.goto("http://127.0.0.1:8765/app-4.3.13-standalone.html")
+                  assert await page.locator(".app-ver").inner_text()=="4.3.13"
+                  await page.locator('[data-mode="archive"]').click()
+                  assert await page.locator("#arcExtract").is_disabled(),"extract active before archive selection"
+                  async def choose(name,count):
+                      await page.locator("#arcSource").set_input_files(root/name)
+                      await page.wait_for_function("(n) => document.querySelectorAll('#arcContent input[type=checkbox]').length===n",arg=count,timeout=15000)
+                      assert not await page.locator("#arcExtract").is_disabled(),name+" extract should be enabled"
+                  # The file was independently created with Python and contains a 2015 timestamp.
+                  await choose("old-2015.zip",1)
+                  async with page.expect_download() as event:
+                      await page.locator("#arcExtract").click()
+                  dl=await event.value
+                  assert pathlib.Path(await dl.path()).read_bytes()==b"OLD ARCHIVE 2015: real file bytes \x00\x01\xff"
+                  print("OLD 2015 ZIP: automatic preview and downloaded original bytes PASS")
+                  # Correctly detect ZIP by signature even if the filename does not end with .zip
+                  await choose("legacy-data.bin",1)
+                  assert "document-2015.txt" in await page.locator("#arcContent").inner_text()
+                  print("OLD ZIP without .zip suffix: detected PASS")
+                  # Two files should produce two individual download links, not another ZIP.
+                  await choose("old-many.zip",2)
+                  if await page.locator("#arcToFolder").is_checked():await page.locator("#arcToFolder").uncheck()
+                  await page.locator("#arcExtract").click()
+                  await page.wait_for_function("() => document.querySelectorAll('#arcManualDownloads a').length===2",timeout=15000)
+                  assert "folder/one.txt" in await page.locator("#arcManualDownloads").inner_text()
+                  async with page.expect_download() as event:
+                      await page.locator("#arcManualDownloads a").first.click()
+                  assert pathlib.Path(await (await event.value).path()).read_bytes()==b"OLD-ONE"
+                  print("OLD multi-file ZIP: independently downloadable extracted files PASS")
+                  # Typical ZIP64 local header with data descriptor support.
+                  await choose("old-force-zip64.zip",1)
+                  async with page.expect_download() as event:
+                      await page.locator("#arcExtract").click()
+                  assert pathlib.Path(await (await event.value).path()).read_bytes()==b"ZIP64-OK"
+                  print("OLD ZIP64 file: extracted PASS")
+                  # Existing encrypted ZIP produced by a separate application.
+                  await page.locator("#arcPassword").fill("")
+                  await page.locator("#arcSource").set_input_files(root/"old-aes.zip")
+                  await page.wait_for_function("() => document.querySelector('#arcStatus').classList.contains('archive-error')",timeout=15000)
+                  assert "парола" in (await page.locator("#arcStatus").inner_text()).lower()
+                  await page.locator("#arcPassword").fill("secret-old-zip")
+                  await page.locator("#arcPassword").dispatch_event("change")
+                  await page.wait_for_function("() => document.querySelectorAll('#arcContent input[type=checkbox]').length===1",timeout=15000)
+                  async with page.expect_download() as event:
+                      await page.locator("#arcExtract").click()
+                  assert pathlib.Path(await (await event.value).path()).read_bytes()==b"OLD AES-256 CONTENT"
+                  print("OLD third-party AES ZIP: password and extraction PASS")
+                  await page.locator("#arcPassword").fill("")
+                  await choose("old-gzip.txt.gz",1)
+                  async with page.expect_download() as event:
+                      await page.locator("#arcExtract").click()
+                  assert pathlib.Path(await (await event.value).path()).read_bytes()==b"GZIP-OLD-OK"
+                  print("OLD external GZIP: extracted PASS")
+                  for archive,word in [("not-supported.rar","RAR"),("not-supported.7z","7Z"),("protected.bgdev",".bgdev")]:
+                      await page.locator("#arcSource").set_input_files(root/archive)
+                      await page.wait_for_function("() => document.querySelector('#arcStatus').classList.contains('archive-error')",timeout=15000)
+                      assert word.lower() in (await page.locator("#arcStatus").inner_text()).lower()
+                      assert await page.locator("#arcExtract").is_disabled()
+                      print("Unsupported / protected file correctly explained:",archive)
+                  assert not errors,errors
+                  print("OLD ARCHIVES BROWSER SUITE: PASS, errors",errors)
+                  await browser.close()
+          asyncio.run(main())
+          PY
