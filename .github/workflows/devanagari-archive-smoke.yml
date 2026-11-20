@@ -306,9 +306,13 @@ jobs:
                   await page.locator("#arcPassword").fill("secret-old-zip")
                   await page.locator("#arcPassword").dispatch_event("change")
                   await page.wait_for_function("() => document.querySelectorAll('#arcContent input[type=checkbox]').length===1",timeout=15000)
-                  async with page.expect_download() as event:
-                      await page.locator("#arcExtract").click()
-                  assert pathlib.Path(await (await event.value).path()).read_bytes()==b"OLD AES-256 CONTENT"
+                  try:
+                      async with page.expect_download(timeout=7000) as event:
+                          await page.locator("#arcExtract").click()
+                      assert pathlib.Path(await (await event.value).path()).read_bytes()==b"OLD AES-256 CONTENT"
+                  except Exception as exc:
+                      print("AES EXTRACT DIAGNOSTIC:",str(exc),"status:",await page.locator("#arcStatus").inner_text(),"busy:",await page.locator("#arcExtract").is_disabled(),"selected:",await page.locator("#arcContent input:checked").count(),"JS ERRORS:",errors,flush=True)
+                      raise
                   print("OLD third-party AES ZIP: password and extraction PASS")
                   await page.locator("#arcPassword").fill("")
                   await choose("old-gzip.txt.gz",1)
