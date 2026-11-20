@@ -1202,6 +1202,7 @@ function safeName(p){
 function simpleName(p){return safeName(p).split("/").pop();}
 function outputName(f){return f.name.replace(/(\.tar\.(gz|bz2|xz)|\.(zip|rar|7z|tar|gz|bz2|xz))$/iu,"")||"extracted";}
 let enginePromise=null, opened=null, displayed=[], isBusy=false;
+let previewedFile=null,previewedPassword=null;
 function setBusy(v){
  isBusy=v;
  for(const id of ["arcCreate","arcPreview"])$(id).disabled=v;
@@ -1255,6 +1256,7 @@ function saveBlob(blob,name){
 $("arcFiles").addEventListener("change",()=>{refreshInputCount();const f=$("arcFiles").files;if(f.length===1&&$("arcName").value==="archive")$("arcName").value=f[0].name;});
 $("arcFolder").addEventListener("change",refreshInputCount);
 $("arcSource").addEventListener("change",()=>{
+ previewedFile=null;previewedPassword=null;
  // Selecting an existing archive automatically opens its content preview.
  displayed=[];$("arcContent").replaceChildren();$("arcManualDownloads").replaceChildren();
  $("arcExtract").disabled=true;
@@ -1265,7 +1267,11 @@ $("arcSource").addEventListener("change",()=>{
  else message(tr("noArchive"));
 });
 $("arcPassword").addEventListener("change",()=>{
- if($("arcSource").files.length&&!isBusy)void previewArchive();
+ const f=$("arcSource").files[0];
+ const password=$("arcPassword").value;
+ // A blur event caused by clicking Extract must not re-open a ready archive
+ // and swallow the Extract click. Re-open only when credentials actually changed.
+ if(f&&!isBusy&&(!opened||previewedFile!==f||previewedPassword!==password))void previewArchive();
 });
 $("arcSelectAll").addEventListener("change",e=>{
  document.querySelectorAll("#arcContent input[type=checkbox]").forEach(c=>c.checked=e.target.checked);
@@ -1291,6 +1297,7 @@ function entryPath(x){
 async function previewArchive(){
  (window.DC_ARC_TRACE||(window.DC_ARC_TRACE=[])).push({step:"preview-start",busy:isBusy,file:$("arcSource").files?.[0]?.name,entry:displayed.map(x=>x.path)});
  if(isBusy)return;setBusy(true);
+ previewedFile=null;previewedPassword=null;
  // Clear previously listed entries immediately; they must never remain clickable
  // while a different archive or password is being processed.
  displayed=[];$("arcContent").replaceChildren();$("arcExtract").disabled=true;
@@ -1337,6 +1344,7 @@ async function previewArchive(){
   $("arcSelectAll").checked=true;
   $("arcToFolder").checked=displayed.length>1&&typeof window.showDirectoryPicker==="function";
   // Keep extract disabled until previewArchive exits its busy state.
+  previewedFile=f;previewedPassword=$("arcPassword").value;
   message(tr("contents")+": "+displayed.length+" · "+displayBytes(size));
  } catch(e) {
   if(opened){await opened.close().catch(()=>{});opened=null;}
