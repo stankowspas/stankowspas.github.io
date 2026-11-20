@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Devanagari Archiver Smoke Test</title></head><body>
+<h1>Archive mode browser integration test</h1>
+<iframe id="app" src="./app-4.3.10-standalone.html" style="display:none"></iframe>
+<pre id="result">RUNNING</pre>
+<script>
+"use strict";
+function assert(ok,msg){if(!ok)throw Error(msg);}
+const timer=setTimeout(()=>{document.getElementById('result').textContent="FAIL: TIMEOUT";},20000);
+document.getElementById("app").addEventListener("load",async()=>{
+ let msg=[];
+ try{
+  const w=document.getElementById("app").contentWindow;
+  assert(w.document.querySelectorAll(".mode-tab").length===4,"four mode tabs missing");msg.push("four tabs");
+  for(const theme of ["dark","sand","blue","graphite"])assert(w.document.querySelector('option[value="'+theme+'"]'),"theme missing "+theme);
+  msg.push("four themes");
+  const m=await w.DC_ARCHIVE_ENGINE.load();msg.push("local WebAssembly loader");
+  const input=new TextEncoder().encode("Archive verification: абв नमस्ते!\n".repeat(18));
+  const FileCtor=w.File;
+  const source=new FileCtor([input],"example-данни.txt",{type:"text/plain"});
+  async function runFormat(format,compress,ext) {
+    const obj=await m.Archive.write({files:[{file:source,pathname:"level/example-данни.txt"}],
+      outputFileName:"smoke."+ext,format:m.ArchiveFormat[format],compression:m.ArchiveCompression[compress],passphrase:null});
+    assert(obj.size>0,format+" empty output");
+    const archive=await m.Archive.open(obj);
+    try {
+      const arr=await archive.getFilesArray();
+      const target=arr.find(x=>x.file && typeof x.file.extract==="function");
+      assert(target,format+" no regular file");
+      const extracted=await target.file.extract();
+      const restored=new Uint8Array(await extracted.arrayBuffer());
+      assert(restored.length===input.length,format+" wrong length");
+      assert(restored.every((x,i)=>x===input[i]),format+" mismatched bytes");
+      msg.push(format+"/"+compress+" SHA-equivalent bytes");
+    } finally {try{await archive.close()}catch(_){}}
+  }
+  await runFormat("ZIP","NONE","zip");
+  await runFormat("USTAR","NONE","tar");
+  await runFormat("PAX","GZIP","tar.gz");
+  await runFormat("SEVEN_ZIP","NONE","7z");
+  document.getElementById("result").textContent="PASS: "+msg.join("; ");
+ }catch(e){document.getElementById("result").textContent="FAIL: "+(e?.stack||e)+"\nCompleted: "+msg.join("; ");}
+ finally{clearTimeout(timer);}
+});
+</script></body></html>
