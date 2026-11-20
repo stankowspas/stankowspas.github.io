@@ -1081,7 +1081,8 @@ function translateArchive() {
  document.querySelectorAll("[data-archive-i18n]").forEach(e => { e.textContent=tr(e.dataset.archiveI18n); });
  $("arcTab").textContent=tr("tab");$("arcTab").title=tr("tab");
  if(typeof UI!=="undefined"&&UI[currentLanguage])UI[currentLanguage].archive=tr("tab");
- $("arcFilesLabel").title=tr("chooseFiles");$("arcFolderLabel").title=tr("chooseFolder");
+ const fileLabel=document.querySelector('label[for="arcFiles"]');const folderLabel=document.querySelector('label[for="arcFolder"]');
+ if(fileLabel)fileLabel.title=tr("chooseFiles");if(folderLabel)folderLabel.title=tr("chooseFolder");
 }
 function displayBytes(n){return (n>=1048576?(n/1048576).toLocaleString(currentLanguage,{maximumFractionDigits:2})+" MiB":(n/1024).toLocaleString(currentLanguage,{maximumFractionDigits:1})+" KiB");}
 function message(str,error){const target=$("arcStatus");target.textContent=str;target.className="archive-status "+(error?"archive-error":"");}
