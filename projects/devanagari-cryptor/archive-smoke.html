@@ -1,44 +1,53 @@
 <!doctype html><html><head><meta charset="utf-8"><title>Devanagari Archiver Smoke Test</title></head><body>
 <h1>Archive mode browser integration test</h1>
-<iframe id="app" src="./app-4.3.10-standalone.html" style="display:none"></iframe>
-<pre id="result">RUNNING</pre>
+<pre id="result">STARTED</pre>
+<iframe id="app" style="display:none"></iframe>
 <script>
 "use strict";
-function assert(ok,msg){if(!ok)throw Error(msg);}
-const timer=setTimeout(()=>{document.getElementById('result').textContent="FAIL: TIMEOUT";},20000);
-document.getElementById("app").addEventListener("load",async()=>{
- let msg=[];
+const out=document.getElementById("result"),steps=[],frame=document.getElementById("app");
+let complete=false;
+function step(s){steps.push(s);out.textContent="STAGE: "+steps.join(" | ");}
+function pass(s){complete=true;out.textContent="PASS: "+steps.join("; ")+"; "+s;}
+function fail(s){complete=true;out.textContent="FAIL: "+String(s)+"\nCompleted: "+steps.join("; ");}
+window.addEventListener("error", e=>{step("parent error "+(e.message||e.error));});
+window.addEventListener("unhandledrejection",e=>{step("parent rejection "+e.reason);});
+function assert(x,m){if(!x)throw Error(m);}
+setTimeout(()=>{if(!complete)fail("WATCHDOG timeout at "+steps.join("; "));},75000);
+frame.addEventListener("load",async()=>{
+ step("iframe loaded");
  try{
-  const w=document.getElementById("app").contentWindow;
-  assert(w.document.querySelectorAll(".mode-tab").length===4,"four mode tabs missing");msg.push("four tabs");
-  for(const theme of ["dark","sand","blue","graphite"])assert(w.document.querySelector('option[value="'+theme+'"]'),"theme missing "+theme);
-  msg.push("four themes");
-  const m=await w.DC_ARCHIVE_ENGINE.load();msg.push("local WebAssembly loader");
-  const input=new TextEncoder().encode("Archive verification: абв नमस्ते!\n".repeat(18));
-  const FileCtor=w.File;
-  const source=new FileCtor([input],"example-данни.txt",{type:"text/plain"});
-  async function runFormat(format,compress,ext) {
-    const obj=await m.Archive.write({files:[{file:source,pathname:"level/example-данни.txt"}],
-      outputFileName:"smoke."+ext,format:m.ArchiveFormat[format],compression:m.ArchiveCompression[compress],passphrase:null});
-    assert(obj.size>0,format+" empty output");
-    const archive=await m.Archive.open(obj);
-    try {
-      const arr=await archive.getFilesArray();
-      const target=arr.find(x=>x.file && typeof x.file.extract==="function");
-      assert(target,format+" no regular file");
-      const extracted=await target.file.extract();
-      const restored=new Uint8Array(await extracted.arrayBuffer());
-      assert(restored.length===input.length,format+" wrong length");
-      assert(restored.every((x,i)=>x===input[i]),format+" mismatched bytes");
-      msg.push(format+"/"+compress+" SHA-equivalent bytes");
-    } finally {try{await archive.close()}catch(_){}}
+  const w=frame.contentWindow;
+  w.addEventListener("error",e=>step("iframe error "+e.message));
+  w.addEventListener("unhandledrejection",e=>step("iframe rejection "+String(e.reason)));
+  assert(w.document.querySelectorAll(".mode-tab").length===4,"four mode tabs missing");step("four tabs");
+  for(const theme of ["dark","sand","blue","graphite"])assert(w.document.querySelector('option[value="'+theme+'"]'),"missing "+theme);
+  step("four themes");
+  const mod=await w.DC_ARCHIVE_ENGINE.load();step("loader resolved");
+  const bytes=new TextEncoder().encode("Hello text example! नमस्ते абв\n".repeat(18));
+  const file=new w.File([bytes],"unicode-данни.txt",{type:"text/plain"});
+  async function roundtrip(format,compression,ext){
+   step("WRITE "+format);
+   const output=await mod.Archive.write({files:[{file,pathname:"folder/unicode-данни.txt"}],outputFileName:"test."+ext,format:mod.ArchiveFormat[format],compression:mod.ArchiveCompression[compression],passphrase:null});
+   assert(output.size>0,"archive empty "+format);
+   step("OPEN "+format+" "+output.size+"B");
+   const archive=await mod.Archive.open(output);
+   try {
+     const files=await archive.getFilesArray();
+     const found=files.find(x=>x.file&&typeof x.file.extract==="function");
+     assert(found,format+" no file");
+     step("EXTRACT "+format);
+     const plain=new Uint8Array(await (await found.file.extract()).arrayBuffer());
+     assert(plain.length===bytes.length,format+" length mismatch");
+     assert(plain.every((v,i)=>v===bytes[i]),format+" contents mismatch");
+     step("ROUNDTRIP "+format);
+   }finally{try{await archive.close();}catch(e){}}
   }
-  await runFormat("ZIP","NONE","zip");
-  await runFormat("USTAR","NONE","tar");
-  await runFormat("PAX","GZIP","tar.gz");
-  await runFormat("SEVEN_ZIP","NONE","7z");
-  document.getElementById("result").textContent="PASS: "+msg.join("; ");
- }catch(e){document.getElementById("result").textContent="FAIL: "+(e?.stack||e)+"\nCompleted: "+msg.join("; ");}
- finally{clearTimeout(timer);}
+  await roundtrip("ZIP","NONE","zip");
+  await roundtrip("USTAR","NONE","tar");
+  await roundtrip("PAX","GZIP","tar.gz");
+  await roundtrip("SEVEN_ZIP","NONE","7z");
+  pass("all four archive roundtrips");
+ }catch(e){fail(e?.stack||e);}
 });
+step("assigning iframe src");frame.src="./app-4.3.10-standalone.html";
 </script></body></html>
