@@ -1290,6 +1290,10 @@ function entryPath(x){
 }
 async function previewArchive(){
  if(isBusy)return;setBusy(true);
+ // Clear previously listed entries immediately; they must never remain clickable
+ // while a different archive or password is being processed.
+ displayed=[];$("arcContent").replaceChildren();$("arcExtract").disabled=true;
+ $("arcManualDownloads").replaceChildren();
  try {
   const f=$("arcSource").files?.[0];if(!f)throw new Error(tr("noArchive"));
   if(f.size>250*1048576)throw new Error("Limit: 250 MiB archive input");
