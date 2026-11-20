@@ -506,3 +506,160 @@ jobs:
                           await browser.close()
                   asyncio.run(main())
           PY
+      - name: Test 4.3.15 complete folder restoration from old ZIP and direct single-file download
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/dc-playwright/bin/python - <<'PY'
+          import pathlib,zipfile
+          p=pathlib.Path("projects/devanagari-cryptor/test-fixtures")
+          p.mkdir(parents=True,exist_ok=True)
+          with zipfile.ZipFile(p/"full-folder.zip","w") as z:
+              z.writestr("Комплект/",b"")
+              z.writestr("Комплект/документ.txt","Комплект на български".encode(),compress_type=zipfile.ZIP_DEFLATED)
+              z.writestr("Комплект/подпапка/детайл.bin",bytes([0,1,2,253,254,255]),compress_type=zipfile.ZIP_DEFLATED)
+              z.writestr("Комплект/празна/",b"")
+          with zipfile.ZipFile(p/"one-file.zip","w") as z:
+              z.writestr("standalone.txt",b"ONE-FILE-ONLY",compress_type=zipfile.ZIP_STORED)
+          with zipfile.ZipFile(p/"one-file-in-folder.zip","w") as z:
+              z.writestr("ЕднаПапка/един.txt",b"NESTED-ONE",compress_type=zipfile.ZIP_STORED)
+          with zipfile.ZipFile(p/"flat-many.zip","w") as z:
+              z.writestr("first.txt",b"FIRST",compress_type=zipfile.ZIP_STORED)
+              z.writestr("second.txt",b"SECOND",compress_type=zipfile.ZIP_STORED)
+          with zipfile.ZipFile(p/"empty-dirs.zip","w") as z:
+              z.writestr("ПразнаГрупа/",b"")
+              z.writestr("ПразнаГрупа/празна/",b"")
+          print("Independent folder archive test fixtures created",flush=True)
+          PY
+          /tmp/dc-playwright/bin/python - <<'PY'
+          import asyncio,pathlib,shutil
+          from playwright.async_api import async_playwright
+          root=pathlib.Path("projects/devanagari-cryptor/test-fixtures")
+          app=pathlib.Path("projects/devanagari-cryptor/app-4.3.15-standalone.html").resolve()
+          async def main():
+              exe=shutil.which("google-chrome") or shutil.which("chromium")
+              async with async_playwright() as pw:
+                  browser=await pw.chromium.launch(headless=True,executable_path=exe,args=["--no-sandbox","--disable-dev-shm-usage"])
+                  page=await browser.new_page(accept_downloads=True)
+                  errors,downloads,outside=[],[],[]
+                  page.on("pageerror",lambda e:errors.append(str(e)))
+                  page.on("download",lambda d:downloads.append(d))
+                  page.on("request",lambda req:outside.append(req.url) if req.url.startswith(("http://","https://")) else None)
+                  await page.goto(app.as_uri())
+                  assert await page.locator(".app-ver").inner_text()=="4.3.15"
+                  await page.locator("#langSelect").select_option("bg")
+                  await page.locator('[data-mode="archive"]').click()
+                  assert await page.locator("#arcExtract").inner_text()=="Разархивирай"
+                  await page.evaluate("""() => {
+                    function directory(name){
+                      return {
+                        name,kind:'directory',dirs:new Map(),files:new Map(),
+                        async getDirectoryHandle(key,{create=false}={}){
+                          if(this.files.has(key))throw new DOMException("Existing file","TypeMismatchError");
+                          if(!this.dirs.has(key)){
+                            if(!create)throw new DOMException("Not found","NotFoundError");
+                            this.dirs.set(key,directory(key));
+                          }
+                          return this.dirs.get(key);
+                        },
+                        async getFileHandle(key,{create=false}={}){
+                          if(this.dirs.has(key))throw new DOMException("Existing folder","TypeMismatchError");
+                          if(!this.files.has(key)&&!create)throw new DOMException("Not found","NotFoundError");
+                          const parent=this;
+                          return {
+                            name:key,kind:'file',
+                            async createWritable(){
+                              let written=null;
+                              return {
+                                async write(blob){written=new Uint8Array(await blob.arrayBuffer())},
+                                async close(){parent.files.set(key,written)},
+                                async abort(){written=null}
+                              };
+                            }
+                          };
+                        }
+                      };
+                    }
+                    window.__downloads=directory("Downloads");
+                    window.__pickerOptions=[];
+                    window.showDirectoryPicker=async opts=>{
+                      window.__pickerOptions.push(opts);
+                      return window.__downloads;
+                    };
+                    window.__folderSnapshot=()=>{
+                      const walk=d=>({
+                        folders:Object.fromEntries([...d.dirs].map(([k,v])=>[k,walk(v)])),
+                        files:Object.fromEntries([...d.files].map(([k,v])=>[k,[...v]]))
+                      });
+                      return walk(window.__downloads);
+                    };
+                  }""")
+                  async def choose(name,num):
+                      await page.locator("#arcSource").set_input_files(root/name)
+                      await page.wait_for_function("""n=>{
+                        const count=document.querySelectorAll('#arcContent input[type=checkbox]').length;
+                        return count===n&&!document.querySelector('#arcExtract').disabled;
+                      }""",arg=num,timeout=18000)
+                  async def extract_and_wait():
+                      await page.locator("#arcExtract").click()
+                      await page.wait_for_function("""() => {
+                        const status=document.querySelector('#arcStatus');
+                        return status.textContent.includes('Разархивирането завърши')||
+                               status.textContent.includes('Файлът е възстановен')||
+                               status.classList.contains('archive-error');
+                      }""",timeout=18000)
+                      state=await page.locator("#arcStatus").inner_text()
+                      assert not await page.locator("#arcStatus").evaluate("(el)=>el.classList.contains('archive-error')"),state
+                  # A real ZIP folder with one nested subfolder and one empty subfolder.
+                  await choose("full-folder.zip",2)
+                  await extract_and_wait()
+                  tree=await page.evaluate("window.__folderSnapshot()")
+                  main=tree["folders"]["Комплект"]
+                  assert main["files"]["документ.txt"]==list("Комплект на български".encode()),main
+                  assert main["folders"]["подпапка"]["files"]["детайл.bin"]==[0,1,2,253,254,255]
+                  assert main["folders"]["празна"]=={"folders":{},"files":{}}
+                  options=await page.evaluate("window.__pickerOptions")
+                  assert options[0]["startIn"]=="downloads" and options[0]["mode"]=="readwrite"
+                  assert not downloads,"Folder extraction unexpectedly triggered flat downloads"
+                  print("FULL ARCHIVED FOLDER -> restored root + subfolder + empty folder + byte-identical files: PASS",flush=True)
+                  # No accidental overwrite: extracting the same folder twice creates a unique sibling.
+                  await page.locator("#arcExtract").click()
+                  await page.wait_for_function("() => !!window.__downloads.dirs.get('Комплект (2)')",timeout=18000)
+                  tree=await page.evaluate("window.__folderSnapshot()")
+                  assert "Комплект (2)" in tree["folders"],tree
+                  print("EXTRACT SAME FOLDER AGAIN -> safe collision suffix: PASS",flush=True)
+                  # An archive containing a folder with a single file is still a folder.
+                  await choose("one-file-in-folder.zip",1)
+                  await extract_and_wait()
+                  tree=await page.evaluate("window.__folderSnapshot()")
+                  assert tree["folders"]["ЕднаПапка"]["files"]["един.txt"]==list(b"NESTED-ONE")
+                  print("SINGLE FILE INSIDE ARCHIVED FOLDER -> folder structure preserved: PASS",flush=True)
+                  # Flat multi-file archives become a real folder named after archive.
+                  await choose("flat-many.zip",2)
+                  await extract_and_wait()
+                  tree=await page.evaluate("window.__folderSnapshot()")
+                  assert tree["folders"]["flat-many"]["files"]=={"first.txt":list(b"FIRST"),"second.txt":list(b"SECOND")}
+                  print("FLAT TWO-FILE ZIP -> group extracted in one real folder: PASS",flush=True)
+                  # An archive with only empty folders must still restore the folder tree.
+                  await choose("empty-dirs.zip",0)
+                  await extract_and_wait()
+                  tree=await page.evaluate("window.__folderSnapshot()")
+                  assert tree["folders"]["ПразнаГрупа"]["folders"]["празна"]=={"folders":{},"files":{}}
+                  print("EMPTY FOLDERS ONLY -> restored, no data loss: PASS",flush=True)
+                  # A plain single file must download directly and not open folder picker.
+                  picks=await page.evaluate("window.__pickerOptions.length")
+                  await choose("one-file.zip",1)
+                  await page.locator("#arcExtract").click()
+                  end=asyncio.get_running_loop().time()+10
+                  while not downloads and asyncio.get_running_loop().time()<end:await asyncio.sleep(.08)
+                  assert len(downloads)==1,await page.locator("#arcStatus").inner_text()
+                  assert downloads[0].suggested_filename=="standalone.txt"
+                  assert pathlib.Path(await downloads[0].path()).read_bytes()==b"ONE-FILE-ONLY"
+                  assert await page.evaluate("window.__pickerOptions.length")==picks
+                  print("SINGLE FLAT FILE -> direct original download, no folder picker: PASS",flush=True)
+                  assert not errors,errors
+                  assert not outside,outside
+                  print("4.3.15 COMPLETE-FOLDER BROWSER SUITE: PASS; errors",errors,"network requests",len(outside),flush=True)
+                  await browser.close()
+          asyncio.run(main())
+          PY
