@@ -18,6 +18,7 @@ frame.addEventListener("load",async()=>{
  const binary=new Uint8Array([0,1,2,3,4,255]);
  const files=[{file:new w.File([text],"документ.txt"),pathname:"nested/документ.txt"},{file:new w.File([binary],"bytes.bin"),pathname:"bytes.bin"}];
  for(const format of ["zip","tar","tgz","gz"]){
+  stage("begin "+format);
   let output,arc;
   if(format==="zip"){output=await core.zipWrite(files,"demo.zip");arc=await core.zipOpen(output);}
   else if(format==="tar"){output=await core.tarWrite(files,"demo.tar",false);arc=await core.tarOpen(output,false);}
