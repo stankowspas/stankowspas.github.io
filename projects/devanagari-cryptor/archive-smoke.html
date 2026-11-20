@@ -23,6 +23,14 @@ frame.addEventListener("load",async()=>{
   for(const theme of ["dark","sand","blue","graphite"])assert(w.document.querySelector('option[value="'+theme+'"]'),"missing "+theme);
   step("four themes");
   const mod=await w.DC_ARCHIVE_ENGINE.load();step("loader resolved");
+  const oldGet=mod.Archive._options.getWorker;
+  mod.Archive._options.getWorker=function(){
+    step("new worker started");
+    const worker=oldGet();
+    worker.addEventListener("error",function(e){step("WORKER ERROR: "+e.message+" filename="+e.filename+" line="+e.lineno);});
+    worker.addEventListener("messageerror",function(e){step("WORKER MESSAGEERROR: "+e);});
+    return worker;
+  };
   const bytes=new TextEncoder().encode("Hello text example! नमस्ते абв\n".repeat(18));
   const file=new w.File([bytes],"unicode-данни.txt",{type:"text/plain"});
   async function roundtrip(format,compression,ext){
