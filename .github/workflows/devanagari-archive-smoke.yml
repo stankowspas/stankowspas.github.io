@@ -174,3 +174,53 @@ jobs:
                   await browser.close()
           asyncio.run(main())
           PY
+      - name: Test exact 4.3.12 downloadable ZIP package opened from disk without a server
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/dc-playwright/bin/python - <<'PY'
+          import asyncio, pathlib, shutil, tempfile, zipfile
+          from playwright.async_api import async_playwright
+          package=pathlib.Path("projects/devanagari-cryptor/Devanagari_Cryptor_4.3.12_AES_TESTED.zip")
+          with zipfile.ZipFile(package) as z:
+              assert z.testzip() is None,"ZIP CRC verification failed"
+              assert "Devanagari-Cryptor-4.3.12.html" in z.namelist()
+              assert "START_HERE_BG.txt" in z.namelist()
+              with tempfile.TemporaryDirectory() as tmp:
+                  z.extractall(tmp)
+                  filename=pathlib.Path(tmp,"Devanagari-Cryptor-4.3.12.html").resolve()
+                  async def run():
+                      executable=shutil.which("google-chrome") or shutil.which("chromium")
+                      async with async_playwright() as pw:
+                          browser=await pw.chromium.launch(headless=True,executable_path=executable,args=["--no-sandbox"])
+                          page=await browser.new_page()
+                          errors=[]
+                          page.on("pageerror",lambda e: errors.append(str(e)))
+                          requests=[]
+                          page.on("request",lambda r:requests.append(r.url))
+                          await page.goto(filename.as_uri())
+                          result=await page.evaluate("""async () => {
+                            const core=window.DC_ARCHIVE_CORE;
+                            const tabs=document.querySelectorAll(".mode-tab");
+                            if(!core||tabs.length!==4)throw Error("App did not load");
+                            document.querySelector('[data-mode="archive"]').click();
+                            if(document.querySelector("#archiveSection").hidden)throw Error("Fourth tab unavailable");
+                            const pwField=document.getElementById("arcCreatePassword");
+                            if(!pwField||pwField.disabled||pwField.hidden)throw Error("ZIP password input unavailable");
+                            const src=new File([new TextEncoder().encode("Local AES тест नमस्ते")],"secret.txt");
+                            const encrypted=await core.zipWrite([{file:src,pathname:src.name}],"password.zip","LocalAES_123");
+                            const opened=await core.zipOpen(encrypted,"LocalAES_123");
+                            const restored=await opened.entries[0].extract();
+                            await opened.close();
+                            if(await restored.text()!=="Local AES тест नमस्ते")throw Error("Local AES roundtrip failed");
+                            return {version:document.querySelector(".app-ver").textContent,
+                              zipSize:encrypted.size,passwordInput:!!pwField,
+                              tabs:tabs.length,files:opened.entries.length};
+                          }""")
+                          assert not errors,"Browser JS errors: "+str(errors)
+                          outbound=[r for r in requests if r.startswith("http://") or r.startswith("https://")]
+                          assert not outbound,"Network access detected in offline app: "+str(outbound)
+                          print("EXACT PACKAGE file:// TEST PASS",result,"JS errors",errors,"external requests",len(outbound))
+                          await browser.close()
+                  asyncio.run(run())
+          PY
