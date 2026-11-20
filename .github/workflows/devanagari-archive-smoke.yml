@@ -123,3 +123,54 @@ jobs:
                       raise AssertionError("JavaScript errors: "+str(errors))
           asyncio.run(main())
           PY
+      - name: Cross-check AES-256 ZIP compatibility against independent Python implementation
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/dc-playwright/bin/python -m pip install -q pyzipper==0.3.6
+          /tmp/dc-playwright/bin/python - <<'PY'
+          import asyncio, base64, io, shutil, zipfile
+          import pyzipper
+          from playwright.async_api import async_playwright
+          password = "Independent_AES256_123"
+          text = "AES interoperability. Български. देवनागरी."
+          async def main():
+              exe=shutil.which("google-chrome") or shutil.which("chromium")
+              async with async_playwright() as pw:
+                  browser=await pw.chromium.launch(executable_path=exe,headless=True,args=["--no-sandbox"])
+                  page=await browser.new_page()
+                  await page.goto("http://127.0.0.1:8765/app-4.3.12-standalone.html")
+                  created=await page.evaluate("""async ({password,text}) => {
+                    const file=new File([new TextEncoder().encode(text)],"документ.txt");
+                    const output=await DC_ARCHIVE_CORE.zipWrite([{file,pathname:"папка/документ.txt"}],"encrypted.zip",password);
+                    return new Promise((resolve,reject)=>{
+                      const reader=new FileReader();
+                      reader.onload=()=>resolve(reader.result.split(",")[1]);
+                      reader.onerror=()=>reject(reader.error);
+                      reader.readAsDataURL(output);
+                    });
+                  }""",{"password":password,"text":text})
+                  with pyzipper.AESZipFile(io.BytesIO(base64.b64decode(created)),"r") as archive:
+                      archive.setpassword(password.encode())
+                      verified=archive.read("папка/документ.txt").decode("utf-8")
+                      assert verified==text
+                  print("INDEPENDENT AES DECRYPT: PASS")
+                  external=io.BytesIO()
+                  with pyzipper.AESZipFile(external,"w",compression=zipfile.ZIP_DEFLATED,encryption=pyzipper.WZ_AES) as archive:
+                      archive.setpassword(password.encode())
+                      archive.setencryption(pyzipper.WZ_AES,nbits=256)
+                      archive.writestr("external.txt",text.encode("utf-8"))
+                  encoded=base64.b64encode(external.getvalue()).decode()
+                  output=await page.evaluate("""async ({encoded,password}) => {
+                    const b=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));
+                    const file=new File([b],"external.zip");
+                    const arc=await DC_ARCHIVE_CORE.zipOpen(file,password);
+                    const result=await arc.entries[0].extract();
+                    await arc.close();
+                    return await result.text();
+                  }""",{"encoded":encoded,"password":password})
+                  assert output==text
+                  print("INDEPENDENT AES ENCRYPT / APP DECRYPT: PASS")
+                  await browser.close()
+          asyncio.run(main())
+          PY
