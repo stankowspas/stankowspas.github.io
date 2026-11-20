@@ -42,3 +42,47 @@ jobs:
                       raise RuntimeError("Archive browser roundtrip or UI test failed: "+result)
           asyncio.run(main())
           PY
+      - name: Test exact downloadable package with local file URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/dc-playwright/bin/python - <<'PY'
+          import asyncio, pathlib, shutil, tempfile, zipfile
+          from playwright.async_api import async_playwright
+          package = pathlib.Path("projects/devanagari-cryptor/Devanagari_Cryptor_4.3.11_START.zip")
+          with zipfile.ZipFile(package) as z:
+              names = set(z.namelist())
+              assert "Devanagari-Cryptor-4.3.11.html" in names, names
+              assert "START_HERE_BG.txt" in names, names
+              bad = z.testzip()
+              assert bad is None, f"CRC check failed: {bad}"
+              with tempfile.TemporaryDirectory() as folder:
+                  z.extractall(folder)
+                  path=pathlib.Path(folder,"Devanagari-Cryptor-4.3.11.html")
+                  async def test():
+                      async with async_playwright() as playwright:
+                          exe=shutil.which("google-chrome") or shutil.which("chromium")
+                          browser=await playwright.chromium.launch(headless=True,executable_path=exe,args=["--no-sandbox"])
+                          page=await browser.new_page()
+                          errors=[]
+                          page.on("pageerror",lambda e:errors.append(str(e)))
+                          await page.goto(path.as_uri(),wait_until="load")
+                          result=await page.evaluate("""async () => {
+                            const tabs=document.querySelectorAll('.mode-tab');
+                            const core=window.DC_ARCHIVE_CORE;
+                            if(tabs.length!==4||!core)throw Error('App not fully loaded');
+                            document.querySelector('[data-mode="archive"]').click();
+                            if(document.querySelector('#archiveSection').hidden)throw Error('Archive tab did not open');
+                            const f=new File(['Offline проверка'],'български.txt',{type:'text/plain'});
+                            const zipped=await core.zipWrite([{file:f,pathname:f.name}],"file-test.zip");
+                            const parsed=await core.zipOpen(zipped);
+                            const restored=await parsed.entries[0].extract();
+                            if(await restored.text()!=='Offline проверка')throw Error('ZIP byte roundtrip failed');
+                            return {version:document.querySelector('.app-ver').textContent,tabs:tabs.length,size:zipped.size,original:await restored.text()};
+                          }""")
+                          print("FILE LOCAL TEST: PASS",result)
+                          print("Browser errors:",errors)
+                          if errors:raise RuntimeError("Browser JS error: "+str(errors))
+                          await browser.close()
+                  asyncio.run(test())
+          PY
