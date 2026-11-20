@@ -1,0 +1,27 @@
+name: Devanagari archive mode smoke test
+on:
+  push:
+    branches: [draft/devanagari-cryptor-4.3.9-archive]
+  workflow_dispatch:
+jobs:
+  browser-archive-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test archive engine in headless Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v google-chrome || command -v chromium || command -v chromium-browser
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory projects/devanagari-cryptor >/tmp/dev-archive-server.log 2>&1 &
+          sleep 2
+          BROWSER=$(command -v google-chrome || command -v chromium || command -v chromium-browser)
+          timeout 42s "$BROWSER" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --disable-background-networking --virtual-time-budget=25000 --dump-dom http://127.0.0.1:8765/archive-smoke.html > /tmp/archive-test-result.html 2>/tmp/archive-chrome-stderr.log || true
+          tail -c 10000 /tmp/archive-test-result.html || true
+          if grep -q 'PASS: four tabs' /tmp/archive-test-result.html ; then
+            echo "PASS: browser-based archive integration tests"
+          else
+            cat /tmp/archive-chrome-stderr.log || true
+            exit 1
+          fi
