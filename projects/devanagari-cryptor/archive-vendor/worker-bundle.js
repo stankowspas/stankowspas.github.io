@@ -1,4 +1,9 @@
 self.postMessage({debug:"WORKER_BOOT"});
+const _origFetch=self.fetch.bind(self);
+self.fetch=(...args)=>{self.postMessage({debug:"FETCH_START",url:String(args[0])});return _origFetch(...args).then(resp=>{self.postMessage({debug:"FETCH_RESPONSE",status:resp.status,size:resp.headers.get("content-length")});return resp;},err=>{self.postMessage({debug:"FETCH_FAILED",reason:String(err)});throw err;});};
+const _origInstantiateStreaming=WebAssembly.instantiateStreaming.bind(WebAssembly);
+WebAssembly.instantiateStreaming=(...args)=>{self.postMessage({debug:"WASM_INSTANTIATE_START"});return _origInstantiateStreaming(...args).then(result=>{self.postMessage({debug:"WASM_INSTANTIATE_DONE"});return result;},err=>{self.postMessage({debug:"WASM_INSTANTIATE_FAILED",reason:String(err)});throw err;});};
+
 self.addEventListener("error",e=>self.postMessage({debug:"GLOBAL_ERROR",message:e.message}));
 self.addEventListener("unhandledrejection",e=>self.postMessage({debug:"UNHANDLED_REJECTION",message:String(e.reason)}));
 /**
