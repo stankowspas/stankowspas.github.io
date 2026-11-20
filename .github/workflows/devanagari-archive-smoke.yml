@@ -459,3 +459,50 @@ jobs:
                   await browser.close()
           asyncio.run(main())
           PY
+      - name: Test exact 4.3.14 release ZIP and two automatic downloads offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/dc-playwright/bin/python - <<'PY'
+          import asyncio,pathlib,shutil,tempfile,zipfile
+          from playwright.async_api import async_playwright
+          pkg=pathlib.Path("projects/devanagari-cryptor/Devanagari_Cryptor_4.3.14_AUTO_DOWNLOAD.zip")
+          fixtures=pathlib.Path("projects/devanagari-cryptor/test-fixtures/old-many.zip")
+          with zipfile.ZipFile(pkg) as z:
+              assert z.testzip() is None,"Release ZIP CRC failed"
+              assert set(z.namelist())=={"Devanagari-Cryptor-4.3.14.html","START_HERE_BG.txt"}
+              with tempfile.TemporaryDirectory() as temp:
+                  z.extractall(temp)
+                  app=pathlib.Path(temp,"Devanagari-Cryptor-4.3.14.html").resolve()
+                  async def main():
+                      exe=shutil.which("google-chrome") or shutil.which("chromium")
+                      async with async_playwright() as pw:
+                          browser=await pw.chromium.launch(headless=True,executable_path=exe,args=["--no-sandbox"])
+                          page=await browser.new_page(accept_downloads=True)
+                          errors,downloads,network=[],[],[]
+                          page.on("pageerror",lambda e:errors.append(str(e)))
+                          page.on("download",lambda d:downloads.append(d))
+                          page.on("request",lambda r:network.append(r.url) if r.url.startswith(("http://","https://")) else None)
+                          await page.goto(app.as_uri())
+                          assert await page.locator(".app-ver").inner_text()=="4.3.14"
+                          await page.locator("#langSelect").select_option("bg")
+                          await page.locator('[data-mode="archive"]').click()
+                          assert await page.locator("#arcExtract").inner_text()=="Разархивирай"
+                          assert await page.locator("#arcToFolder").count()==0
+                          await page.locator("#arcSource").set_input_files(fixtures)
+                          await page.wait_for_function("() => document.querySelectorAll('#arcContent input[type=checkbox]').length===2 && !document.querySelector('#arcExtract').disabled",timeout=15000)
+                          await page.locator("#arcExtract").click()
+                          end=asyncio.get_running_loop().time()+10
+                          while len(downloads)<2 and asyncio.get_running_loop().time()<end:
+                              await asyncio.sleep(.1)
+                          assert len(downloads)==2,f"Only {len(downloads)} downloads"
+                          recovered={}
+                          for d in downloads:
+                              recovered[d.suggested_filename]=pathlib.Path(await d.path()).read_bytes()
+                          assert recovered=={"folder__one.txt":b"OLD-ONE","folder__two.txt":b"OLD-TWO"},recovered
+                          assert not errors,errors
+                          assert not network,network
+                          print("EXACT 4.3.14 RELEASE ZIP: PASS, old ZIP 2 automatic downloads, file://, zero JS errors, zero external requests")
+                          await browser.close()
+                  asyncio.run(main())
+          PY
