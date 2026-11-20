@@ -371,3 +371,88 @@ jobs:
                           await browser.close()
                   asyncio.run(test())
           PY
+      - name: Test 4.3.14 single-click extraction and automatic downloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/dc-playwright/bin/python - <<'PY'
+          import asyncio,pathlib,shutil
+          from playwright.async_api import async_playwright
+          root=pathlib.Path("projects/devanagari-cryptor/test-fixtures")
+          app=pathlib.Path("projects/devanagari-cryptor/app-4.3.14-standalone.html").resolve()
+          async def main():
+              exe=shutil.which("google-chrome") or shutil.which("chromium")
+              async with async_playwright() as pw:
+                  browser=await pw.chromium.launch(headless=True,executable_path=exe,args=["--no-sandbox","--disable-dev-shm-usage"])
+                  context=await browser.new_context(accept_downloads=True)
+                  page=await context.new_page()
+                  errors=[]
+                  downloaded=[]
+                  outside=[]
+                  page.on("pageerror",lambda e:errors.append(str(e)))
+                  page.on("download",lambda dl:downloaded.append(dl))
+                  page.on("request",lambda req:outside.append(req.url) if req.url.startswith(("https://","http://")) else None)
+                  await page.goto(app.as_uri())
+                  assert await page.locator(".app-ver").inner_text()=="4.3.14"
+                  assert await page.locator(".mode-tab").count()==4
+                  await page.locator('[data-mode="archive"]').click()
+                  assert await page.locator("#arcExtract").inner_text()=="Разархивирай"
+                  assert await page.locator("#arcToFolder").count()==0
+                  assert await page.locator("#arcPreview").count()==0
+                  assert await page.locator("#arcManualDownloads").count()==0
+                  print("ONE BUTTON UI + file://: PASS",flush=True)
+                  async def select(name,num):
+                      await page.locator("#arcSource").set_input_files(root/name)
+                      await page.wait_for_function("(num)=>document.querySelectorAll('#arcContent input[type=checkbox]').length===num && !document.querySelector('#arcExtract').disabled",arg=num,timeout=16000)
+                  async def wait_downloads(n):
+                      end=asyncio.get_running_loop().time()+10
+                      while len(downloaded)<n:
+                          if asyncio.get_running_loop().time()>end:
+                              raise AssertionError(f"Expected {n} downloads, got {len(downloaded)}. Status {await page.locator('#arcStatus').inner_text()}")
+                          await asyncio.sleep(.07)
+                  # Existing external ZIP dating back to 2015, no password.
+                  await select("old-2015.zip",1)
+                  await page.locator("#arcExtract").click()
+                  await wait_downloads(1)
+                  assert downloaded[0].suggested_filename=="document-2015.txt"
+                  assert pathlib.Path(await downloaded[0].path()).read_bytes()==b"OLD ARCHIVE 2015: real file bytes \x00\x01\xff"
+                  print("OLD ZIP -> one-click automatic download: PASS",flush=True)
+                  downloaded.clear()
+                  # Multiple files must download individually, without creating another ZIP.
+                  await select("old-many.zip",2)
+                  await page.locator("#arcExtract").click()
+                  await wait_downloads(2)
+                  actual={}
+                  for dl in downloaded:
+                      actual[dl.suggested_filename]=pathlib.Path(await dl.path()).read_bytes()
+                  assert actual=={"folder__one.txt":b"OLD-ONE","folder__two.txt":b"OLD-TWO"},actual
+                  print("OLD 2-FILE ZIP -> two automatic downloads: PASS",flush=True)
+                  downloaded.clear()
+                  # ZIP64 single file.
+                  await select("old-force-zip64.zip",1)
+                  await page.locator("#arcExtract").click()
+                  await wait_downloads(1)
+                  assert pathlib.Path(await downloaded[0].path()).read_bytes()==b"ZIP64-OK"
+                  print("OLD ZIP64 -> automatic download: PASS",flush=True)
+                  downloaded.clear()
+                  # Existing AES archive with password.
+                  await page.locator("#arcPassword").fill("secret-old-zip")
+                  await select("old-aes.zip",1)
+                  await page.locator("#arcExtract").click()
+                  await wait_downloads(1)
+                  assert pathlib.Path(await downloaded[0].path()).read_bytes()==b"OLD AES-256 CONTENT"
+                  print("OLD AES-256 ZIP -> automatic download: PASS",flush=True)
+                  downloaded.clear()
+                  # Third-party GZIP
+                  await page.locator("#arcPassword").fill("")
+                  await select("old-gzip.txt.gz",1)
+                  await page.locator("#arcExtract").click()
+                  await wait_downloads(1)
+                  assert pathlib.Path(await downloaded[0].path()).read_bytes()==b"GZIP-OLD-OK"
+                  print("OLD GZIP -> automatic download: PASS",flush=True)
+                  assert not errors,errors
+                  assert not outside,outside
+                  print("ONE-CLICK EXISTING ARCHIVES FILE:// SUITE PASS; JS errors:",errors,"external requests:",len(outside),flush=True)
+                  await browser.close()
+          asyncio.run(main())
+          PY
