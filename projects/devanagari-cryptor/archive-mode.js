@@ -19,19 +19,21 @@ const data = {
  el:["Αρχειοθέτης","Δημιουργία και εξαγωγή αρχείων τοπικά, χωρίς μεταφόρτωση.","Δημιουργία αρχείου","Αρχεία","Επιλογή αρχείων","Επιλογή φακέλου","Μορφή","Δημιουργία","Άνοιγμα αρχείου","Επιλογή αρχείου","Κωδικός (αν απαιτείται)","Προεπισκόπηση","Εξαγωγή επιλεγμένων","Εξαγωγή σε φάκελο","Επιλογή όλων","Περιεχόμενα","Δεν επιλέχθηκαν αρχεία.","Δεν επιλέχθηκε αρχείο.","Το αρχείο δημιουργήθηκε.","Τα αρχεία αποκαταστάθηκαν.","Επεξεργασία…","Αρχικό μέγεθος","Μέγεθος αρχείου","Εξοικονόμηση","Τα αρχεία παραμένουν στη συσκευή. Δημιουργία ZIP, 7z, TAR και συμπιεσμένου TAR· ανάγνωση ZIP, 7z, RAR, TAR, GZ, BZ2, XZ εφόσον υποστηρίζονται.","Η δομή φακέλων διατηρείται· εναλλακτικά γίνεται λήψη ZIP.","Η συμπίεση δεν κρυπτογραφεί."],
  cs:["Archivátor","Vytvářejte a rozbalujte archivy lokálně bez odesílání souborů.","Vytvořit archiv","Soubory","Vybrat soubory","Vybrat složku","Formát","Vytvořit archiv","Otevřít archiv","Vybrat archiv","Heslo (pokud je potřeba)","Náhled","Rozbalit vybrané","Rozbalit do složky","Vybrat vše","Obsah archivu","Nejsou vybrány soubory.","Není vybrán archiv.","Archiv vytvořen.","Soubory obnoveny.","Zpracování…","Původní velikost","Velikost archivu","Úspora místa","Soubory zůstávají na zařízení. Vytvoření ZIP, 7z, TAR a komprimovaného TAR; čtení ZIP, 7z, RAR, TAR, GZ, BZ2 a XZ dle možností enginu.","Struktura složek zůstane zachována; jinak stáhněte ZIP.","Komprese není šifrování."]
 };
+const labels={bg:"Име на архива",en:"Archive name",hi:"संग्रह का नाम",de:"Archivname",fr:"Nom de l’archive",es:"Nombre del archivo",it:"Nome archivio",pt:"Nome do arquivo",pl:"Nazwa archiwum",ro:"Numele arhivei",el:"Όνομα αρχείου",cs:"Název archivu"};
 const keys=["tab","intro","createHeading","filesLabel","chooseFiles","chooseFolder","format","create","openHeading","chooseArchive","password","preview","extract","extractFolder","selectAll","contents","noFiles","noArchive","created","restored","processing","inputSize","archiveSize","saved","formatHelp","folderHelp","noEncrypt"];
 const L = () => data[currentLanguage] || data.en;
-function tr(k){const i=keys.indexOf(k);return i<0?k:L()[i];}
+function tr(k){if(k==="nameLabel")return labels[currentLanguage]||labels.en;const i=keys.indexOf(k);return i<0?k:L()[i];}
 function translateArchive() {
  document.querySelectorAll("[data-archive-i18n]").forEach(e => { e.textContent=tr(e.dataset.archiveI18n); });
- $("arcTab").textContent=tr("tab");
+ $("arcTab").textContent=tr("tab");$("arcTab").title=tr("tab");
+ if(typeof UI!=="undefined"&&UI[currentLanguage])UI[currentLanguage].archive=tr("tab");
  $("arcFilesLabel").title=tr("chooseFiles");$("arcFolderLabel").title=tr("chooseFolder");
 }
 function displayBytes(n){return (n>=1048576?(n/1048576).toLocaleString(currentLanguage,{maximumFractionDigits:2})+" MiB":(n/1024).toLocaleString(currentLanguage,{maximumFractionDigits:1})+" KiB");}
 function message(str,error){const target=$("arcStatus");target.textContent=str;target.className="archive-status "+(error?"archive-error":"");}
 function safeName(p){
  const s=String(p||"").replace(/\\/g,"/").replace(/[\u0000-\u001f\u007f]/g,"_");
- if(!s||s[0]==="/" || /^(?:[a-z]:|\/\/)/iu.test(s))throw new Error("Unsafe absolute archive path");
+ if(!s||s.length>1024||s[0]==="/" || /^(?:[a-z]:|\/\/)/iu.test(s))throw new Error("Unsafe absolute archive path");
  const parts=s.split("/").filter(Boolean);
  if(!parts.length||parts.some(x=>x==="."||x===".."||x.length>255))throw new Error("Unsafe archive path");
  return parts.join("/");
