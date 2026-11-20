@@ -1289,6 +1289,7 @@ function entryPath(x){
  return safeName(String(x.path||"")+String(filename));
 }
 async function previewArchive(){
+ (window.DC_ARC_TRACE||(window.DC_ARC_TRACE=[])).push({step:"preview-start",busy:isBusy,file:$("arcSource").files?.[0]?.name,entry:displayed.map(x=>x.path)});
  if(isBusy)return;setBusy(true);
  // Clear previously listed entries immediately; they must never remain clickable
  // while a different archive or password is being processed.
@@ -1341,7 +1342,7 @@ async function previewArchive(){
   if(opened){await opened.close().catch(()=>{});opened=null;}
   displayed=[];$("arcContent").replaceChildren();$("arcExtract").disabled=true;
   message(e.message||String(e),true);
- }finally{setBusy(false);}
+ }finally{setBusy(false);window.DC_ARC_TRACE?.push({step:"preview-end",busy:isBusy,file:$("arcSource").files?.[0]?.name,entry:displayed.map(x=>x.path)});}
 }
 $("arcPreview").addEventListener("click",()=>{void previewArchive();});
 // Identify archives by their signature as well as their filename extension.
@@ -1380,6 +1381,7 @@ async function saveToDirectory(files,root){
  }
 }
 $("arcExtract").addEventListener("click",async()=>{
+ (window.DC_ARC_TRACE||(window.DC_ARC_TRACE=[])).push({step:"extract-click",busy:isBusy,opened:!!opened,entry:displayed.map(x=>x.path),selected:document.querySelectorAll("#arcContent input:checked").length});
  if(isBusy)return;setBusy(true);
  try{
   if(!opened||!displayed.length)throw new Error(tr("noArchive"));
