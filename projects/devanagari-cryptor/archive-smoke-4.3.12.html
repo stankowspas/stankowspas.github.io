@@ -1,0 +1,81 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Devanagari 4.3.12 ZIP AES integration tests</title>
+<pre id="result">RUNNING</pre>
+<iframe id="app" src="./app-4.3.12-standalone.html" style="width:1200px;height:850px;border:0"></iframe>
+<script>
+"use strict";
+const r=document.getElementById("result"),f=document.getElementById("app"),steps=[];
+let finished=false;
+function stage(s){steps.push(s);r.textContent="STAGE: "+steps.join("; ");}
+function expect(x,s){if(!x)throw Error(s)}
+function equal(a,b){return a.length===b.length&&a.every((v,i)=>v===b[i]);}
+const pause=ms=>new Promise(ok=>setTimeout(ok,ms));
+async function until(fn,why,ms=12000){const start=Date.now();while(Date.now()-start<ms){if(fn())return;await pause(35);}throw Error("TIMEOUT "+why+" "+steps.join("; "));}
+function done(ok,msg){finished=true;r.textContent=(ok?"PASS: ":"FAIL: ")+msg+"\n"+steps.join("; ");}
+setTimeout(()=>{if(!finished)done(false,"Global timeout at "+steps.join("; "));},65000);
+f.addEventListener("load",async()=>{
+ try{
+  const w=f.contentWindow,d=w.document,core=w.DC_ARCHIVE_CORE,z=w.zip;
+  expect(d.querySelectorAll(".mode-tab").length===4,"Mode count");
+  expect(d.querySelectorAll("#langSelect option").length===12,"Language count");
+  for(const theme of ["dark","sand","blue","graphite"])expect(d.querySelector('#themeSelect option[value="'+theme+'"]'),"Theme "+theme);
+  expect(z&&z.ZipWriter&&z.ZipReader,"zip.js not loaded");stage("4 modes, 4 themes, 12 languages, library loaded");
+  const source=new TextEncoder().encode("Текст + देवनागरी 😀\n".repeat(25));
+  const binary=new Uint8Array([0,0,255,1,2,3,44,99]);
+  const entries=[{pathname:"папка/пример.txt",file:new w.File([source],"пример.txt")},{pathname:"binary.bin",file:new w.File([binary],"binary.bin")}];
+  const clear=await core.zipWrite(entries,"plain.zip");
+  expect(clear.size>0,"Clear ZIP zero length");
+  let open=await core.zipOpen(clear);
+  expect(open.entries.length===2,"Plain ZIP wrong entry count");
+  for(const [i,item] of open.entries.entries()){const restored=new Uint8Array(await (await item.extract()).arrayBuffer());expect(equal(restored,i===0?source:binary),"Plain ZIP bytes wrong "+i);}
+  await open.close();stage("plain ZIP two-file roundtrip");
+  const password="Pass/Парола/नमस्ते-123";
+  const protectedFile=await core.zipWrite(entries,"protected.zip",password);
+  const data=new Uint8Array(await protectedFile.arrayBuffer());
+  const dv=new DataView(data.buffer);
+  expect(dv.getUint16(8,true)===99,"WinZip AES method 99 absent");
+  expect(data.includes(3),"AES-256 strength byte missing");
+  stage("AES-256 method 99 produced");
+  let noPassRejected=false;
+  try{await core.zipOpen(protectedFile,"");}catch(e){noPassRejected=/парола|password/i.test(String(e));}
+  expect(noPassRejected,"Encrypted archive not requiring password");
+  open=await core.zipOpen(protectedFile,password);
+  for(const [i,item] of open.entries.entries()){const restored=new Uint8Array(await (await item.extract()).arrayBuffer());expect(equal(restored,i===0?source:binary),"AES-256 ZIP wrong bytes "+i);}
+  await open.close();stage("AES-256 two-file roundtrip");
+  let incorrectRejected=false;try{const wrong=await core.zipOpen(protectedFile,"wrong");await wrong.entries[0].extract();await wrong.close();}catch(e){incorrectRejected=true;}
+  expect(incorrectRejected,"Wrong AES password was accepted");stage("wrong AES password rejected");
+  d.querySelector('[data-mode="archive"]').click();
+  expect(!d.getElementById("archiveSection").hidden,"Archive mode hidden");
+  expect(d.getElementById("textSection").hidden&&d.getElementById("fileSection").hidden,"Other modes visible");
+  const passwordField=d.getElementById("arcCreatePassword");expect(passwordField,"No create-password field");
+  const transfer=new w.DataTransfer();transfer.items.add(new w.File([source],"пример.txt"));
+  const input=d.getElementById("arcFiles");input.files=transfer.files;input.dispatchEvent(new w.Event("change",{bubbles:true}));
+  d.getElementById("arcFormat").value="zip";passwordField.value=password;
+  const captured=[];w.download=(blob,name)=>captured.push({blob,name});
+  d.getElementById("arcCreate").click();
+  await until(()=>captured.length>0||d.getElementById("arcStatus").classList.contains("archive-error"),"UI archive create");
+  expect(captured.length===1,"UI create error: "+d.getElementById("arcStatus").textContent);
+  const outFile=new w.File([captured[0].blob],"ui-protected.zip");
+  stage("UI creates password ZIP");
+  const t2=new w.DataTransfer();t2.items.add(outFile);
+  const picker=d.getElementById("arcSource");picker.files=t2.files;picker.dispatchEvent(new w.Event("change",{bubbles:true}));
+  d.getElementById("arcPassword").value=password;
+  d.getElementById("arcPreview").click();
+  await until(()=>d.querySelectorAll("#arcContent input[type=checkbox]").length>0||d.getElementById("arcStatus").classList.contains("archive-error"),"UI ZIP preview");
+  expect(d.querySelectorAll("#arcContent input[type=checkbox]").length===1,"UI preview error: "+d.getElementById("arcStatus").textContent);
+  stage("UI previews AES ZIP");
+  d.getElementById("arcExtract").click();
+  await until(()=>captured.length===2||d.getElementById("arcStatus").classList.contains("archive-error"),"UI ZIP extraction");
+  expect(captured.length===2,"UI extract error: "+d.getElementById("arcStatus").textContent);
+  expect(equal(new Uint8Array(await captured[1].blob.arrayBuffer()),source),"UI encrypted roundtrip mismatch");
+  stage("UI decrypts AES ZIP identical bytes");
+  // Ensure standard ZIPs created with external software are still read.
+  const fixture=await fetch("./archive-external-fixture.zip");expect(fixture.ok,"Missing independent ZIP fixture");
+  open=await core.zipOpen(await fixture.blob());
+  expect(open.entries.length===2,"external ZIP entry count");
+  const extracted=new Uint8Array(await (await open.entries[0].extract()).arrayBuffer());
+  expect(extracted.length>0,"External ZIP empty");
+  await open.close();stage("external Python ZIP extracted");
+  done(true,"all 4.3.12 archiver tests completed");
+ }catch(e){done(false,e?.stack||String(e));}
+});
+</script></html>
