@@ -1,83 +1,65 @@
-<!doctype html><html><head><meta charset="utf-8"><title>Devanagari Archiver Smoke Test</title></head><body>
-<h1>Archive mode browser integration test</h1>
-<pre id="result">STARTED</pre>
-<iframe id="app" style="display:none"></iframe>
+<!doctype html><html><head><meta charset="utf-8"><title>Devanagari 4.3.11 verified archiver tests</title></head><body>
+<pre id="result">RUNNING</pre><iframe id="app" src="./app-4.3.11-standalone.html" style="display:none"></iframe>
 <script>
 "use strict";
-const out=document.getElementById("result"),steps=[],frame=document.getElementById("app");
-let complete=false;
-function step(s){steps.push(s);out.textContent="STAGE: "+steps.join(" | ");}
-function pass(s){complete=true;out.textContent="PASS: "+steps.join("; ")+"; "+s;}
-function fail(s){complete=true;out.textContent="FAIL: "+String(s)+"\nCompleted: "+steps.join("; ");}
-window.addEventListener("error", e=>{step("parent error "+(e.message||e.error));});
-window.addEventListener("unhandledrejection",e=>{step("parent rejection "+e.reason);});
-function assert(x,m){if(!x)throw Error(m);}
-setTimeout(()=>{if(!complete)fail("WATCHDOG timeout at "+steps.join("; "));},75000);
+const out=document.getElementById("result"),frame=document.getElementById("app"),log=[];
+function assert(cond,msg){if(!cond)throw Error(msg);}
+function stage(msg){log.push(msg);out.textContent="STAGE: "+log.join(" | ");}
+function fail(msg){out.textContent="FAIL: "+String(msg)+"\n"+log.join("; ");}
+async function waitFor(fn,ms=9000){const start=Date.now();while(Date.now()-start<ms){if(fn())return;await new Promise(r=>setTimeout(r,50));}throw Error("UI timed out: "+log.join("; "));}
 frame.addEventListener("load",async()=>{
- step("iframe loaded");
  try{
-  const w=frame.contentWindow;
-  w.addEventListener("error",e=>step("iframe error "+e.message));
-  w.addEventListener("unhandledrejection",e=>step("iframe rejection "+String(e.reason)));
-  assert(w.document.querySelectorAll(".mode-tab").length===4,"four mode tabs missing");step("four tabs");
-  for(const theme of ["dark","sand","blue","graphite"])assert(w.document.querySelector('option[value="'+theme+'"]'),"missing "+theme);
-  step("four themes");
-  step("native engine import");
-  const rawWorker=window.Worker;
-  window.Worker=function(url,options){
-    step("Worker URL "+url+" "+JSON.stringify(options));
-    const worker=new rawWorker(url,options);
-    worker.addEventListener("error",e=>step("WORKER CRASH "+e.message+" "+e.filename+":"+e.lineno));
-    worker.addEventListener("messageerror",e=>step("WORKER MESSAGE ERROR"));
-    worker.addEventListener("message",e=>step("WORKER MESSAGE "+JSON.stringify(e.data).slice(0,180)));
-    return worker;
-  };
-  step("WASM network check");
-  const resp=await fetch("./archive-vendor/libarchive.wasm");
-  step("WASM HTTP "+resp.status+" bytes "+resp.headers.get("content-length"));
-  await WebAssembly.compile(await resp.arrayBuffer());
-  step("WASM compile OK");
-  const native=await import("./archive-vendor/libarchive.js");
-  native.Archive.init({workerUrl:"./archive-vendor/worker-bundle.js"});
-  const nativeBytes=new TextEncoder().encode("Hello!");
-  const nativeFile=new w.File([nativeBytes],"hello.txt");
-  step("NATIVE WRITE ZIP");
-  const nativeZip=await native.Archive.write({files:[{file:nativeFile,pathname:"hello.txt"}],outputFileName:"smoke.zip",compression:native.ArchiveCompression.NONE,format:native.ArchiveFormat.ZIP,passphrase:null});
-  step("NATIVE ZIP BYTES "+nativeZip.size);
-  const mod=await w.DC_ARCHIVE_ENGINE.load();step("loader resolved");
-  const oldGet=mod.Archive._options.getWorker;
-  mod.Archive._options.getWorker=function(){
-    step("new worker started");
-    const worker=oldGet();
-    worker.addEventListener("error",function(e){step("WORKER ERROR: "+e.message+" filename="+e.filename+" line="+e.lineno);});
-    worker.addEventListener("messageerror",function(e){step("WORKER MESSAGEERROR: "+e);});
-    return worker;
-  };
-  const bytes=new TextEncoder().encode("Hello text example! नमस्ते абв\n".repeat(18));
-  const file=new w.File([bytes],"unicode-данни.txt",{type:"text/plain"});
-  async function roundtrip(format,compression,ext){
-   step("WRITE "+format);
-   const output=await mod.Archive.write({files:[{file,pathname:"folder/unicode-данни.txt"}],outputFileName:"test."+ext,format:mod.ArchiveFormat[format],compression:mod.ArchiveCompression[compression],passphrase:null});
-   assert(output.size>0,"archive empty "+format);
-   step("OPEN "+format+" "+output.size+"B");
-   const archive=await mod.Archive.open(output);
-   try {
-     const files=await archive.getFilesArray();
-     const found=files.find(x=>x.file&&typeof x.file.extract==="function");
-     assert(found,format+" no file");
-     step("EXTRACT "+format);
-     const plain=new Uint8Array(await (await found.file.extract()).arrayBuffer());
-     assert(plain.length===bytes.length,format+" length mismatch");
-     assert(plain.every((v,i)=>v===bytes[i]),format+" contents mismatch");
-     step("ROUNDTRIP "+format);
-   }finally{try{await archive.close();}catch(e){}}
+ const w=frame.contentWindow,d=w.document,core=w.DC_ARCHIVE_CORE;
+ assert(d.querySelectorAll(".mode-tab").length===4,"four tabs");stage("four tabs");
+ for(const theme of ["dark","sand","blue","graphite"])assert(d.querySelector('option[value="'+theme+'"]'),"theme "+theme);
+ stage("four themes");
+ assert(core&&core.zipWrite&&core.gzipOpen,"core not loaded");stage("offline core present");
+ const text=new TextEncoder().encode("Devanagari नमस्ते България! \n".repeat(20));
+ const binary=new Uint8Array([0,1,2,3,4,255]);
+ const files=[{file:new w.File([text],"документ.txt"),pathname:"nested/документ.txt"},{file:new w.File([binary],"bytes.bin"),pathname:"bytes.bin"}];
+ for(const format of ["zip","tar","tgz","gz"]){
+  let output,arc;
+  if(format==="zip"){output=await core.zipWrite(files,"demo.zip");arc=await core.zipOpen(output);}
+  else if(format==="tar"){output=await core.tarWrite(files,"demo.tar",false);arc=await core.tarOpen(output,false);}
+  else if(format==="tgz"){output=await core.tarWrite(files,"demo.tar.gz",true);arc=await core.tarOpen(output,true);}
+  else{output=await core.gzipWrite(files.slice(0,1),"документ.txt.gz");arc=await core.gzipOpen(output);}
+  assert(arc.entries.length===(format==="gz"?1:2),format+" entry count");
+  for(let i=0;i<arc.entries.length;i++){
+   const result=new Uint8Array(await (await arc.entries[i].extract()).arrayBuffer());
+   const original=new Uint8Array(await files[i].file.arrayBuffer());
+   assert(result.length===original.length&&result.every((b,j)=>b===original[j]),format+" content mismatch");
   }
-  await roundtrip("ZIP","NONE","zip");
-  await roundtrip("USTAR","NONE","tar");
-  await roundtrip("PAX","GZIP","tar.gz");
-  await roundtrip("SEVEN_ZIP","NONE","7z");
-  pass("all four archive roundtrips");
+  stage(format+" roundtrip");
+ }
+ d.querySelector('[data-mode="archive"]').click();
+ assert(!d.getElementById("archiveSection").hidden,"archive mode hidden");
+ assert(d.getElementById("textSection").hidden&&d.getElementById("fileSection").hidden,"original modes visible");
+ stage("fourth tab UI");
+ const src=files[0].file,transfer=new w.DataTransfer();transfer.items.add(src);
+ const choose=d.getElementById("arcFiles");choose.files=transfer.files;choose.dispatchEvent(new w.Event("change",{bubbles:true}));
+ d.getElementById("arcFormat").value="zip";
+ const captures=[];
+ w.download=(blob,name)=>{captures.push({blob,name});};
+ d.getElementById("arcCreate").click();
+ await waitFor(()=>captures.length>0||d.getElementById("arcStatus").classList.contains("archive-error"));
+ assert(captures.length===1,"UI create: "+d.getElementById("arcStatus").textContent);
+ assert(captures[0].name.endsWith(".zip"),"filename did not end with ZIP");
+ stage("UI created ZIP");
+ const zipFile=new w.File([captures[0].blob],"test.zip");
+ const tr2=new w.DataTransfer();tr2.items.add(zipFile);
+ const archiveInput=d.getElementById("arcSource");archiveInput.files=tr2.files;archiveInput.dispatchEvent(new w.Event("change",{bubbles:true}));
+ d.getElementById("arcPreview").click();
+ await waitFor(()=>d.querySelectorAll("#arcContent input[type=checkbox]").length>0||d.getElementById("arcStatus").classList.contains("archive-error"));
+ assert(d.querySelectorAll("#arcContent input[type=checkbox]").length===1,"preview error: "+d.getElementById("arcStatus").textContent);
+ stage("UI archive preview");
+ d.getElementById("arcExtract").click();
+ await waitFor(()=>captures.length===2||d.getElementById("arcStatus").classList.contains("archive-error"));
+ assert(captures.length===2,"extraction error: "+d.getElementById("arcStatus").textContent);
+ const restored=new Uint8Array(await captures[1].blob.arrayBuffer());
+ assert(restored.length===text.length&&restored.every((v,i)=>v===text[i]),"UI extraction bytes changed");
+ stage("UI extracted identical bytes");
+ out.textContent="PASS: "+log.join("; ");
  }catch(e){fail(e?.stack||e);}
 });
-step("assigning iframe src");frame.src="./app-4.3.10-standalone.html";
+setTimeout(()=>{if(!out.textContent.startsWith("PASS:")&&!out.textContent.startsWith("FAIL:"))fail("test timeout");},50000);
 </script></body></html>
