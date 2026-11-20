@@ -9,19 +9,36 @@ jobs:
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
-      - name: Test archive engine in headless Chrome
+      - name: Install browser test driver
+        run: |
+          python3 -m venv /tmp/dc-playwright
+          /tmp/dc-playwright/bin/python -m pip install -q playwright==1.56.0
+      - name: Run real Chrome archive creation and restoration tests
         shell: bash
         run: |
           set -euo pipefail
-          command -v google-chrome || command -v chromium || command -v chromium-browser
-          python3 -m http.server 8765 --bind 127.0.0.1 --directory projects/devanagari-cryptor >/tmp/dev-archive-server.log 2>&1 &
+          python3 -m http.server 8765 --bind 127.0.0.1 --directory projects/devanagari-cryptor >/tmp/archiver-http.log 2>&1 &
           sleep 2
-          BROWSER=$(command -v google-chrome || command -v chromium || command -v chromium-browser)
-          timeout 90s "$BROWSER" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --disable-background-networking --virtual-time-budget=600000 --dump-dom http://127.0.0.1:8765/archive-smoke.html > /tmp/archive-test-result.html 2>/tmp/archive-chrome-stderr.log || true
-          tail -c 10000 /tmp/archive-test-result.html || true
-          if grep -q 'PASS: four tabs' /tmp/archive-test-result.html ; then
-            echo "PASS: browser-based archive integration tests"
-          else
-            cat /tmp/archive-chrome-stderr.log || true
-            exit 1
-          fi
+          /tmp/dc-playwright/bin/python - <<'PY'
+          import asyncio, shutil
+          from playwright.async_api import async_playwright
+          async def main():
+              executable = shutil.which("google-chrome") or shutil.which("chromium") or shutil.which("chromium-browser")
+              if not executable:
+                  raise RuntimeError("Chrome is missing")
+              async with async_playwright() as playwright:
+                  browser = await playwright.chromium.launch(headless=True, executable_path=executable, args=["--no-sandbox", "--disable-dev-shm-usage"])
+                  page = await browser.new_page(viewport={"width": 1280, "height": 1000})
+                  page.on("pageerror", lambda error: print("PAGE ERROR:", error))
+                  await page.goto("http://127.0.0.1:8765/archive-smoke.html")
+                  await page.wait_for_function("""() => {
+                    const text=document.querySelector('#result')?.textContent||'';
+                    return text.startsWith('PASS:')||text.startsWith('FAIL:');
+                  }""", timeout=65000)
+                  result = await page.locator("#result").inner_text()
+                  print("BROWSER RESULT:",result)
+                  await browser.close()
+                  if not result.startswith("PASS: four tabs"):
+                      raise RuntimeError("Archive browser roundtrip or UI test failed: "+result)
+          asyncio.run(main())
+          PY
