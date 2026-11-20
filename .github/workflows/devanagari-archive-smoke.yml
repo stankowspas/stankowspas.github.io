@@ -311,7 +311,7 @@ jobs:
                           await page.locator("#arcExtract").click()
                       assert pathlib.Path(await (await event.value).path()).read_bytes()==b"OLD AES-256 CONTENT"
                   except Exception as exc:
-                      print("AES EXTRACT DIAGNOSTIC:",str(exc),"status:",await page.locator("#arcStatus").inner_text(),"busy:",await page.locator("#arcExtract").is_disabled(),"selected:",await page.locator("#arcContent input:checked").count(),"JS ERRORS:",errors,flush=True)
+                      print("AES EXTRACT DIAGNOSTIC:",str(exc),"status:",await page.locator("#arcStatus").inner_text(),"busy:",await page.locator("#arcExtract").is_disabled(),"selected:",await page.locator("#arcContent input:checked").count(),"JS ERRORS:",errors,"TRACE:",await page.evaluate("window.DC_ARC_TRACE"),"CURRENT:",await page.locator("#arcContent").inner_text(),flush=True)
                       raise
                   print("OLD third-party AES ZIP: password and extraction PASS")
                   await page.locator("#arcPassword").fill("")
