@@ -663,3 +663,80 @@ jobs:
                   await browser.close()
           asyncio.run(main())
           PY
+      - name: Test exact 4.3.15 ZIP package restores complete folder from local disk
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/dc-playwright/bin/python - <<'PY'
+          import asyncio,pathlib,shutil,tempfile,zipfile
+          from playwright.async_api import async_playwright
+          pkg=pathlib.Path("projects/devanagari-cryptor/Devanagari_Cryptor_4.3.15_COMPLETE_FOLDER.zip")
+          archived=pathlib.Path("projects/devanagari-cryptor/test-fixtures/full-folder.zip")
+          with zipfile.ZipFile(pkg) as z:
+              assert z.testzip() is None,"Package CRC mismatch"
+              assert set(z.namelist())=={"Devanagari-Cryptor-4.3.15.html","START_HERE_BG.txt"}
+              with tempfile.TemporaryDirectory() as tmp:
+                  z.extractall(tmp)
+                  app=pathlib.Path(tmp,"Devanagari-Cryptor-4.3.15.html").resolve()
+                  async def run():
+                      exe=shutil.which("google-chrome") or shutil.which("chromium")
+                      async with async_playwright() as pw:
+                          browser=await pw.chromium.launch(headless=True,executable_path=exe,args=["--no-sandbox"])
+                          page=await browser.new_page()
+                          errors,outbound=[],[]
+                          page.on("pageerror",lambda e:errors.append(str(e)))
+                          page.on("request",lambda req:outbound.append(req.url) if req.url.startswith(("http://","https://")) else None)
+                          await page.goto(app.as_uri())
+                          await page.locator("#langSelect").select_option("bg")
+                          await page.locator('[data-mode="archive"]').click()
+                          assert await page.locator(".app-ver").inner_text()=="4.3.15"
+                          await page.evaluate("""() => {
+                            function folder(name){
+                              return {name,children:new Map(),files:new Map(),
+                                async getDirectoryHandle(k,{create=false}={}){
+                                  if(!this.children.has(k)){
+                                    if(!create)throw new DOMException("Not found","NotFoundError");
+                                    this.children.set(k,folder(k));
+                                  }
+                                  return this.children.get(k);
+                                },
+                                async getFileHandle(k){
+                                  const root=this;
+                                  return {async createWritable(){
+                                    let data=null;
+                                    return {
+                                      async write(blob){data=Array.from(new Uint8Array(await blob.arrayBuffer()))},
+                                      async close(){root.files.set(k,data)},
+                                      async abort(){}
+                                    };
+                                  }};
+                                }
+                              };
+                            }
+                            window.__chosen=folder('Downloads');
+                            window.__folderPickCount=0;
+                            window.showDirectoryPicker=async()=>{window.__folderPickCount++;return window.__chosen};
+                            window.__folderTree=()=>{
+                              const visit=node=>({
+                                dirs:Object.fromEntries([...node.children].map(([n,v])=>[n,visit(v)])),
+                                files:Object.fromEntries(node.files)
+                              });
+                              return visit(window.__chosen);
+                            };
+                          }""")
+                          await page.locator("#arcSource").set_input_files(archived)
+                          await page.wait_for_function("() => !document.querySelector('#arcExtract').disabled && document.querySelectorAll('#arcContent input:checked').length===2",timeout=18000)
+                          await page.locator("#arcExtract").click()
+                          await page.wait_for_function("() => document.querySelector('#arcStatus').textContent.includes('Разархивирането завърши')",timeout=18000)
+                          tree=await page.evaluate("window.__folderTree()")
+                          doc=tree["dirs"]["Комплект"]
+                          assert doc["files"]["документ.txt"]==list("Комплект на български".encode())
+                          assert doc["dirs"]["подпапка"]["files"]["детайл.bin"]==[0,1,2,253,254,255]
+                          assert doc["dirs"]["празна"]=={"dirs":{},"files":{}}
+                          assert await page.evaluate("window.__folderPickCount")==1
+                          assert not errors,errors
+                          assert not outbound,outbound
+                          print("EXACT V4.3.15 PACKAGE FILE:// COMPLETE FOLDER: PASS; empty directory preserved; files byte-identical; no errors or web requests",flush=True)
+                          await browser.close()
+                  asyncio.run(run())
+          PY
