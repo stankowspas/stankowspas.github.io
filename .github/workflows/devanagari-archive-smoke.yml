@@ -395,8 +395,11 @@ jobs:
                   await page.goto(app.as_uri())
                   assert await page.locator(".app-ver").inner_text()=="4.3.14"
                   assert await page.locator(".mode-tab").count()==4
+                  await page.locator("#langSelect").select_option("bg")
                   await page.locator('[data-mode="archive"]').click()
-                  assert await page.locator("#arcExtract").inner_text()=="Разархивирай"
+                  label=await page.locator("#arcExtract").inner_text()
+                  print("EXTRACT BUTTON LABEL:",repr(label),flush=True)
+                  assert label=="Разархивирай",label
                   assert await page.locator("#arcToFolder").count()==0
                   assert await page.locator("#arcPreview").count()==0
                   assert await page.locator("#arcManualDownloads").count()==0
