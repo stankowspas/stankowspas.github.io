@@ -22,6 +22,14 @@ frame.addEventListener("load",async()=>{
   assert(w.document.querySelectorAll(".mode-tab").length===4,"four mode tabs missing");step("four tabs");
   for(const theme of ["dark","sand","blue","graphite"])assert(w.document.querySelector('option[value="'+theme+'"]'),"missing "+theme);
   step("four themes");
+  step("native engine import");
+  const native=await import("./archive-vendor/libarchive.js");
+  native.Archive.init({workerUrl:"./archive-vendor/worker-bundle.js"});
+  const nativeBytes=new TextEncoder().encode("Hello!");
+  const nativeFile=new w.File([nativeBytes],"hello.txt");
+  step("NATIVE WRITE ZIP");
+  const nativeZip=await native.Archive.write({files:[{file:nativeFile,pathname:"hello.txt"}],outputFileName:"smoke.zip",compression:native.ArchiveCompression.NONE,format:native.ArchiveFormat.ZIP,passphrase:null});
+  step("NATIVE ZIP BYTES "+nativeZip.size);
   const mod=await w.DC_ARCHIVE_ENGINE.load();step("loader resolved");
   const oldGet=mod.Archive._options.getWorker;
   mod.Archive._options.getWorker=function(){
