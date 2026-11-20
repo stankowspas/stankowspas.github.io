@@ -305,7 +305,7 @@ jobs:
                   assert "парола" in (await page.locator("#arcStatus").inner_text()).lower()
                   await page.locator("#arcPassword").fill("secret-old-zip")
                   await page.locator("#arcPassword").dispatch_event("change")
-                  await page.wait_for_function("() => document.querySelectorAll('#arcContent input[type=checkbox]').length===1",timeout=15000)
+                  await page.wait_for_function("() => document.querySelectorAll('#arcContent input[type=checkbox]').length===1 && !document.querySelector('#arcExtract').disabled",timeout=15000)
                   try:
                       async with page.expect_download(timeout=7000) as event:
                           await page.locator("#arcExtract").click()
