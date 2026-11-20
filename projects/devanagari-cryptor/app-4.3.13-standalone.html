@@ -1331,7 +1331,7 @@ async function previewArchive(){
   });
   $("arcSelectAll").checked=true;
   $("arcToFolder").checked=displayed.length>1&&typeof window.showDirectoryPicker==="function";
-  $("arcExtract").disabled=false;
+  // Keep extract disabled until previewArchive exits its busy state.
   message(tr("contents")+": "+displayed.length+" · "+displayBytes(size));
  } catch(e) {
   if(opened){await opened.close().catch(()=>{});opened=null;}
