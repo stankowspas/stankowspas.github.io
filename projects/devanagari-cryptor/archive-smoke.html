@@ -23,6 +23,20 @@ frame.addEventListener("load",async()=>{
   for(const theme of ["dark","sand","blue","graphite"])assert(w.document.querySelector('option[value="'+theme+'"]'),"missing "+theme);
   step("four themes");
   step("native engine import");
+  const rawWorker=window.Worker;
+  window.Worker=function(url,options){
+    step("Worker URL "+url+" "+JSON.stringify(options));
+    const worker=new rawWorker(url,options);
+    worker.addEventListener("error",e=>step("WORKER CRASH "+e.message+" "+e.filename+":"+e.lineno));
+    worker.addEventListener("messageerror",e=>step("WORKER MESSAGE ERROR"));
+    worker.addEventListener("message",e=>step("WORKER MESSAGE "+JSON.stringify(e.data).slice(0,180)));
+    return worker;
+  };
+  step("WASM network check");
+  const resp=await fetch("./archive-vendor/libarchive.wasm");
+  step("WASM HTTP "+resp.status+" bytes "+resp.headers.get("content-length"));
+  await WebAssembly.compile(await resp.arrayBuffer());
+  step("WASM compile OK");
   const native=await import("./archive-vendor/libarchive.js");
   native.Archive.init({workerUrl:"./archive-vendor/worker-bundle.js"});
   const nativeBytes=new TextEncoder().encode("Hello!");
