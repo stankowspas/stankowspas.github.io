@@ -1,0 +1,17 @@
+Third-party components for the independent Archiver mode
+
+1. libarchive.js, version 2.0.2
+   https://github.com/nika-begiashvili/libarchivejs
+   License: MIT (full upstream license: archive-vendor/LICENSE)
+
+2. libarchive C library, compiled to WebAssembly
+   https://github.com/libarchive/libarchive
+   License: predominantly BSD 2-Clause and other compatible terms;
+   refer to libarchive upstream COPYING for component-specific notices.
+
+3. The worker bundle includes Comlink-derived code with
+   Copyright 2019 Google LLC and SPDX-License-Identifier: Apache-2.0.
+   https://github.com/GoogleChromeLabs/comlink
+   https://www.apache.org/licenses/LICENSE-2.0
+
+Do not delete the notices in the vendored JavaScript files.
