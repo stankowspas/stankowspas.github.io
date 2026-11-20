@@ -86,3 +86,40 @@ jobs:
                           await browser.close()
                   asyncio.run(test())
           PY
+      - name: Test 4.3.12 ZIP and AES password support in Chrome
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import zipfile, pathlib
+          p=pathlib.Path("projects/devanagari-cryptor/archive-external-fixture.zip")
+          with zipfile.ZipFile(p,"w") as z:
+              z.writestr("folder/from-python.txt","External ZIP compatibility: Проверка 123",compress_type=zipfile.ZIP_DEFLATED)
+              z.writestr("binary.dat",bytes([0,1,2,255,99]),compress_type=zipfile.ZIP_STORED)
+          print("EXTERNAL ZIP:",p.stat().st_size)
+          PY
+          /tmp/dc-playwright/bin/python - <<'PY'
+          import asyncio, shutil
+          from playwright.async_api import async_playwright
+          async def main():
+              exe=shutil.which("google-chrome") or shutil.which("chromium")
+              async with async_playwright() as playwright:
+                  browser=await playwright.chromium.launch(headless=True,executable_path=exe,args=["--no-sandbox","--disable-dev-shm-usage"])
+                  page=await browser.new_page(viewport={"width":1280,"height":1000})
+                  errors=[]
+                  page.on("pageerror",lambda e: errors.append(str(e)))
+                  await page.goto("http://127.0.0.1:8765/archive-smoke-4.3.12.html")
+                  await page.wait_for_function("""() => {
+                    const v=document.querySelector("#result")?.textContent||"";
+                    return v.startsWith("PASS:")||v.startsWith("FAIL:");
+                  }""", timeout=90000)
+                  result=await page.locator("#result").inner_text()
+                  print("AES-256 BROWSER TEST:",result)
+                  print("JS ERRORS:",errors)
+                  await browser.close()
+                  if not result.startswith("PASS:"):
+                      raise AssertionError(result)
+                  if errors:
+                      raise AssertionError("JavaScript errors: "+str(errors))
+          asyncio.run(main())
+          PY
