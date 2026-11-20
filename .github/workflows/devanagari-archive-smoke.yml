@@ -331,3 +331,43 @@ jobs:
                   await browser.close()
           asyncio.run(main())
           PY
+      - name: Test exact 4.3.13 ZIP package from local disk with preexisting 2015 ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/dc-playwright/bin/python - <<'PY'
+          import asyncio,pathlib,shutil,tempfile,zipfile
+          from playwright.async_api import async_playwright
+          pkg=pathlib.Path("projects/devanagari-cryptor/Devanagari_Cryptor_4.3.13_AUTO_EXTRACT.zip")
+          old=pathlib.Path("projects/devanagari-cryptor/test-fixtures/old-2015.zip")
+          with zipfile.ZipFile(pkg) as z:
+              assert z.testzip() is None,"ZIP CRC failed"
+              assert set(z.namelist())=={"Devanagari-Cryptor-4.3.13.html","START-HERE-BG.txt"}
+              with tempfile.TemporaryDirectory() as d:
+                  z.extractall(d)
+                  pagepath=pathlib.Path(d,"Devanagari-Cryptor-4.3.13.html").resolve()
+                  async def test():
+                      exe=shutil.which("google-chrome") or shutil.which("chromium")
+                      async with async_playwright() as pw:
+                          browser=await pw.chromium.launch(headless=True,executable_path=exe,args=["--no-sandbox"])
+                          page=await browser.new_page(accept_downloads=True)
+                          errors=[]
+                          outbounds=[]
+                          page.on("pageerror",lambda e:errors.append(str(e)))
+                          page.on("request",lambda r:outbounds.append(r.url) if r.url.startswith(("http://","https://")) else None)
+                          await page.goto(pagepath.as_uri())
+                          assert await page.locator(".app-ver").inner_text()=="4.3.13"
+                          assert await page.locator(".mode-tab").count()==4
+                          await page.locator('[data-mode="archive"]').click()
+                          await page.locator("#arcSource").set_input_files(old)
+                          await page.wait_for_function("() => document.querySelectorAll('#arcContent input[type=checkbox]').length===1 && !document.querySelector('#arcExtract').disabled",timeout=12000)
+                          async with page.expect_download() as event:
+                              await page.locator("#arcExtract").click()
+                          file=await event.value
+                          assert pathlib.Path(await file.path()).read_bytes()==b"OLD ARCHIVE 2015: real file bytes \x00\x01\xff"
+                          assert not errors,"JavaScript errors: "+str(errors)
+                          assert not outbounds,"Unexpected external requests: "+str(outbounds)
+                          print("EXACT V4.3.13 PACKAGE FILE:// OLD ZIP EXTRACTION: PASS, errors:",errors,"external requests:",len(outbounds))
+                          await browser.close()
+                  asyncio.run(test())
+          PY
