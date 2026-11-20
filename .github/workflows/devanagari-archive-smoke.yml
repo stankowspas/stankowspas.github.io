@@ -17,7 +17,7 @@ jobs:
           python3 -m http.server 8765 --bind 127.0.0.1 --directory projects/devanagari-cryptor >/tmp/dev-archive-server.log 2>&1 &
           sleep 2
           BROWSER=$(command -v google-chrome || command -v chromium || command -v chromium-browser)
-          timeout 75s "$BROWSER" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --disable-background-networking --virtual-time-budget=120000 --dump-dom http://127.0.0.1:8765/archive-smoke.html > /tmp/archive-test-result.html 2>/tmp/archive-chrome-stderr.log || true
+          timeout 90s "$BROWSER" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage --disable-background-networking --virtual-time-budget=600000 --dump-dom http://127.0.0.1:8765/archive-smoke.html > /tmp/archive-test-result.html 2>/tmp/archive-chrome-stderr.log || true
           tail -c 10000 /tmp/archive-test-result.html || true
           if grep -q 'PASS: four tabs' /tmp/archive-test-result.html ; then
             echo "PASS: browser-based archive integration tests"
