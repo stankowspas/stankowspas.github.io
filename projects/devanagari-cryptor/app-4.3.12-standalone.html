@@ -1321,8 +1321,7 @@ $("arcPreview").addEventListener("click",async()=>{
   message(e.message||String(e),true);
  }finally{setBusy(false);}
 });
-async function saveToDirectory(files){
- const root=await window.showDirectoryPicker({mode:"readwrite"});
+async function saveToDirectory(files,root){
  for(const item of files){
   const parts=safeName(item.path).split("/");
   let dir=root;
@@ -1339,6 +1338,10 @@ $("arcExtract").addEventListener("click",async()=>{
   if(!opened||!displayed.length)throw new Error(tr("noArchive"));
   const boxes=[...document.querySelectorAll("#arcContent input[type=checkbox]:checked")];
   if(!boxes.length)throw new Error("Select at least one file.");
+  // Directory permission must be requested during the direct click activation.
+  const folderChoice=$("arcToFolder").checked&&typeof window.showDirectoryPicker==="function"
+   ?window.showDirectoryPicker({mode:"readwrite"}).then(handle=>({handle}),error=>({error}))
+   :null;
   message(tr("processing"));await paint();
   const selected=boxes.map(x=>displayed[Number(x.dataset.index)]);
   const files=[];let total=0;
@@ -1349,8 +1352,8 @@ $("arcExtract").addEventListener("click",async()=>{
    if(blob.size!==item.size)throw new Error("File size mismatch: "+item.path);
    files.push({path:item.path,blob});
   }
-  const intoDir=$("arcToFolder").checked&&"showDirectoryPicker" in window;
-  if(intoDir){await saveToDirectory(files);}
+  const intoDir=!!folderChoice;
+  if(intoDir){const result=await folderChoice;if(result.error)throw result.error;await saveToDirectory(files,result.handle);}
   else if(files.length===1){saveBlob(files[0].blob,simpleName(files[0].path));}
   else{
    const f=await writeArchive(files.map(x=>({file:x.blob,pathname:x.path})),"zip",outputName($("arcSource").files[0])+"-extracted");
@@ -1360,6 +1363,16 @@ $("arcExtract").addEventListener("click",async()=>{
  }catch(e){message(e.message||String(e),true);}
  finally{setBusy(false);}
 });
+// Only ZIP supports passwords. Do not show a misleading password box for other formats.
+const archiveFormatSelect=$("arcFormat"),archivePasswordInput=$("arcCreatePassword");
+function syncArchivePasswordField(){
+ const zipMode=archiveFormatSelect.value==="zip";
+ archivePasswordInput.closest("label").hidden=!zipMode;
+ archivePasswordInput.disabled=!zipMode;
+ if(!zipMode)archivePasswordInput.value="";
+}
+archiveFormatSelect.addEventListener("change",syncArchivePasswordField);
+syncArchivePasswordField();
 langSelect.addEventListener("change",translateArchive);
 translateArchive();
 refreshInputCount();
