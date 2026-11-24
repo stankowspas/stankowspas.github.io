@@ -326,7 +326,7 @@ header .theme-picker{margin-left:0}
         <label class="archive-picker" for="arcFiles"><span data-archive-i18n="chooseFiles">Избери файлове</span></label>
         <input id="arcFiles" class="archive-hidden-input" type="file" multiple>
         <button id="arcChooseCreationFolder" class="archive-picker" type="button">Избери папка (вкл. празни подпапки)</button>
-        <label class="archive-picker" for="arcFolder">Резервен избор на папка</label>
+        <label class="archive-picker" for="arcFolder" hidden>Резервен избор на папка</label>
         <input id="arcFolder" class="archive-hidden-input" type="file" webkitdirectory multiple>
       </div>
       <div id="arcInputSummary" class="archive-meta" role="status" aria-live="polite"></div>
@@ -1857,6 +1857,18 @@ $("arcExtract").disabled=true;
   modes.addEventListener("change",syncArchiveTab);
   document.getElementById("langSelect").addEventListener("change",syncArchiveTab);
   syncArchiveTab();
+})();
+</script>
+<script>
+/* Only the creation-folder selector is adapted to browser capability. */
+(() => {
+  "use strict";
+  const primary=document.getElementById("arcChooseCreationFolder");
+  const fallback=document.querySelector('label[for="arcFolder"]');
+  const iframe=(()=>{try{return window.self!==window.top;}catch{return true;}})();
+  const primaryAvailable=!iframe && window.isSecureContext && typeof window.showDirectoryPicker==="function";
+  primary.hidden=!primaryAvailable;
+  fallback.hidden=primaryAvailable;
 })();
 </script>
 </body></html>
