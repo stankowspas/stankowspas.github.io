@@ -214,7 +214,7 @@ th:'ปัญญาประดิษฐ์ – โมเดลภาษาข�
 }
 };
 const PROJECTS={
-'devanagari-cryptor':{name:'Devanagari Cryptor',icon:'◇',bg:"Самостоятелно приложение за обратимо Unicode кодиране и защитено с парола шифроване на текст и файлове.",en:"Offline-capable Unicode encoding and password-protected text and file encryption.",tags:['Encryption','Unicode','Offline'],app:'https://stankowspas.github.io/projects/devanagari-cryptor/app-4.3.8.html'},
+'devanagari-cryptor':{name:'Devanagari Cryptor',icon:'◇',bg:"Самостоятелно приложение за обратимо Unicode кодиране и защитено с парола шифроване на текст и файлове.",en:"Offline-capable Unicode encoding and password-protected text and file encryption.",tags:['Encryption','Unicode','Offline'],app:'https://stankowspas.github.io/projects/devanagari-cryptor/app-4.3.31.html'},
 'all-world-tv':{name:'All World IPTV',icon:'▣',bg:'Многоезичен каталог и интерфейс за телевизионни канали по държави.',en:'A multilingual catalog and interface for television channels by country.',tags:['TV','Streaming','Web'],app:'https://stankowspas.github.io/projects/all-world-tv/app/'},
 'all-world-cinema':{name:'All-World Cinema',icon:'◫',bg:'Уеб приложение за откриване и достъп до аудиовизуално съдържание от публични външни каталози.',en:'A web application for discovering and accessing audiovisual material referenced by public external catalogues.',tags:['Cinema','Catalog','Web'],app:'https://stankowspas.github.io/projects/all-world-cinema/app/'},
 'radio':{name:'SSGPT14 Radio',icon:'◉',bg:'Уеб каталог за интернет радиостанции и директни потоци.',en:'A web catalog for internet radio stations and direct streams.',tags:['Radio','Streaming','Catalog'],app:'https://stankowspas.github.io/projects/radio/'},
