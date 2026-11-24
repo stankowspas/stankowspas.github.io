@@ -1820,6 +1820,28 @@ $("arcExtract").disabled=true;
 })();
 </script>
 <script>
+/* Only mode tab labels: 12 locales; no cryptographic changes. */
+(() => {
+  "use strict";
+  const names={"bg":{"classic":"Класическо криптиране","secure":"Защитено криптиране"},"en":{"classic":"Classic Encryption","secure":"Secure Encryption"},"hi":{"classic":"पारंपरिक एन्क्रिप्शन","secure":"सुरक्षित एन्क्रिप्शन"},"de":{"classic":"Klassische Verschlüsselung","secure":"Sichere Verschlüsselung"},"fr":{"classic":"Chiffrement classique","secure":"Chiffrement sécurisé"},"es":{"classic":"Cifrado clásico","secure":"Cifrado seguro"},"it":{"classic":"Crittografia classica","secure":"Crittografia sicura"},"pt":{"classic":"Criptografia clássica","secure":"Criptografia segura"},"pl":{"classic":"Szyfrowanie klasyczne","secure":"Bezpieczne szyfrowanie"},"ro":{"classic":"Criptare clasică","secure":"Criptare securizată"},"el":{"classic":"Κλασική κρυπτογράφηση","secure":"Ασφαλής κρυπτογράφηση"},"cs":{"classic":"Klasické šifrování","secure":"Bezpečné šifrování"}};
+  for(const [lang, labels] of Object.entries(names)){
+    if(!UI[lang]) throw new Error("Missing translation: "+lang);
+    Object.assign(UI[lang],labels);
+  }
+  function refreshModeNames(){
+    const labels=names[document.getElementById("langSelect").value]||names.bg;
+    for(const mode of ["classic","secure"]){
+      const tab=document.querySelector('.mode-tabs [data-mode="'+mode+'"]');
+      const option=document.querySelector('#modeSelect option[value="'+mode+'"]');
+      if(tab){tab.textContent=labels[mode];tab.title=labels[mode];}
+      if(option)option.textContent=labels[mode];
+    }
+  }
+  document.getElementById("langSelect").addEventListener("change",refreshModeNames);
+  refreshModeNames();
+})();
+</script>
+<script>
 /* Archive-only navigation adapter; original 4.3.8 JavaScript is unchanged. */
 (() => {
   "use strict";
