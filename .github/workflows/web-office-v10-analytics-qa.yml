@@ -1,0 +1,537 @@
+name: Web Office v10 Analytics QA (no deployment)
+on:
+  push:
+    branches: [web-office-v10-analytics]
+    paths: ['.github/workflows/web-office-v10-analytics-qa.yml','projects/devanagari-cryptor/app-4.4.0.html']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: web-office-v10-analytics-qa
+  cancel-in-progress: true
+jobs:
+  browser:
+    if: github.ref == 'refs/heads/web-office-v10-analytics'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Excel v10 analytics (test branch only)
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/web-office-v10-analytics
+          cat > /tmp/excel-v10-report.js <<'JS'
+          const EXCEL_V10_LABELS={bg:['Вид диаграма','Колонна','Хоризонтална','Линейна','Кръгова','Показател','Подреждане','Първоначално','Възходящо','Низходящо','Изтегли CSV','Кръговата диаграма изисква неотрицателни стойности и положителна сума.'],en:['Chart type','Column','Horizontal bar','Line','Pie','Metric','Sort','Original','Ascending','Descending','Download CSV','Pie charts require nonnegative values and a positive total.'],de:['Diagrammtyp','Säulen','Balken','Linie','Kreis','Kennzahl','Sortierung','Original','Aufsteigend','Absteigend','CSV herunterladen','Kreisdiagramme benötigen nichtnegative Werte und eine positive Summe.'],fr:['Type de graphique','Colonnes','Barres horizontales','Courbe','Secteurs','Indicateur','Tri','Original','Croissant','Décroissant','Télécharger CSV','Le graphique en secteurs exige des valeurs positives ou nulles et un total positif.'],es:['Tipo de gráfico','Columnas','Barras horizontales','Línea','Circular','Indicador','Orden','Original','Ascendente','Descendente','Descargar CSV','El gráfico circular requiere valores no negativos y una suma positiva.'],it:['Tipo di grafico','Colonne','Barre orizzontali','Linea','Torta','Indicatore','Ordinamento','Originale','Crescente','Decrescente','Scarica CSV','Il grafico a torta richiede valori non negativi e una somma positiva.'],pt:['Tipo de gráfico','Colunas','Barras horizontais','Linha','Circular','Indicador','Ordenação','Original','Crescente','Decrescente','Descarregar CSV','O gráfico circular exige valores não negativos e um total positivo.'],pl:['Typ wykresu','Kolumnowy','Poziomy','Liniowy','Kołowy','Miara','Sortowanie','Pierwotne','Rosnąco','Malejąco','Pobierz CSV','Wykres kołowy wymaga wartości nieujemnych i dodatniej sumy.'],ro:['Tip diagramă','Coloane','Bare orizontale','Linie','Circulară','Indicator','Sortare','Inițial','Crescător','Descrescător','Descarcă CSV','Diagrama circulară necesită valori nenegative și o sumă pozitivă.'],el:['Τύπος γραφήματος','Στήλες','Οριζόντιες ράβδοι','Γραμμή','Πίτα','Μέτρηση','Ταξινόμηση','Αρχική','Αύξουσα','Φθίνουσα','Λήψη CSV','Η πίτα απαιτεί μη αρνητικές τιμές και θετικό άθροισμα.'],cs:['Typ grafu','Sloupcový','Pruhový','Spojnicový','Výsečový','Ukazatel','Řazení','Původní','Vzestupně','Sestupně','Stáhnout CSV','Výsečový graf vyžaduje nezáporné hodnoty a kladný součet.'],hi:['चार्ट प्रकार','स्तंभ','क्षैतिज बार','रेखा','पाई','माप','क्रम','मूल','आरोही','अवरोही','CSV डाउनलोड','पाई चार्ट के लिए गैर-ऋणात्मक मान और धनात्मक योग आवश्यक हैं।']};
+          function excelV10Sorted(rows,metric,sort) {
+              return sort==='original'?rows.slice():rows.slice().sort((a,b)=>(sort==='asc'?1:-1)*(a[metric]-b[metric]));
+          }
+          function excelV10PieOK(rows,metric) {
+              return rows.every(r=>Number.isFinite(r[metric])&&r[metric]>=0)&&rows.some(r=>r[metric]>0);
+          }
+          function excelV10CSV(report,labels) {
+              const field=v=>{if(typeof v==='number')return String(v);let s=String(v??'');if(/^\s*[=+\-@]|^[\t\r\n]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';};
+              return '\ufeff'+[[report.categoryName,labels[5],labels[6],labels[7]],...report.rows.map(r=>[r.name,r.count,r.sum,r.avg])].map(row=>row.map(field).join(',')).join('\r\n')+'\r\n';
+          }
+          function excelV10Chart(report,metric,type,title) {
+              const rows=report.rows, pie=type==='pie', horizontal=type==='horizontal';
+              if(pie&&!excelV10PieOK(rows,metric))return '';
+              const colors=['#4472c4','#ed7d31','#70ad47','#a5a5a5','#ffc000','#5b9bd5','#8064a2','#c0504d'];
+              const series={name:title,cats:rows.map(r=>r.name),values:rows.map(r=>r[metric]),fill:colors[0],points:pie?Object.fromEntries(rows.map((r,i)=>[i,{color:colors[i%colors.length]}])):{},format:'General'};
+              if(type==='line'){series.line={color:colors[0],width:2};series.marker={symbol:'circle',size:5,fill:colors[0],line:{color:colors[0],width:1}};}
+              const group={type:pie?'pie':type==='line'?'line':'bar',dir:horizontal?'bar':'col',grouping:'clustered',gapWidth:100,overlap:0,varyColors:pie,firstSliceAng:0,axIds:pie?[]:['c','v'],series:[series]};
+              const model={groups:[group],axes:pie?[]:[{id:'c',kind:'cat',pos:horizontal?'l':'b',deleted:false,reverse:false,gridlines:false,labels:true,crossAx:'v',crosses:'autoZero'},{id:'v',kind:'val',pos:horizontal?'b':'l',deleted:false,reverse:false,gridlines:true,labels:true,crossAx:'c',crosses:'autoZero'}],fontSize:10,textColor:'#222222',bg:'#ffffff',border:null,gridColor:'#dddddd',axisColor:'#666666',blanks:'gap',date1904:false,title:{text:title,size:14,bold:true,color:'#222222'},...(pie?{legend:{pos:'r',overlay:false}}:{})};
+              return chartV91.renderChart(model,640,360);
+          }
+          function ExcelV91Report({report,labels,onClose,ok,locale}) {
+              const x=jsx_runtime_1.jsx,xs=jsx_runtime_1.jsxs;
+              const Dialog=wordV91UI.useHostUI().Dialog??wordV91UI.DefaultDialog;
+              const L=EXCEL_V10_LABELS[String(locale||'en').split('-')[0]]||EXCEL_V10_LABELS.en;
+              const [chart,setChart]=react_1.useState(false),[metric,setMetric]=react_1.useState('sum'),[type,setType]=react_1.useState('column'),[sort,setSort]=react_1.useState('original');
+              const rows=react_1.useMemo(()=>excelV10Sorted(report.rows,metric,sort),[report,metric,sort]);
+              const shown={...report,rows}, pieOK=excelV10PieOK(rows,metric);
+              const metricLabel={sum:labels[6],count:labels[5],avg:labels[7]}[metric];
+              const svg=react_1.useMemo(()=>chart?excelV10Chart({...report,rows},metric,type,report.valueName+' — '+metricLabel):'',[chart,report,rows,metric,type,metricLabel]);
+              const [url,setUrl]=react_1.useState('');
+              react_1.useEffect(()=>{if(!svg){setUrl('');return;}const u=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));setUrl(u);return ()=>URL.revokeObjectURL(u);},[svg]);
+              const fmt=n=>Number.isFinite(n)?String(Number(n.toPrecision(12))):String(n);
+              const download=(href,name)=>{const a=document.createElement('a');a.href=href;a.download=name;a.click();};
+              const saveCSV=()=>{const u=URL.createObjectURL(new Blob([excelV10CSV(shown,labels)],{type:'text/csv;charset=utf-8'}));download(u,'category-summary.csv');setTimeout(()=>URL.revokeObjectURL(u),60000);};
+              const chooser=(id,title,value,change,opts)=>xs('label',{style:{display:'flex',flexDirection:'column',gap:3},children:[x('span',{children:title}),x('select',{'aria-label':title,'data-summary-control':id,value,onChange:e=>change(e.target.value),style:{background:'var(--de-chrome)',color:'var(--de-ink)',border:'1px solid var(--de-border)',padding:5,borderRadius:4},children:opts.map(([v,t])=>x('option',{value:v,children:t},v))})]},id);
+              const chooseType=t=>setType(t);
+              const controls=xs('div',{style:{display:'flex',gap:10,flexWrap:'wrap',margin:'8px 0'},children:[chooser('metric',L[5],metric,setMetric,[['sum',labels[6]],['count',labels[5]],['avg',labels[7]]]),chooser('sort',L[6],sort,setSort,[['original',L[7]],['asc',L[8]],['desc',L[9]]]),chart&&chooser('type',L[0],type,chooseType,[['column',L[1]],['horizontal',L[2]],['line',L[3]],['pie',L[4]]])]});
+              return x(Dialog,{title:labels[1],onClose,actions:[{label:labels[3],onClick:()=>setChart(c=>!c)},{label:L[10],onClick:saveCSV},...(chart&&svg&&url?[{label:labels[9],onClick:()=>download(url,'category-summary.svg')}]:[]),{label:ok,primary:true,autoFocus:true,onClick:onClose}],children:xs('div',{className:'de-excel-summary',style:{maxHeight:'55vh',overflow:'auto',minWidth:'min(420px,70vw)'},children:[x('p',{children:labels[10]}),controls,chart&&type==='pie'&&!pieOK&&x('p',{role:'status',children:L[11]}),chart&&svg&&url&&x('img',{className:'de-excel-summary-chart',src:url,alt:labels[3],style:{width:'100%',maxWidth:640}}),xs('table',{style:{width:'100%',borderCollapse:'collapse'},children:[x('thead',{children:x('tr',{children:[report.categoryName,labels[5],labels[6],labels[7]].map((v,i)=>x('th',{style:{padding:'5px',textAlign:i?'right':'left',borderBottom:'1px solid var(--de-border)'},children:v},i))})}),x('tbody',{children:rows.map((r,i)=>x('tr',{children:[r.name,r.count,fmt(r.sum),fmt(r.avg)].map((v,j)=>x('td',{style:{padding:'5px',textAlign:j?'right':'left',borderBottom:'1px solid var(--de-border)'},children:v},j))},i))})]}),x('p',{children:labels[8]+': '+report.skipped})]})});
+          }
+          JS
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,gzip,base64
+          host=Path('projects/devanagari-cryptor/app-4.4.0.html')
+          s=host.read_text(encoding='utf-8')
+          m=next(m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s) if m[1].startswith('H4sI'))
+          b=gzip.decompress(base64.b64decode(m[1])).decode()
+          assert 'EXCEL_V91_LABELS' in b and 'WORD_V82_LABELS' in b
+          if 'EXCEL_V10_LABELS' not in b:
+              a=b.index('function ExcelV91Report(');z=b.index('function SheetGrid(',a)
+              b=b[:a]+Path('/tmp/excel-v10-report.js').read_text(encoding='utf-8')+b[z:]
+              old='labels:extraDataLabels,ok:str.common.ok,onClose:'
+              assert b.count(old)==1
+              b=b.replace(old,'labels:extraDataLabels,ok:str.common.ok,locale:str.locale,onClose:')
+              host.write_text(s[:m.start(1)]+base64.b64encode(gzip.compress(b.encode(),mtime=0)).decode()+s[m.end(1):],encoding='utf-8')
+          Path('/tmp/office-v10.js').write_text(b,encoding='utf-8')
+          PY
+          node --check /tmp/office-v10.js
+          git add projects/devanagari-cryptor/app-4.4.0.html
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Excel v10: chart types, metric, sorting and safe CSV export'
+            git push origin HEAD:refs/heads/web-office-v10-analytics
+          fi
+      - name: Package exact source and single HTML previews
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json, base64, shutil, mimetypes
+          root=Path('projects/devanagari-cryptor')
+          src=root/'pdf-editor'
+          out=Path('pdf-preview')
+          out.mkdir()
+          raw=src.joinpath('index.html').read_text(encoding='utf-8')
+          def data(path):
+              mime='font/woff2' if path.suffix=='.woff2' else 'font/ttf'
+              return 'data:'+mime+';base64,'+base64.b64encode(path.read_bytes()).decode()
+          fonts={p.name:data(p) for p in (src/'fonts').iterdir() if p.is_file()}
+          def font_css(css):
+              return re.sub(r'fonts/([\w.-]+\.(?:woff2|ttf))',lambda m:fonts.get(m[1],m[0]),css)
+          for name in ['styles.css','office-theme.css']:
+              raw=raw.replace('<link rel="stylesheet" href="'+name+'">','<style>'+font_css((src/name).read_text(encoding='utf-8'))+'</style>')
+          ui=(src/'office-ui.js').read_text(encoding='utf-8')
+          ui=ui.replace('new URLSearchParams(location.search)','new URLSearchParams(location.search || window.name)').replace('e.origin!==location.origin','e.origin!==window.origin')
+          ui=ui.replace('params.get("lang"):"en"','params.get("lang"):"bg"')
+          app=(src/'app.js').read_text(encoding='utf-8')
+          app=app.replace("return `fonts/${F.web}-latin-${VARIANT_CSS[v][0]}-${VARIANT_CSS[v][1]}.woff2`;","return previewFonts[`${F.web}-latin-${VARIANT_CSS[v][0]}-${VARIANT_CSS[v][1]}.woff2`];")
+          app=app.replace("`fonts/${f}`","previewFonts[f]")
+          app='const previewFonts='+json.dumps(fonts,separators=(',',':'))+';\n'+app
+          def safe(s): return re.sub(r'</script',r'<\\/script',s,flags=re.I)
+          raw=raw.replace('<script defer src="office-ui.js"></script>','<script defer type="module">'+safe(ui)+'</script>')
+          raw=raw.replace('<script type="module" src="app.js"></script>','<script type="module">'+safe(app)+'</script>')
+          assert 'previewFonts' in raw and 'src="app.js"' not in raw
+          (out/'PDF-Editor.html').write_text(raw,encoding='utf-8')
+          # Keep the exact original integrated folder for a local HTTP-server review.
+          folder=out/'Web-Office-original'
+          folder.mkdir()
+          shutil.copy2(root/'app-4.4.0.html',folder/'app-4.4.0.html')
+          shutil.copytree(src,folder/'pdf-editor')
+          main=(root/'app-4.4.0.html').read_text(encoding='utf-8')
+          bridge=(src/'bridge.js').read_text(encoding='utf-8')
+          bridge=bridge.replace('postMessage(settings(),location.origin)','postMessage(settings(),window.origin==="null"?"*":window.origin)')
+          enc=base64.b64encode(raw.encode()).decode()
+          bridge=bridge.replace('frame.src=url.href;','frame.name=url.searchParams.toString();frame.srcdoc=new TextDecoder().decode(Uint8Array.from(atob("'+enc+'"),c=>c.charCodeAt(0)));')
+          assert 'frame.srcdoc=' in bridge
+          pattern=r'<script\b[^>]*\bsrc\s*=\s*["\'](?:\./)?pdf-editor/bridge\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script\s*>'
+          main,count=re.subn(pattern,lambda m:'<script>'+safe(bridge)+'</script>',main,flags=re.I)
+          if count==1:
+              (out/'Web-Office-PDF-Editor.html').write_text(main,encoding='utf-8')
+          else:
+              print('Integrated standalone not generated: bridge tag match count',count)
+          (out/'README.txt').write_text('Preview only; not deployed. Open PDF-Editor.html or Web-Office-PDF-Editor.html in Chrome/Edge. Internet is required for CDN PDF engines. For the exact unmodified source folder, run python -m http.server 8765 inside Web-Office-original and open http://localhost:8765/app-4.4.0.html. Standalone packaging is for review only, not a production release.\n',encoding='utf-8')
+          shutil.copy2(src/'LICENSE',out/'LICENSE')
+          print([(p.name,p.stat().st_size) for p in out.glob('*.html')])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Web-Office-v10-Excel-preview
+          path: pdf-preview/
+          retention-days: 14
+      - name: Prepare browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pdf-qa" playwright@1.51.1 --no-audit --no-fund
+          "$RUNNER_TEMP/pdf-qa/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Test actual local Web Office in Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/pdf-qa/results"
+          python3 -m http.server 8765 --bind 127.0.0.1 > "$RUNNER_TEMP/pdf-qa/server.log" 2>&1 &
+          cat > "$RUNNER_TEMP/pdf-qa/test.cjs" <<'JS'
+          const {chromium}=require('playwright');
+          const assert=require('node:assert/strict');
+          const fs=require('node:fs');
+          const path=require('node:path');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const page=await browser.newPage({viewport:{width:1440,height:1000},acceptDownloads:true});
+            const errors=[];
+            page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message)});
+            page.on('dialog',d=>d.accept());
+            const dir=path.join(__dirname,'results');
+            const base='http://127.0.0.1:8765/projects/devanagari-cryptor/';
+            try{
+              await page.goto(base+'app-4.4.0.html',{waitUntil:'domcontentloaded'});
+              await page.locator('#cryptor-tab-pdf-editor').waitFor({timeout:30000});
+              const mode=page.locator('#modeSelect');
+              const original=await mode.inputValue();
+              await page.locator('#langSelect').selectOption('bg');
+              await page.locator('#cryptor-tab-pdf-editor').click();
+              await page.locator('#cryptor-office-pdf-editor iframe').waitFor();
+              const frame=page.frameLocator('#cryptor-office-pdf-editor iframe');
+              await frame.locator('#btnSample').waitFor();
+              await page.screenshot({path:path.join(dir,'01-office-editor-bg.png')});
+              assert.equal(await frame.locator('html').getAttribute('lang'),'bg');
+              assert.equal(await page.locator('#cryptorOffice > #cryptor-office-pdf-editor').count(),1);
+              const section=page.locator('#cryptor-office-pdf-editor');
+              await section.locator('.cryptor-office-expand').click();
+              await page.waitForFunction(()=>document.documentElement.hasAttribute('data-office-expanded'));
+              await section.locator('.cryptor-office-expand').click();
+              await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-office-expanded'));
+              console.log('PASS common Office expand/restore');
+              await section.locator('.cryptor-office-fullscreen').click();
+              await page.waitForFunction(()=>document.fullscreenElement?.id==='cryptor-office-pdf-editor');
+              await section.locator('.cryptor-office-fullscreen').click();
+              await page.waitForFunction(()=>!document.fullscreenElement);
+              console.log('PASS common Office full screen and exit');
+              console.log('PASS office integration / Bulgarian language');
+              await frame.locator('#btnSample').click();
+              await frame.locator('#editor').waitFor({timeout:60000});
+              await frame.locator('#pagesWrap .page canvas').first().waitFor({timeout:30000});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+              console.log('PASS PDF sample open and render');
+              for(const [kind,expected] of [['word',['home','insert','layout','review','view','all']],['excel',['home','cells','formulas','data','view','all']]]){
+                await page.locator('#cryptor-tab-'+kind).click();
+                const panel=page.locator('#cryptor-office-'+kind);
+                await panel.locator('.de-office-ribbon').waitFor({timeout:30000});
+                const tabs=panel.locator('.de-office-ribbon-tab');
+                assert.deepEqual(await tabs.evaluateAll(els=>els.map(e=>e.dataset.ribbonTab)),expected);
+                for(const key of expected){
+                  const tab=panel.locator('[data-ribbon-tab="'+key+'"]');
+                  await tab.click();
+                  assert.equal(await tab.getAttribute('aria-pressed'),'true');
+                  assert.ok(await panel.locator('.de-ebar > .de-ebar-it').count()>0,kind+' '+key+' is empty');
+                }
+                await panel.locator('[data-ribbon-tab="home"]').click();
+                assert.equal(await panel.locator('[data-ribbon-tab="home"]').textContent(),'Начало');
+                await page.screenshot({path:path.join(dir,kind+'-v7.png')});
+                await panel.locator('.cryptor-office-ribbon-toggle').click();
+                await panel.locator('.de-office-ribbon').waitFor({state:'hidden'});
+                await panel.locator('.cryptor-office-ribbon-toggle').click();
+                await panel.locator('.de-office-ribbon').waitFor();
+                console.log('PASS '+kind+' six actual ribbon tabs, nonempty tools, Bulgarian labels, collapse/restore');
+              }
+              await page.locator('#langSelect').selectOption('en');
+              assert.equal(await page.locator('#cryptor-office-excel [data-ribbon-tab="home"]').textContent(),'Home');
+              // Actual document edits: exercise the original engine through the new ribbon.
+              await page.locator('#cryptor-tab-word').click();
+              const word=page.locator('#cryptor-office-word');
+              const doc=word.locator('.de-pages[contenteditable="true"]');
+              await doc.locator('.de-p').first().waitFor({timeout:30000});
+              await doc.locator('.de-p').first().click();
+              await page.keyboard.type('RibbonQAWord');
+              await doc.getByText('RibbonQAWord',{exact:true}).waitFor();
+              await page.keyboard.press('Shift+Home');
+              await word.locator('[data-ribbon-tab="home"]').click();
+              const bold=word.locator('.de-ebar button[title^="Bold"]').first();
+              await bold.click();
+              await page.waitForFunction(()=>{
+                const panel=document.querySelector('#cryptor-office-word');
+                const walk=root=>{for(const e of root.querySelectorAll('*')){if(e.shadowRoot&&walk(e.shadowRoot))return true;if(e.textContent==='RibbonQAWord'&&Number(getComputedStyle(e).fontWeight)>=600)return true}return false};
+                return walk(panel);
+              });
+              await word.locator('[data-ribbon-tab="insert"]').click();
+              await word.locator('[data-ribbon-tab="all"]').click();
+              assert.ok(await doc.getByText('RibbonQAWord',{exact:true}).count());
+              console.log('PASS Word input and bold through Home ribbon, text retained across menus');
+              await word.locator('[data-ribbon-tab="review"]').click();
+              const proof=word.getByRole('button',{name:'Spell check (browser)',exact:true});
+              await proof.click();
+              assert.equal(await doc.getAttribute('spellcheck'),'true');
+              assert.ok((await doc.getAttribute('lang')).startsWith('en'));
+              await proof.click();
+              assert.equal(await doc.getAttribute('spellcheck'),'false');
+              console.log('PASS Word browser proofing toggle and document language');
+              await word.locator('.de-ebar button[title="Words"]').click();
+              const stats=word.locator('.de-word-statistics');
+              await stats.waitFor();
+              const values=await stats.locator('dd').allTextContents();
+              assert.equal(values[1],'1');
+              assert.equal(values[2],'12');
+              await page.keyboard.press('Escape');
+              await stats.waitFor({state:'hidden'});
+              await word.locator('.de-ebar button[title="Words"]').click();
+              await stats.waitFor();
+              await word.getByRole('dialog').getByRole('button',{name:'OK',exact:true}).click();
+              await stats.waitFor({state:'hidden'});
+              console.log('PASS Word document statistics (1 word, 12 characters), Escape and OK');
+              await word.locator('[data-ribbon-tab="view"]').click();
+              await word.getByRole('button',{name:'Document outline',exact:true}).click();
+              await word.locator('.de-outline').waitFor();
+              await word.locator('.de-outline-head button').click();
+              await word.locator('.de-outline').waitFor({state:'hidden'});
+              console.log('PASS Word heading navigation opens and closes');
+              const rulers=word.getByRole('button',{name:'Rulers',exact:true});
+              await rulers.click();
+              const horizontal=word.locator('.de-word-ruler-horizontal').first();
+              const vertical=word.locator('.de-word-ruler-vertical').first();
+              await horizontal.waitFor();await vertical.waitFor();
+              assert.ok(Number(await horizontal.getAttribute('width'))>100);
+              assert.ok(Number(await vertical.getAttribute('height'))>100);
+              await rulers.click();
+              await horizontal.waitFor({state:'hidden'});
+              console.log('PASS Word physical horizontal and vertical ruler display toggle');
+              await doc.locator('.de-p').first().click();
+              await page.keyboard.press('End');
+              await page.keyboard.press('Control+Alt+Digit1');
+              await word.locator('[data-ribbon-tab="view"]').click();
+              await word.getByRole('button',{name:'Document outline',exact:true}).click();
+              await word.locator('.de-outline-item').filter({hasText:'RibbonQAWord'}).waitFor({timeout:15000});
+              await word.locator('.de-outline-head button').click();
+              await doc.locator('.de-p').first().click();
+              await page.keyboard.press('End');
+              await page.keyboard.press('Enter');
+              await page.keyboard.press('Control+Alt+Digit0');
+              await word.locator('[data-ribbon-tab="insert"]').click();
+              await word.getByRole('button',{name:'Contents from headings',exact:true}).click();
+              await doc.getByText('1. RibbonQAWord',{exact:true}).waitFor({timeout:15000});
+              assert.ok(await doc.getByText('Contents',{exact:true}).count());
+              console.log('PASS Word generated contents from actual styled heading');
+
+
+              await page.locator('#cryptor-tab-excel').click();
+              const sheet=page.locator('#cryptor-office-excel');
+              const fx=sheet.locator('.de-fx-input');
+              await fx.waitFor({timeout:30000});
+              await fx.click();
+              await fx.fill('=SUM(12,30)');
+              await fx.press('Enter');
+              await sheet.locator('.de-cell').getByText('42',{exact:true}).first().waitFor({timeout:15000});
+              await sheet.locator('[data-ribbon-tab="formulas"]').click();
+              await sheet.locator('[data-ribbon-tab="data"]').click();
+              await sheet.locator('[data-ribbon-tab="all"]').click();
+              await sheet.locator('.de-cell').getByText('42',{exact:true}).first().waitFor();
+              console.log('PASS Excel formula SUM(12,30)=42, result retained across menus');
+              // Paste real records, exercise the view filter, then clear duplicate values and Undo.
+              await sheet.locator('.de-cell').getByText('42',{exact:true}).first().click();
+              await sheet.locator('.de-grid').evaluate(grid=>{
+                const dt=new DataTransfer();
+                dt.setData('text/plain','Category\tAmount\nAlpha\t10\nBeta\t20\nAlpha\t10');
+                grid.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,composed:true,cancelable:true}));
+              });
+              const alpha=sheet.locator('.de-cell').getByText('Alpha',{exact:true});
+              const beta=sheet.locator('.de-cell').getByText('Beta',{exact:true});
+              await beta.waitFor();
+              assert.equal(await alpha.count(),2);
+              await alpha.first().click();
+              await sheet.locator('[data-ribbon-tab="data"]').click();
+              await sheet.getByRole('button',{name:'Filter by cell',exact:true}).click();
+              await beta.waitFor({state:'hidden'});
+              assert.equal(await alpha.count(),2);
+              await sheet.getByRole('button',{name:'Clear filter',exact:true}).click();
+              await beta.waitFor();
+              console.log('PASS Excel temporary filter by actual cell value and restore all rows');
+              await alpha.first().click();
+              await page.keyboard.press('Shift+ArrowDown');
+              await page.keyboard.press('Shift+ArrowDown');
+              await page.keyboard.press('Shift+ArrowRight');
+              assert.equal(await sheet.locator('.de-fx-ref').textContent(),'A2:B4');
+              await sheet.getByRole('button',{name:'Clear duplicate rows',exact:true}).click();
+              await alpha.last().waitFor();
+              await page.waitForFunction(()=>{
+                const root=document.querySelector('#cryptor-office-excel');
+                const count=(n)=>[...n.querySelectorAll('*')].reduce((sum,e)=>sum+(e.matches('.de-cell')&&e.textContent==='Alpha'?1:0)+(e.shadowRoot?count(e.shadowRoot):0),0);
+                return count(root)===1;
+              });
+              await beta.waitFor();
+              await page.keyboard.press('Control+z');
+              await page.waitForFunction(()=>{
+                const root=document.querySelector('#cryptor-office-excel');
+                const count=(n)=>[...n.querySelectorAll('*')].reduce((sum,e)=>sum+(e.matches('.de-cell')&&e.textContent==='Alpha'?1:0)+(e.shadowRoot?count(e.shadowRoot):0),0);
+                return count(root)===2;
+              });
+              console.log('PASS Excel duplicate cleanup and single-step undo restores both records');
+              await sheet.locator('.de-cell').getByText('Category',{exact:true}).click();
+              for(let i=0;i<3;i++)await page.keyboard.press('Shift+ArrowDown');
+              await page.keyboard.press('Shift+ArrowRight');
+              assert.equal(await sheet.locator('.de-fx-ref').textContent(),'A1:B4');
+              await sheet.getByRole('button',{name:'Category summary',exact:true}).click();
+              const report=sheet.locator('.de-excel-summary');
+              await report.waitFor();
+              assert.deepEqual(await report.locator('tbody tr').first().locator('td').allTextContents(),['Alpha','2','20','10']);
+              assert.deepEqual(await report.locator('tbody tr').nth(1).locator('td').allTextContents(),['Beta','1','20','20']);
+              await sheet.getByRole('dialog').getByRole('button',{name:'Chart',exact:true}).click();
+              const image=report.locator('.de-excel-summary-chart');
+              await image.waitFor();
+              await image.evaluate(el=>el.decode());
+              const svgDownload=page.waitForEvent('download');
+              await sheet.getByRole('dialog').getByRole('button',{name:'Download SVG',exact:true}).click();
+              const svgFile=await svgDownload;
+              await svgFile.saveAs(path.join(dir,'category-summary.svg'));
+              const svg=fs.readFileSync(path.join(dir,'category-summary.svg'),'utf8');
+              assert.ok(svg.includes('<svg')&&svg.includes('Alpha')&&svg.includes('Beta'));
+              const metric=report.locator('[data-summary-control="metric"]');
+              const sort=report.locator('[data-summary-control="sort"]');
+              const chartType=report.locator('[data-summary-control="type"]');
+              await metric.selectOption('count');
+              await sort.selectOption('asc');
+              assert.equal(await report.locator('tbody tr').first().locator('td').first().textContent(),'Beta');
+              await sort.selectOption('desc');
+              assert.equal(await report.locator('tbody tr').first().locator('td').first().textContent(),'Alpha');
+              for(const type of ['horizontal','line','pie','column']){
+                const oldSrc=await image.getAttribute('src');
+                await chartType.selectOption(type);
+                await page.waitForFunction(old=>{
+                  const panel=document.querySelector('#cryptor-office-excel');
+                  const find=root=>{const img=root.querySelector('.de-excel-summary-chart');if(img)return img;for(const e of root.querySelectorAll('*'))if(e.shadowRoot){const result=find(e.shadowRoot);if(result)return result;}return null};
+                  const img=find(panel);return img&&img.getAttribute('src')!==old&&img.complete&&img.naturalWidth>0;
+                },oldSrc);
+              }
+              const csvPending=page.waitForEvent('download');
+              await sheet.getByRole('dialog').getByRole('button',{name:'Download CSV',exact:true}).click();
+              const csvFile=await csvPending;await csvFile.saveAs(path.join(dir,'category-summary.csv'));
+              const csv=fs.readFileSync(path.join(dir,'category-summary.csv'),'utf8');
+              assert.ok(csv.includes('"Alpha",2,20,10')&&csv.includes('"Beta",1,20,20'));
+              console.log('PASS Excel v10 four chart types, metric selection, report sorting, valid CSV download');
+
+              await page.keyboard.press('Escape');
+              await report.waitFor({state:'hidden'});
+              console.log('PASS Excel actual grouped totals, counts, averages and native SVG chart export');
+              await sheet.locator('.de-cell').getByText('10',{exact:true}).first().click();
+              await sheet.getByRole('button',{name:'Color numbers ±',exact:true}).click();
+              const positive=sheet.locator('.de-cell').filter({hasText:/^10\.00$/}).first();
+              await positive.waitFor();
+              assert.equal(await positive.evaluate(el=>getComputedStyle(el).color),'rgb(0, 160, 0)');
+              await sheet.locator('.de-fx-input').click();
+              await sheet.locator('.de-fx-input').fill('-5');
+              await sheet.locator('.de-fx-input').press('Enter');
+              const negative=sheet.locator('.de-cell').filter({hasText:/^-5\.00$/}).first();
+              await negative.waitFor();
+              assert.equal(await negative.evaluate(el=>getComputedStyle(el).color),'rgb(255, 0, 0)');
+              console.log('PASS Excel native conditional numeric colors follow changed value');
+
+
+
+              await page.locator('#langSelect').selectOption('bg');
+              await page.locator('#cryptor-tab-powerpoint').click();
+              const ppt=page.locator('#cryptor-office-powerpoint');
+              await ppt.locator('.de-ebar').waitFor();
+              assert.equal(await ppt.locator('.de-office-ribbon').count(),0);
+              await page.locator('#cryptor-tab-pdf-editor').click();
+              await frame.locator('#editor').waitFor();
+              console.log('PASS language switch and unchanged PowerPoint/PDF editor');
+
+              const themes=page.locator('#themeSelect');
+              assert.equal(await themes.locator('option').count(),6);
+              for (const [theme,accent] of [['black-platinum','#a5a5a5'],['black-gold','#c5ae60']]) {
+                await themes.selectOption(theme);
+                await page.waitForFunction(t=>document.documentElement.dataset.theme===t,theme);
+                await frame.locator('html[data-theme="'+theme+'"]').waitFor();
+                assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()),accent);
+                assert.equal(await frame.locator('html').evaluate(el=>getComputedStyle(el).getPropertyValue('--accent').trim()),accent);
+                assert.equal(await frame.locator('.page').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(255, 255, 255)');
+                for(const mode of ['word','excel','powerpoint']){
+                  await page.locator('#cryptor-tab-'+mode).click();
+                  await page.locator('#cryptor-office-'+mode).waitFor();
+                  assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--page').trim()),'#090909');
+                }
+                await page.locator('#cryptor-tab-pdf-editor').click();
+                await frame.locator('#editor').waitFor();
+                assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+                assert.equal(await page.evaluate(()=>localStorage.getItem('bgdev.theme')),theme);
+                await page.screenshot({path:path.join(dir,theme+'.png')});
+                console.log('PASS '+theme+' host, Office tabs, PDF, saved setting, unchanged page');
+              }
+              await themes.selectOption('dark');
+              await frame.locator('html[data-theme="dark"]').waitFor();
+
+              const pdfFrame=page.frames().find(f=>f.url().includes('/pdf-editor/index.html'));
+              const sample=Buffer.from(await pdfFrame.evaluate(async()=>Array.from(await window.__pdfStudio.makeSample())));
+              await frame.locator('#fileMergePdf').setInputFiles([{name:'first.pdf',mimeType:'application/pdf',buffer:sample},{name:'second.pdf',mimeType:'application/pdf',buffer:sample}]);
+              await frame.locator('#pagesWrap .page').nth(3).waitFor({timeout:30000});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),4);
+              console.log('PASS merge two two-page PDF files');
+              await frame.locator('#btnRotateLeft').click();
+              assert.equal(await pdfFrame.evaluate(()=>window.__pdfStudio.S.pages[0].rot),270);
+              await frame.locator('#btnRotateRight').click();
+              assert.equal(await pdfFrame.evaluate(()=>window.__pdfStudio.S.pages[0].rot),0);
+              console.log('PASS rotate left and right');
+              const splitPending=page.waitForEvent('download',{timeout:30000});
+              await frame.locator('#btnSplitPdf').click();
+              const splitDownload=await splitPending;
+              const zipPath=path.join(dir,'split-pages.zip');
+              await splitDownload.saveAs(zipPath);
+              const z=fs.readFileSync(zipPath);
+              let off=0,count=0;
+              while(z.readUInt32LE(off)===0x04034b50){
+                const sz=z.readUInt32LE(off+18),start=off+30+z.readUInt16LE(off+26)+z.readUInt16LE(off+28);
+                const data=Array.from(z.subarray(start,start+sz));
+                await pdfFrame.evaluate(async b=>{const d=await PDFLib.PDFDocument.load(new Uint8Array(b));if(d.getPageCount()!==1)throw Error('Split output is not one page')},data);
+                off=start+sz;count++;
+              }
+              assert.equal(count,4);
+              console.log('PASS split ZIP with four valid individual PDFs');
+              await pdfFrame.evaluate(async()=>window.__pdfStudio.openBytes(await window.__pdfStudio.makeSample(),'sample-invoice.pdf'));
+              await frame.locator('#pagesWrap .page').nth(1).waitFor();
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+
+              const tools=await frame.locator('#tools').boundingBox();
+              const viewer=await frame.locator('#viewer').boundingBox();
+              assert.ok(tools.width>viewer.width && tools.y<viewer.y,'Tools must be a horizontal ribbon above the workspace');
+              await section.locator('.cryptor-office-ribbon-toggle').click();
+              await frame.locator('#tools').waitFor({state:'hidden'});
+              await section.locator('.cryptor-office-ribbon-toggle').click();
+              await frame.locator('#tools').waitFor();
+              console.log('PASS shared ribbon collapse/restore');
+              await frame.locator('[data-tool="text"]').click();
+              await frame.locator('#pagesWrap .layer').first().click({position:{x:120,y:120}});
+              await frame.locator('.tcontent[contenteditable="plaintext-only"], .tcontent[contenteditable="true"]').fill('PDF QA test');
+              await frame.locator('[data-tool="select"]').click();
+              assert.equal(await frame.locator('.obj.text').count(),1);
+              await frame.locator('#btnUndo').click();
+              assert.equal(await frame.locator('.obj.text').count(),0);
+              await frame.locator('#btnRedo').click();
+              assert.equal(await frame.locator('.obj.text').count(),1);
+              console.log('PASS add text and undo/redo');
+              await frame.locator('#btnAddPage').click();
+              assert.equal(await frame.locator('#pagesWrap .page').count(),3);
+              await frame.locator('#thumbs .thumb').last().locator('[data-op="rot"]').click({force:true});
+              const f=page.frames().find(f=>f.url().includes('/pdf-editor/index.html'));
+              assert.equal(await f.evaluate(()=>window.__pdfStudio.S.pages.at(-1).rot),90);
+              await frame.locator('#thumbs .thumb').last().locator('[data-op="up"]').click({force:true});
+              assert.equal(await f.evaluate(()=>window.__pdfStudio.S.pages[1].src),-1);
+              await frame.locator('#thumbs .thumb').nth(1).locator('[data-op="del"]').click({force:true});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+              console.log('PASS add/rotate/reorder/delete page');
+              await page.screenshot({path:path.join(dir,'02-edited-document-bg.png')});
+              const pending=page.waitForEvent('download',{timeout:30000});
+              await frame.locator('#btnDownload').click();
+              const download=await pending;
+              const pdf=path.join(dir,'qa-output.pdf');
+              await download.saveAs(pdf);
+              assert.equal(fs.readFileSync(pdf).subarray(0,5).toString(),'%PDF-');
+              const bytes=Array.from(fs.readFileSync(pdf));
+              await f.evaluate(async b=>{const d=await PDFLib.PDFDocument.load(new Uint8Array(b));if(d.getPageCount()!==2)throw Error('Invalid exported page count')},bytes);
+              console.log('PASS download and parse exported PDF');
+              if(original && original!=='pdf-editor'){
+                await page.locator('#cryptor-tab-word').click();
+                await page.locator('#cryptor-office-word').waitFor();
+                await page.locator('#cryptor-tab-excel').click();
+                await page.locator('#cryptor-office-excel').waitFor();
+                await page.locator('#cryptor-office-pdf-editor').waitFor({state:'hidden'});
+                await page.locator('#cryptor-tab-pdf-editor').click();
+                await frame.locator('#editor').waitFor();
+                assert.equal(await frame.locator('.obj.text').count(),1);
+                console.log('PASS tab switching retains document');
+              }
+              assert.deepEqual(errors,[]);
+            }finally{
+              await page.screenshot({path:path.join(dir,'last-state.png')}).catch(()=>{});
+              await browser.close();
+            }
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          JS
+          node "$RUNNER_TEMP/pdf-qa/test.cjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-office-v10-browser-results
+          path: ${{ runner.temp }}/pdf-qa/results/
+          retention-days: 14
