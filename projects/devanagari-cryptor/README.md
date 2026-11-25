@@ -1,8 +1,8 @@
-# Devanagari Cryptor
+# Web Office
 
 Developed by **Spas Stankov**.
 
-Devanagari Cryptor is a standalone browser application for reversible Unicode-to-Devanagari text encoding and password-protected text and file encryption.
+Web Office is a standalone browser application for reversible Unicode-to-Devanagari text encoding and password-protected text and file encryption.
 
 **Live application:** https://stankowspas.github.io/projects/devanagari-cryptor/
 
