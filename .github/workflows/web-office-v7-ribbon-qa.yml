@@ -238,6 +238,41 @@ jobs:
               }
               await page.locator('#langSelect').selectOption('en');
               assert.equal(await page.locator('#cryptor-office-excel [data-ribbon-tab="home"]').textContent(),'Home');
+              // Actual document edits: exercise the original engine through the new ribbon.
+              await page.locator('#cryptor-tab-word').click();
+              const word=page.locator('#cryptor-office-word');
+              const doc=word.locator('.de-pages[contenteditable="true"]');
+              await doc.locator('.de-p').first().waitFor({timeout:30000});
+              await doc.locator('.de-p').first().click();
+              await page.keyboard.type('RibbonQAWord');
+              await doc.getByText('RibbonQAWord',{exact:true}).waitFor();
+              await page.keyboard.press('Shift+Home');
+              await word.locator('[data-ribbon-tab="home"]').click();
+              const bold=word.locator('.de-ebar button[title^="Bold"]').first();
+              await bold.click();
+              await page.waitForFunction(()=>{
+                const panel=document.querySelector('#cryptor-office-word');
+                const walk=root=>{for(const e of root.querySelectorAll('*')){if(e.shadowRoot&&walk(e.shadowRoot))return true;if(e.textContent==='RibbonQAWord'&&Number(getComputedStyle(e).fontWeight)>=600)return true}return false};
+                return walk(panel);
+              });
+              await word.locator('[data-ribbon-tab="insert"]').click();
+              await word.locator('[data-ribbon-tab="all"]').click();
+              assert.ok(await doc.getByText('RibbonQAWord',{exact:true}).count());
+              console.log('PASS Word input and bold through Home ribbon, text retained across menus');
+              await page.locator('#cryptor-tab-excel').click();
+              const sheet=page.locator('#cryptor-office-excel');
+              const fx=sheet.locator('.de-fx-input');
+              await fx.waitFor({timeout:30000});
+              await fx.click();
+              await fx.fill('=SUM(12,30)');
+              await fx.press('Enter');
+              await sheet.locator('.de-cell').getByText('42',{exact:true}).first().waitFor({timeout:15000});
+              await sheet.locator('[data-ribbon-tab="formulas"]').click();
+              await sheet.locator('[data-ribbon-tab="data"]').click();
+              await sheet.locator('[data-ribbon-tab="all"]').click();
+              await sheet.locator('.de-cell').getByText('42',{exact:true}).first().waitFor();
+              console.log('PASS Excel formula SUM(12,30)=42, result retained across menus');
+
               await page.locator('#langSelect').selectOption('bg');
               await page.locator('#cryptor-tab-powerpoint').click();
               const ppt=page.locator('#cryptor-office-powerpoint');
