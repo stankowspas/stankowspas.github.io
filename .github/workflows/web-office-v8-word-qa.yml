@@ -64,6 +64,15 @@ jobs:
           if 'WORD_PROOF_LABELS' not in b:
               edit('src/react/edit/Toolbar.tsx',toolbar);edit('src/react/docx/DocxToolbar.tsx',wordtoolbar);edit('src/react/docx/DocxView.tsx',view)
               host.write_text(s[:m.start(1)]+base64.b64encode(gzip.compress(b.encode(),mtime=0)).decode()+s[m.end(1):],encoding='utf-8')
+          # Fix v8 statistics dialog keyboard focus, also when v8 was already installed.
+          old='actions: [{label: str.common.ok, primary: true, onClick: () => setShowStats(false)}]'
+          new='actions: [{label: str.common.ok, primary: true, autoFocus: true, onClick: () => setShowStats(false)}]'
+          if old in b:
+              b=one(b,old,new)
+              s=host.read_text(encoding='utf-8')
+              m=next(m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s) if m[1].startswith('H4sI'))
+              host.write_text(s[:m.start(1)]+base64.b64encode(gzip.compress(b.encode(),mtime=0)).decode()+s[m.end(1):],encoding='utf-8')
+          assert b.count(new)==1
           Path('/tmp/office-v8.js').write_text(b,encoding='utf-8')
           PY
           node --check /tmp/office-v8.js
@@ -241,7 +250,11 @@ jobs:
               assert.equal(values[2],'12');
               await page.keyboard.press('Escape');
               await stats.waitFor({state:'hidden'});
-              console.log('PASS Word document statistics (1 word, 12 characters)');
+              await word.locator('.de-ebar button[title="Words"]').click();
+              await stats.waitFor();
+              await word.getByRole('dialog').getByRole('button',{name:'OK',exact:true}).click();
+              await stats.waitFor({state:'hidden'});
+              console.log('PASS Word document statistics (1 word, 12 characters), Escape and OK');
               await word.locator('[data-ribbon-tab="view"]').click();
               await word.locator('.de-ebar button').first().click();
               await word.locator('.de-outline').waitFor();
