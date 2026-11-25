@@ -119,3 +119,16 @@ html[data-office-embedded] [hidden]{display:none!important}
 }
 html[data-office-embedded][data-office-ribbon-collapsed] .tools{display:none!important}
 @media print{html[data-office-embedded] .topbar,html[data-office-embedded] .editor{display:none!important}}
+
+/* PDF side panels follow the common Office expanded view. */
+html[data-office-embedded][data-office-panels-hidden] .pages-panel,
+html[data-office-embedded][data-office-panels-hidden] .props,
+html[data-office-embedded][data-office-panels-hidden] #btnPagesM {display:none!important}
+@media(min-width:821px){
+ html[data-office-embedded][data-office-panels-hidden] .editor{grid-template-columns:minmax(0,1fr)}
+ html[data-office-embedded][data-office-panels-hidden] .viewer{grid-column:1/-1}
+ html[data-office-embedded][data-office-panels-hidden] .zoombar{left:50%}
+}
+@media(max-width:820px){
+ html[data-office-embedded][data-office-panels-hidden] body.props-open .zoombar{display:flex}
+}
