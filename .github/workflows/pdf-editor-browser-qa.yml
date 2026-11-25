@@ -1,0 +1,115 @@
+name: PDF Editor browser QA (no deployment)
+on:
+  push:
+    branches: [web-office-pdf-editor]
+    paths:
+      - '.github/workflows/pdf-editor-browser-qa.yml'
+      - 'projects/devanagari-cryptor/pdf-editor/**'
+      - 'projects/devanagari-cryptor/app-4.4.0.html'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    if: github.ref == 'refs/heads/web-office-pdf-editor'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          for f in projects/devanagari-cryptor/pdf-editor/*.js; do node --check "$f"; done
+      - name: Prepare browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pdf-qa" playwright@1.51.1 --no-audit --no-fund
+          "$RUNNER_TEMP/pdf-qa/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Test actual local Web Office in Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/pdf-qa/results"
+          python3 -m http.server 8765 --bind 127.0.0.1 > "$RUNNER_TEMP/pdf-qa/server.log" 2>&1 &
+          cat > "$RUNNER_TEMP/pdf-qa/test.cjs" <<'JS'
+          const {chromium}=require('playwright');
+          const assert=require('node:assert/strict');
+          const fs=require('node:fs');
+          const path=require('node:path');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const page=await browser.newPage({viewport:{width:1440,height:1000},acceptDownloads:true});
+            const errors=[];
+            page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message)});
+            page.on('dialog',d=>d.accept());
+            const dir=path.join(__dirname,'results');
+            const base='http://127.0.0.1:8765/projects/devanagari-cryptor/';
+            try{
+              await page.goto(base+'app-4.4.0.html',{waitUntil:'domcontentloaded'});
+              await page.locator('#pdfEditorTab').waitFor({timeout:30000});
+              const mode=page.locator('#modeSelect');
+              const original=await mode.inputValue();
+              await page.locator('#langSelect').selectOption('bg');
+              await page.locator('#pdfEditorTab').click();
+              await page.locator('#pdfEditorPanel iframe').waitFor();
+              const frame=page.frameLocator('#pdfEditorPanel iframe');
+              await frame.locator('#btnSample').waitFor();
+              await page.screenshot({path:path.join(dir,'01-office-editor-bg.png')});
+              assert.equal(await frame.locator('html').getAttribute('lang'),'bg');
+              console.log('PASS office integration / Bulgarian language');
+              await frame.locator('#btnSample').click();
+              await frame.locator('#editor').waitFor({timeout:60000});
+              await frame.locator('#pagesWrap .page canvas').first().waitFor({timeout:30000});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+              console.log('PASS PDF sample open and render');
+              await frame.locator('[data-tool="text"]').click();
+              await frame.locator('#pagesWrap .layer').first().click({position:{x:120,y:120}});
+              await frame.locator('.tcontent[contenteditable="true"]').fill('PDF QA test');
+              await frame.locator('[data-tool="select"]').click();
+              assert.equal(await frame.locator('.obj.text').count(),1);
+              await frame.locator('#btnUndo').click();
+              assert.equal(await frame.locator('.obj.text').count(),0);
+              await frame.locator('#btnRedo').click();
+              assert.equal(await frame.locator('.obj.text').count(),1);
+              console.log('PASS add text and undo/redo');
+              await frame.locator('#btnAddPage').click();
+              assert.equal(await frame.locator('#pagesWrap .page').count(),3);
+              await frame.locator('#thumbs .thumb').last().locator('[data-op="rot"]').click({force:true});
+              const f=page.frames().find(f=>f.url().includes('/pdf-editor/index.html'));
+              assert.equal(await f.evaluate(()=>window.__pdfStudio.S.pages.at(-1).rot),90);
+              await frame.locator('#thumbs .thumb').last().locator('[data-op="up"]').click({force:true});
+              assert.equal(await f.evaluate(()=>window.__pdfStudio.S.pages[1].src),-1);
+              await frame.locator('#thumbs .thumb').nth(1).locator('[data-op="del"]').click({force:true});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+              console.log('PASS add/rotate/reorder/delete page');
+              await page.screenshot({path:path.join(dir,'02-edited-document-bg.png')});
+              const pending=page.waitForEvent('download',{timeout:30000});
+              await frame.locator('#btnDownload').click();
+              const download=await pending;
+              const pdf=path.join(dir,'qa-output.pdf');
+              await download.saveAs(pdf);
+              assert.equal(fs.readFileSync(pdf).subarray(0,5).toString(),'%PDF-');
+              const bytes=Array.from(fs.readFileSync(pdf));
+              await f.evaluate(async b=>{const d=await PDFLib.PDFDocument.load(new Uint8Array(b));if(d.getPageCount()!==2)throw Error('Invalid exported page count')},bytes);
+              console.log('PASS download and parse exported PDF');
+              if(original && original!=='pdf-editor'){
+                await mode.selectOption(original,{force:true});
+                await page.locator('#pdfEditorPanel').waitFor({state:'hidden'});
+                await page.locator('#pdfEditorTab').click();
+                await frame.locator('#editor').waitFor();
+                assert.equal(await frame.locator('.obj.text').count(),1);
+                console.log('PASS tab switching retains document');
+              }
+              assert.deepEqual(errors,[]);
+            }finally{
+              await page.screenshot({path:path.join(dir,'last-state.png')}).catch(()=>{});
+              await browser.close();
+            }
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          JS
+          node "$RUNNER_TEMP/pdf-qa/test.cjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pdf-editor-qa-preview
+          path: ${{ runner.temp }}/pdf-qa/results/
+          retention-days: 7
