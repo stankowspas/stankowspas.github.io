@@ -386,7 +386,8 @@ function buildThumbs() {
       <div class="tops">
         <button data-op="up" title="Move up" aria-label="Move page ${i + 1} up" ${i === 0 ? 'disabled' : ''}>${ICON.up}</button>
         <button data-op="down" title="Move down" aria-label="Move page ${i + 1} down" ${i === S.pages.length - 1 ? 'disabled' : ''}>${ICON.down}</button>
-        <button data-op="rot" title="Rotate" aria-label="Rotate page ${i + 1}">${ICON.rotate}</button>
+        <button data-op="rot-left" title="Rotate left 90°" aria-label="Rotate left 90°"><svg viewBox="0 0 24 24"><path d="M4 11a8 8 0 1 1 2.3 5.6L4 12M4 4v7h7"/></svg></button>
+        <button data-op="rot" title="Rotate right 90°" aria-label="Rotate right 90°"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.6L20 12m0-8v7h-7"/></svg></button>
         <button data-op="del" title="Delete page" aria-label="Delete page ${i + 1}" ${S.pages.length === 1 ? 'disabled' : ''}>${ICON.trash}</button>
       </div>`;
     window.pdfEditorUI.localize(li); ol.append(li); tio.observe(li);
@@ -416,11 +417,11 @@ function pageOp(id, op) {
     S.pages.splice(i, 1); delete S.objects[id];
   } else if (op === 'up' && i > 0) { [S.pages[i - 1], S.pages[i]] = [S.pages[i], S.pages[i - 1]]; }
   else if (op === 'down' && i < S.pages.length - 1) { [S.pages[i + 1], S.pages[i]] = [S.pages[i], S.pages[i + 1]]; }
-  else if (op === 'rot') {
-    const p = S.pages[i]; const h0 = p.h;
-    p.rot = (p.rot + 90) % 360; [p.w, p.h] = sizeFromView(p.view, p.rot);
+  else if (op === 'rot' || op === 'rot-left') {
+    const p = S.pages[i]; const h0 = p.h, w0 = p.w, left = op === 'rot-left';
+    p.rot = (p.rot + (left ? 270 : 90)) % 360; [p.w, p.h] = sizeFromView(p.view, p.rot);
     for (const o of S.objects[id] || []) { // keep each edit upright and move it with the page
-      const cx = o.x + o.w / 2, cy = o.y + o.h / 2; const ncx = h0 - cy, ncy = cx;
+      const cx = o.x + o.w / 2, cy = o.y + o.h / 2; const ncx = left ? cy : h0 - cy, ncy = left ? w0 - cx : cx;
       o.x = clamp(ncx - o.w / 2, 0, Math.max(0, p.w - o.w)); o.y = clamp(ncy - o.h / 2, 0, Math.max(0, p.h - o.h));
     }
   } else return;
@@ -1173,6 +1174,76 @@ async function makeSample() {
   return await d.save();
 }
 
+/* PDF document operations: reuse the existing PDF library and editor state. */
+let documentOperation = false;
+async function mergePdfFiles(files) {
+  if (documentOperation || !files.length) return;
+  if (files.length < 2) { toast('Choose at least two PDF files.'); return; }
+  if (S.base && S.dirty && !confirm(window.pdfEditorUI.translate('Open a new PDF? Your unsaved edits to the current one will be lost.'))) return;
+  documentOperation = true; busy(true, 'Merging PDFs…');
+  try {
+    await libReady;
+    const out = await PDFLib.PDFDocument.create();
+    for (const file of files) {
+      const src = await PDFLib.PDFDocument.load(await file.arrayBuffer());
+      for (const page of await out.copyPages(src, src.getPageIndices())) out.addPage(page);
+    }
+    if (!out.getPageCount()) throw Error('Empty PDF');
+    await openBytes(await out.save(), 'merged.pdf');
+    toast('PDF files merged.');
+  } catch (e) { console.error(e); toast('Could not merge PDFs.', 5000); }
+  finally { documentOperation = false; busy(false); }
+}
+// Uncompressed ZIP: a single download avoids browser limits on multiple automatic downloads.
+function pageZip(files) {
+  if (files.length > 65535) throw Error('Too many pages for ZIP');
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0, centralSize = 0;
+  function crc32(bytes) {
+    let c = -1;
+    for (const x of bytes) { c ^= x; for (let i=0;i<8;i++) c = (c >>> 1) ^ ((c & 1) ? 0xedb88320 : 0); }
+    return (c ^ -1) >>> 0;
+  }
+  for (const {name, bytes} of files) {
+    const n = enc.encode(name), size = bytes.length, crc = crc32(bytes);
+    if (n.length > 65535 || offset + size + 30 + n.length > 0xffffffff) throw Error('ZIP size limit');
+    const l = new Uint8Array(30+n.length), ld = new DataView(l.buffer);
+    ld.setUint32(0,0x04034b50,true); ld.setUint16(4,20,true); ld.setUint16(6,0x800,true); ld.setUint16(12,33,true);
+    ld.setUint32(14,crc,true); ld.setUint32(18,size,true); ld.setUint32(22,size,true); ld.setUint16(26,n.length,true); l.set(n,30);
+    const c = new Uint8Array(46+n.length), cd = new DataView(c.buffer);
+    cd.setUint32(0,0x02014b50,true); cd.setUint16(4,20,true); cd.setUint16(6,20,true); cd.setUint16(8,0x800,true); cd.setUint16(14,33,true);
+    cd.setUint32(16,crc,true); cd.setUint32(20,size,true); cd.setUint32(24,size,true); cd.setUint16(28,n.length,true); cd.setUint32(42,offset,true); c.set(n,46);
+    parts.push(l,bytes); central.push(c); offset += l.length+size; centralSize += c.length;
+  }
+  if (offset + centralSize + 22 > 0xffffffff) throw Error('ZIP size limit');
+  const end = new Uint8Array(22), ed = new DataView(end.buffer);
+  ed.setUint32(0,0x06054b50,true); ed.setUint16(8,files.length,true); ed.setUint16(10,files.length,true); ed.setUint32(12,centralSize,true); ed.setUint32(16,offset,true);
+  return new Blob([...parts,...central,end], {type:'application/zip'});
+}
+async function splitPdfPages() {
+  if (documentOperation || !S.base) return;
+  documentOperation = true; busy(true, 'Splitting PDF…');
+  try {
+    await libReady;
+    const src = await PDFLib.PDFDocument.load(await buildPdf());
+    const files = [], stem = S.fileName.replace(/\.pdf$/i,'').replace(/[\\/:*?"<>|\x00-\x1f]/g,'_') || 'document';
+    const digits = Math.max(3,String(src.getPageCount()).length);
+    for (const i of src.getPageIndices()) {
+      const out = await PDFLib.PDFDocument.create();
+      const [page] = await out.copyPages(src,[i]); out.addPage(page);
+      files.push({name:stem+'-page-'+String(i+1).padStart(digits,'0')+'.pdf',bytes:await out.save()});
+    }
+    const url = URL.createObjectURL(pageZip(files));
+    const a = document.createElement('a'); a.href=url; a.download=stem+'-pages.zip'; document.body.append(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
+    toast('PDF pages exported.');
+  } catch(e) { console.error(e); toast('Could not split PDF.',5000); }
+  finally { documentOperation=false; busy(false); }
+}
+function rotateCurrentPage(op) {
+  const p = S.pages[S.curPage] || S.pages[0]; if (p) pageOp(p.id,op);
+}
+
 /* ---------------- wiring ---------------- */
 function bind() {
   const pick = () => $('#filePdf').click();
@@ -1183,6 +1254,11 @@ function bind() {
   $('#filePdf').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; openFile(f); });
   $('#fileImg').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; const at = pendingImage; pendingImage = null; if (f) addImageFile(f, at); else if (S.tool === 'image') setTool('select', true); });
   $('#btnSample').addEventListener('click', async () => { busy(true, 'Making a sample…'); try { await openBytes(await makeSample(), 'sample-invoice.pdf'); } catch (e) { toast('Could not create the sample: ' + e.message); } finally { busy(false); } });
+  $('#btnMergePdf').addEventListener('click', () => $('#fileMergePdf').click());
+  $('#fileMergePdf').addEventListener('change', e => { const files = Array.from(e.target.files); e.target.value = ''; void mergePdfFiles(files); });
+  $('#btnSplitPdf').addEventListener('click', splitPdfPages);
+  $('#btnRotateLeft').addEventListener('click', () => rotateCurrentPage('rot-left'));
+  $('#btnRotateRight').addEventListener('click', () => rotateCurrentPage('rot'));
   $('#btnDownload').addEventListener('click', download);
   $('#btnPrint').addEventListener('click', printPdf);
   $('#btnShare').addEventListener('click', share);

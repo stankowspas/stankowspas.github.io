@@ -189,6 +189,36 @@ jobs:
               await frame.locator('#pagesWrap .page canvas').first().waitFor({timeout:30000});
               assert.equal(await frame.locator('#pagesWrap .page').count(),2);
               console.log('PASS PDF sample open and render');
+              const pdfFrame=page.frames().find(f=>f.url().includes('/pdf-editor/index.html'));
+              const sample=Buffer.from(await pdfFrame.evaluate(async()=>Array.from(await window.__pdfStudio.makeSample())));
+              await frame.locator('#fileMergePdf').setInputFiles([{name:'first.pdf',mimeType:'application/pdf',buffer:sample},{name:'second.pdf',mimeType:'application/pdf',buffer:sample}]);
+              await frame.locator('#pagesWrap .page').nth(3).waitFor({timeout:30000});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),4);
+              console.log('PASS merge two two-page PDF files');
+              await frame.locator('#btnRotateLeft').click();
+              assert.equal(await pdfFrame.evaluate(()=>window.__pdfStudio.S.pages[0].rot),270);
+              await frame.locator('#btnRotateRight').click();
+              assert.equal(await pdfFrame.evaluate(()=>window.__pdfStudio.S.pages[0].rot),0);
+              console.log('PASS rotate left and right');
+              const splitPending=page.waitForEvent('download',{timeout:30000});
+              await frame.locator('#btnSplitPdf').click();
+              const splitDownload=await splitPending;
+              const zipPath=path.join(dir,'split-pages.zip');
+              await splitDownload.saveAs(zipPath);
+              const z=fs.readFileSync(zipPath);
+              let off=0,count=0;
+              while(z.readUInt32LE(off)===0x04034b50){
+                const sz=z.readUInt32LE(off+18),start=off+30+z.readUInt16LE(off+26)+z.readUInt16LE(off+28);
+                const data=Array.from(z.subarray(start,start+sz));
+                await pdfFrame.evaluate(async b=>{const d=await PDFLib.PDFDocument.load(new Uint8Array(b));if(d.getPageCount()!==1)throw Error('Split output is not one page')},data);
+                off=start+sz;count++;
+              }
+              assert.equal(count,4);
+              console.log('PASS split ZIP with four valid individual PDFs');
+              await pdfFrame.evaluate(async()=>window.__pdfStudio.openBytes(await window.__pdfStudio.makeSample(),'sample-invoice.pdf'));
+              await frame.locator('#pagesWrap .page').nth(1).waitFor();
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+
               const tools=await frame.locator('#tools').boundingBox();
               const viewer=await frame.locator('#viewer').boundingBox();
               assert.ok(tools.width>viewer.width && tools.y<viewer.y,'Tools must be a horizontal ribbon above the workspace');

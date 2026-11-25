@@ -132,3 +132,7 @@ html[data-office-embedded][data-office-panels-hidden] #btnPagesM {display:none!i
 @media(max-width:820px){
  html[data-office-embedded][data-office-panels-hidden] body.props-open .zoombar{display:flex}
 }
+
+/* PDF document commands, scoped to this module. */
+.thumb .tops{flex-wrap:wrap;justify-content:center}
+@media(max-width:1100px){html[data-office-embedded] .topbar .btn .lbl{display:none} html[data-office-embedded] .topbar .btn{padding:5px 7px}}
