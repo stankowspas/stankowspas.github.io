@@ -1,0 +1,721 @@
+name: Web Office v11 Recovery QA (no deployment)
+on:
+  push:
+    branches: [web-office-v11-recovery]
+    paths: ['.github/workflows/web-office-v11-recovery-qa.yml','projects/devanagari-cryptor/app-4.4.0.html']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: web-office-v11-recovery-qa
+  cancel-in-progress: true
+jobs:
+  browser:
+    if: github.ref == 'refs/heads/web-office-v11-recovery'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install v11 local recovery and templates (test branch only)
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/web-office-v11-recovery
+          cat > /tmp/office-v11-recovery.js <<'HELPERS'
+          // Optional browser-local backups: a single native document per editor, never uploaded.
+          const OFFICE_RECOVERY_LIMIT=25*1024*1024;
+          const OFFICE_RECOVERY_DB='WebOfficeRecoveryV11';
+          function officeRecoveryIO(op,key,value) {
+              return new Promise((resolve,reject)=>{
+                  let db,done=false;
+                  const finish=(error,result)=>{if(done)return;done=true;db?.close();error?reject(error):resolve(result);};
+                  let req;
+                  try{req=indexedDB.open(OFFICE_RECOVERY_DB,1);}catch(e){finish(e);return;}
+                  req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('drafts'))req.result.createObjectStore('drafts');};
+                  req.onblocked=()=>finish(Error('Local backup database is blocked.'));
+                  req.onerror=()=>finish(req.error||Error('Local backup database unavailable.'));
+                  req.onsuccess=()=>{
+                      db=req.result;if(done){db.close();return;}
+                      try{
+                          const tx=db.transaction('drafts',op==='get'?'readonly':'readwrite');
+                          const store=tx.objectStore('drafts');
+                          const request=op==='get'?store.get(key):op==='put'?store.put(value,key):store.delete(key);
+                          tx.oncomplete=()=>finish(null,request.result);
+                          tx.onabort=()=>finish(tx.error||request.error||Error('Local backup transaction aborted.'));
+                          tx.onerror=()=>finish(tx.error||request.error||Error('Local backup transaction failed.'));
+                      }catch(e){finish(e);}
+                  };
+              });
+          }
+          function officeRecoveryValid(record,key) {
+              const ext=key==='word'?'.docx':key==='excel'?'.xlsx':null;
+              return !!(ext&&record&&record.blob instanceof Blob&&record.blob.size>0&&record.blob.size<=OFFICE_RECOVERY_LIMIT&&typeof record.name==='string'&&record.name.toLowerCase().endsWith(ext)&&Number.isFinite(record.time)&&record.time>0);
+          }
+          function officeV11Labels(locale) {
+              const bg=String(locale||'').split('-')[0]==='bg';
+              return bg?['Локално възстановяване','Автоматично резервно копие на 15 секунди','Създай копие сега','Възстанови копието','Изтрий копието','Няма локално копие.','Копието е само в този браузър, до 25 MiB. Не заменя изтеглянето на файл. Ново копие заменя предишното.','Запис…','Копието е записано.','Да се изтрие локалното копие?','Шаблон: протокол от среща','Шаблон: проектен отчет','Шаблон: бюджет','Шаблон: списък със задачи','Файлът не е достъпен за локално копие.','Резервното копие надвишава 25 MiB.','Документът се промени. Опитай отново.']:
+              ['Local recovery','Automatic backup every 15 seconds','Back up now','Restore backup','Delete backup','No local backup.','Stored only in this browser, up to 25 MiB. This is not a substitute for downloading the file. A new backup replaces the previous one.','Saving…','Backup saved.','Delete the local backup?','Template: meeting minutes','Template: project report','Template: budget','Template: task list','This file is not available for local backup.','Backup exceeds 25 MiB.','The document changed. Try again.'];
+          }
+          function officeV11Template(key,bg) {
+              const para=(text,heading)=>({runs:[{text}],...(heading?{heading}:{})});
+              const text=bg?{
+                  minutes:['Протокол от среща','Дата: ','Участници: ','Дневен ред','Обсъждане','Решения','Следващи действия','Отговорник и срок: '],
+                  report:['Проектен отчет','Проект: ','Период: ','Резюме','Изпълнени дейности','Рискове и проблеми','Следващи стъпки'],
+                  budget:[['Категория','Планирано (EUR)','Действително (EUR)'],['Приходи','',''],['Разходи','','']],
+                  tasks:[['Задача','Отговорник','Начална дата','Краен срок','Статус'],['','','','','']]
+              }:{
+                  minutes:['Meeting minutes','Date: ','Participants: ','Agenda','Discussion','Decisions','Next actions','Owner and due date: '],
+                  report:['Project report','Project: ','Period: ','Summary','Completed work','Risks and issues','Next steps'],
+                  budget:[['Category','Planned (EUR)','Actual (EUR)'],['Income','',''],['Expenses','','']],
+                  tasks:[['Task','Owner','Start date','Due date','Status'],['','','','','']]
+              };
+              if(key==='minutes'||key==='report'){
+                  const arr=text[key], headings=key==='minutes'?[3,4,5,6]:[3,4,5,6];
+                  return {name:arr[0]+'.docx',blob:convert_1.parasToDocx(arr.flatMap((v,i)=>headings.includes(i)?[para(v,2),{runs:[]}]:[para(v,i===0?1:0)]))};
+              }
+              if(key==='budget'||key==='tasks'){
+                  const name=key==='budget'?(bg?'Бюджет':'Budget'):(bg?'Задачи':'Tasks');
+                  return {name:name+'.xlsx',blob:convert_1.rowsToXlsx(text[key],name)};
+              }
+              throw Error('Unknown template');
+          }
+          function OfficeRecoveryPanel({labels,record,auto,busy,note,locale,onAuto,onBackup,onRestore,onDelete,onClose,ok}) {
+              const x=jsx_runtime_1.jsx,xs=jsx_runtime_1.jsxs;
+              const Dialog=ui_1.useHostUI().Dialog??ui_1.DefaultDialog;
+              const button=(id,text,click,disabled)=>x('button',{type:'button',className:'de-btn','data-recovery-action':id,disabled,onClick:click,children:text},id);
+              return x(Dialog,{title:labels[0],onClose,actions:[{label:ok,primary:true,autoFocus:true,onClick:onClose}],children:xs('div',{className:'de-office-recovery',style:{maxWidth:420},children:[x('p',{children:labels[6]}),xs('label',{style:{display:'flex',gap:8,alignItems:'center'},children:[x('input',{type:'checkbox','data-recovery-auto':true,checked:auto,disabled:busy,onChange:e=>onAuto(e.target.checked)}),labels[1]]}),x('p',{'data-recovery-record':true,children:record?record.name+' — '+new Date(record.time).toLocaleString(locale||'en'):labels[5]}),xs('div',{style:{display:'flex',gap:6,flexWrap:'wrap'},children:[button('backup',labels[2],onBackup,busy),button('restore',labels[3],onRestore,busy||!record),button('delete',labels[4],onDelete,busy||!record)]}),x('p',{role:'status','data-recovery-status':true,children:busy?labels[7]:note})]})});
+          }
+          HELPERS
+          cat > /tmp/office-v11-state.js <<'STATE'
+              // Recovery belongs to the exact native file and editor slot; collaboration and imports are excluded.
+              const recoveryKey=props.officeRecoveryKey;
+              const recoveryLabels=officeV11Labels(t.locale);
+              const recoveryAvailable=!!client&&!loading&&!readOnly&&!props.collab&&!client.interceptor&&!srcFormat&&allowOpen&&allowSave&&((recoveryKey==='word'&&client.kind==='docx'&&officeExt==='.docx')||(recoveryKey==='excel'&&client.kind==='xlsx'&&officeExt==='.xlsx'));
+              const recoveryEligible=(0,react_1.useRef)(false);recoveryEligible.current=recoveryAvailable;
+              const [recoveryOpen,setRecoveryOpen]=(0,react_1.useState)(false);
+              const [recoveryRecord,setRecoveryRecord]=(0,react_1.useState)(null);
+              const [recoveryAutoSession,setRecoveryAutoSession]=(0,react_1.useState)(null);
+              const [recoveryBusy,setRecoveryBusy]=(0,react_1.useState)(false);
+              const [recoveryNote,setRecoveryNote]=(0,react_1.useState)('');
+              const recoveryLock=(0,react_1.useRef)(false);
+              const recoveryAuto=recoveryAvailable&&recoveryAutoSession===saveSession;
+              (0,react_1.useEffect)(()=>{if(!recoveryAvailable){setRecoveryOpen(false);setRecoveryAutoSession(null);}},[recoveryAvailable]);
+              const readRecovery=async()=>{
+                  if(recoveryLock.current)return;recoveryLock.current=true;setRecoveryBusy(true);setRecoveryNote('');
+                  try{const record=await officeRecoveryIO('get',recoveryKey);setRecoveryRecord(officeRecoveryValid(record,recoveryKey)?record:null);}
+                  catch(e){setRecoveryNote(e.message||String(e));}
+                  finally{recoveryLock.current=false;setRecoveryBusy(false);}
+              };
+              const backupNow=async(manual)=>{
+                  if(!recoveryAvailable||!recoveryEligible.current||!saveSession.live||recoveryLock.current||saveSession.saving){if(manual)setRecoveryNote(recoveryLabels[14]);return;}
+                  if(!manual&&(!dirtyNow.current||saveSession.recoveryRevision===saveSession.revision))return;
+                  recoveryLock.current=true;saveSession.saving=true;setRecoveryBusy(true);setSaving(true);setRecoveryNote('');
+                  try{
+                      await fileOps.current?.flush?.();
+                      if(!saveSession.live||!recoveryEligible.current||client.interceptor)return;
+                      const revision=saveSession.revision;
+                      const blob=await client.call('save');
+                      if(!saveSession.live||!recoveryEligible.current||client.interceptor)return;
+                      if(saveSession.revision!==revision){if(manual)setRecoveryNote(recoveryLabels[16]);return;}
+                      if(!(blob instanceof Blob)||blob.size>OFFICE_RECOVERY_LIMIT)throw Error(recoveryLabels[15]);
+                      const record={name:fileName,blob,time:Date.now()};
+                      if(!officeRecoveryValid(record,recoveryKey))throw Error(recoveryLabels[14]);
+                      await officeRecoveryIO('put',recoveryKey,record);
+                      saveSession.recoveryRevision=revision;
+                      setRecoveryRecord(record);setRecoveryNote(recoveryLabels[8]);
+                  }catch(e){setRecoveryNote(e.message||String(e));if(!manual){setRecoveryAutoSession(null);setToast(e.message||String(e));}}
+                  finally{saveSession.saving=false;recoveryLock.current=false;setRecoveryBusy(false);if(saveSession.live)setSaving(false);}
+              };
+              const recoveryTick=(0,react_1.useRef)(backupNow);recoveryTick.current=backupNow;
+              (0,react_1.useEffect)(()=>{if(!recoveryAuto)return;const timer=setInterval(()=>void recoveryTick.current(false),15000);return()=>clearInterval(timer);},[recoveryAuto,saveSession]);
+              const restoreRecovery=()=>{
+                  const record=recoveryRecord;if(!recoveryAvailable||!officeRecoveryValid(record,recoveryKey)||recoveryLock.current)return;
+                  setRecoveryOpen(false);setRecoveryAutoSession(null);
+                  replace(t.bar.replaceOpen(record.name),async()=>{
+                      if(!saveSession.live||!recoveryEligible.current)return;
+                      recoveryLock.current=true;setRecoveryBusy(true);
+                      try{
+                          const check=await client_1.DocumentClient.open(record.blob,{name:record.name,worker});check.destroy();
+                          if(!saveSession.live||!recoveryEligible.current)return;
+                          show({src:record.blob,name:record.name,converted:false},true);openedDirty.current=true;
+                      }catch(e){setToast(e.message||String(e));}
+                      finally{recoveryLock.current=false;setRecoveryBusy(false);}
+                  });
+              };
+              const deleteRecovery=async()=>{
+                  if(recoveryLock.current||!window.confirm(recoveryLabels[9]))return;
+                  setRecoveryAutoSession(null);recoveryLock.current=true;setRecoveryBusy(true);
+                  try{await officeRecoveryIO('delete',recoveryKey);setRecoveryRecord(null);setRecoveryNote('');}
+                  catch(e){setRecoveryNote(e.message||String(e));}finally{recoveryLock.current=false;setRecoveryBusy(false);}
+              };
+              const createTemplate=(key)=>{
+                  const bg=String(t.locale||'').split('-')[0]==='bg';
+                  replace(t.bar.replaceNew(t.newWhat[client.kind]),async()=>{
+                      try{const template=officeV11Template(key,bg),blob=await template.blob;if(!saveSession.live||!recoveryEligible.current)return;show({src:blob,name:template.name,converted:false},true);openedDirty.current=true;}
+                      catch(e){setToast(e.message||String(e));}
+                  });
+              };
+              const recoveryItems=recoveryAvailable?[{label:recoveryLabels[0],icon:'save',onClick:()=>{setRecoveryOpen(true);void readRecovery();}},...(recoveryKey==='word'?[{label:recoveryLabels[10],icon:'doc',onClick:()=>createTemplate('minutes')},{label:recoveryLabels[11],icon:'doc',onClick:()=>createTemplate('report')}]:[{label:recoveryLabels[12],icon:'table',onClick:()=>createTemplate('budget')},{label:recoveryLabels[13],icon:'table',onClick:()=>createTemplate('tasks')}])]:[];
+          STATE
+          python3 - <<'PY'
+          from pathlib import Path
+          import gzip,base64,re
+          host=Path('projects/devanagari-cryptor/app-4.4.0.html')
+          s=host.read_text(encoding='utf-8');m=next(m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s) if m[1].startswith('H4sI'));b=gzip.decompress(base64.b64decode(m[1])).decode()
+          assert 'EXCEL_V10_LABELS' in b
+          def one(s,a,c):
+              assert s.count(a)==1,(a[:100],s.count(a));return s.replace(a,c,1)
+          def edit(mod,fn):
+              global b
+              a=b.index('"'+mod+'":function');z=b.index('\n},\n',a);b=b[:a]+fn(b[a:z])+b[z:]
+          def viewer(s):
+              s=one(s,'function DocViewer(props) {',Path('/tmp/office-v11-recovery.js').read_text()+'function DocViewer(props) {')
+              s=one(s,'    const fileActions = (0, FileMenu_1.useFileActions)({',Path('/tmp/office-v11-state.js').read_text()+'    const fileActions = (0, FileMenu_1.useFileActions)({')
+              s=one(s,'        extra: props.fileMenuItems ?? [],','        extra: [...(props.fileMenuItems ?? []), ...recoveryItems],')
+              a='toast && (0, jsx_runtime_1.jsx)(Dialog_1.Toast, { text: toast, onDone: clearToast }), confirm &&'
+              c='recoveryOpen && recoveryAvailable && (0,jsx_runtime_1.jsx)(OfficeRecoveryPanel,{labels:recoveryLabels,record:recoveryRecord,auto:recoveryAuto,busy:recoveryBusy,note:recoveryNote,locale:t.locale,onAuto:v=>setRecoveryAutoSession(v?saveSession:null),onBackup:()=>void backupNow(true),onRestore:restoreRecovery,onDelete:()=>void deleteRecovery(),onClose:()=>setRecoveryOpen(false),ok:t.common.ok}), '+a
+              return one(s,a,c)
+          def hostmod(s):
+              return one(s,'className: "cryptor-office-layout", ...settings(),','className: "cryptor-office-layout", officeRecoveryKey: panel.mode, ...settings(),')
+          if 'OFFICE_RECOVERY_DB=' not in b:
+              edit('src/react/DocViewer.tsx',viewer);edit('integration/host.mjs',hostmod)
+              host.write_text(s[:m.start(1)]+base64.b64encode(gzip.compress(b.encode(),mtime=0)).decode()+s[m.end(1):],encoding='utf-8')
+          Path('/tmp/office-v11.js').write_text(b,encoding='utf-8')
+          PY
+          node --check /tmp/office-v11.js
+          git add projects/devanagari-cryptor/app-4.4.0.html
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Web Office v11: opt-in local backups, restore, and native templates'
+            git push origin HEAD:refs/heads/web-office-v11-recovery
+          fi
+      - name: Package exact source and single HTML previews
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json, base64, shutil, mimetypes
+          root=Path('projects/devanagari-cryptor')
+          src=root/'pdf-editor'
+          out=Path('pdf-preview')
+          out.mkdir()
+          raw=src.joinpath('index.html').read_text(encoding='utf-8')
+          def data(path):
+              mime='font/woff2' if path.suffix=='.woff2' else 'font/ttf'
+              return 'data:'+mime+';base64,'+base64.b64encode(path.read_bytes()).decode()
+          fonts={p.name:data(p) for p in (src/'fonts').iterdir() if p.is_file()}
+          def font_css(css):
+              return re.sub(r'fonts/([\w.-]+\.(?:woff2|ttf))',lambda m:fonts.get(m[1],m[0]),css)
+          for name in ['styles.css','office-theme.css']:
+              raw=raw.replace('<link rel="stylesheet" href="'+name+'">','<style>'+font_css((src/name).read_text(encoding='utf-8'))+'</style>')
+          ui=(src/'office-ui.js').read_text(encoding='utf-8')
+          ui=ui.replace('new URLSearchParams(location.search)','new URLSearchParams(location.search || window.name)').replace('e.origin!==location.origin','e.origin!==window.origin')
+          ui=ui.replace('params.get("lang"):"en"','params.get("lang"):"bg"')
+          app=(src/'app.js').read_text(encoding='utf-8')
+          app=app.replace("return `fonts/${F.web}-latin-${VARIANT_CSS[v][0]}-${VARIANT_CSS[v][1]}.woff2`;","return previewFonts[`${F.web}-latin-${VARIANT_CSS[v][0]}-${VARIANT_CSS[v][1]}.woff2`];")
+          app=app.replace("`fonts/${f}`","previewFonts[f]")
+          app='const previewFonts='+json.dumps(fonts,separators=(',',':'))+';\n'+app
+          def safe(s): return re.sub(r'</script',r'<\\/script',s,flags=re.I)
+          raw=raw.replace('<script defer src="office-ui.js"></script>','<script defer type="module">'+safe(ui)+'</script>')
+          raw=raw.replace('<script type="module" src="app.js"></script>','<script type="module">'+safe(app)+'</script>')
+          assert 'previewFonts' in raw and 'src="app.js"' not in raw
+          (out/'PDF-Editor.html').write_text(raw,encoding='utf-8')
+          # Keep the exact original integrated folder for a local HTTP-server review.
+          folder=out/'Web-Office-original'
+          folder.mkdir()
+          shutil.copy2(root/'app-4.4.0.html',folder/'app-4.4.0.html')
+          shutil.copytree(src,folder/'pdf-editor')
+          main=(root/'app-4.4.0.html').read_text(encoding='utf-8')
+          bridge=(src/'bridge.js').read_text(encoding='utf-8')
+          bridge=bridge.replace('postMessage(settings(),location.origin)','postMessage(settings(),window.origin==="null"?"*":window.origin)')
+          enc=base64.b64encode(raw.encode()).decode()
+          bridge=bridge.replace('frame.src=url.href;','frame.name=url.searchParams.toString();frame.srcdoc=new TextDecoder().decode(Uint8Array.from(atob("'+enc+'"),c=>c.charCodeAt(0)));')
+          assert 'frame.srcdoc=' in bridge
+          pattern=r'<script\b[^>]*\bsrc\s*=\s*["\'](?:\./)?pdf-editor/bridge\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script\s*>'
+          main,count=re.subn(pattern,lambda m:'<script>'+safe(bridge)+'</script>',main,flags=re.I)
+          if count==1:
+              (out/'Web-Office-PDF-Editor.html').write_text(main,encoding='utf-8')
+          else:
+              print('Integrated standalone not generated: bridge tag match count',count)
+          (out/'README.txt').write_text('Preview only; not deployed. Open PDF-Editor.html or Web-Office-PDF-Editor.html in Chrome/Edge. Internet is required for CDN PDF engines. For the exact unmodified source folder, run python -m http.server 8765 inside Web-Office-original and open http://localhost:8765/app-4.4.0.html. Standalone packaging is for review only, not a production release.\n',encoding='utf-8')
+          shutil.copy2(src/'LICENSE',out/'LICENSE')
+          print([(p.name,p.stat().st_size) for p in out.glob('*.html')])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Web-Office-v11-Recovery-preview
+          path: pdf-preview/
+          retention-days: 14
+      - name: Prepare browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pdf-qa" playwright@1.51.1 --no-audit --no-fund
+          "$RUNNER_TEMP/pdf-qa/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Test actual local Web Office in Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/pdf-qa/results"
+          python3 -m http.server 8765 --bind 127.0.0.1 > "$RUNNER_TEMP/pdf-qa/server.log" 2>&1 &
+          cat > "$RUNNER_TEMP/pdf-qa/test.cjs" <<'JS'
+          const {chromium}=require('playwright');
+          const assert=require('node:assert/strict');
+          const fs=require('node:fs');
+          const path=require('node:path');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const page=await browser.newPage({viewport:{width:1440,height:1000},acceptDownloads:true});
+            const errors=[];
+            page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message)});
+            page.on('dialog',d=>d.accept());
+            const dir=path.join(__dirname,'results');
+            const base='http://127.0.0.1:8765/projects/devanagari-cryptor/';
+            try{
+              await page.goto(base+'app-4.4.0.html',{waitUntil:'domcontentloaded'});
+              await page.locator('#cryptor-tab-pdf-editor').waitFor({timeout:30000});
+              const mode=page.locator('#modeSelect');
+              const original=await mode.inputValue();
+              await page.locator('#langSelect').selectOption('bg');
+              await page.locator('#cryptor-tab-pdf-editor').click();
+              await page.locator('#cryptor-office-pdf-editor iframe').waitFor();
+              const frame=page.frameLocator('#cryptor-office-pdf-editor iframe');
+              await frame.locator('#btnSample').waitFor();
+              await page.screenshot({path:path.join(dir,'01-office-editor-bg.png')});
+              assert.equal(await frame.locator('html').getAttribute('lang'),'bg');
+              assert.equal(await page.locator('#cryptorOffice > #cryptor-office-pdf-editor').count(),1);
+              const section=page.locator('#cryptor-office-pdf-editor');
+              await section.locator('.cryptor-office-expand').click();
+              await page.waitForFunction(()=>document.documentElement.hasAttribute('data-office-expanded'));
+              await section.locator('.cryptor-office-expand').click();
+              await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-office-expanded'));
+              console.log('PASS common Office expand/restore');
+              await section.locator('.cryptor-office-fullscreen').click();
+              await page.waitForFunction(()=>document.fullscreenElement?.id==='cryptor-office-pdf-editor');
+              await section.locator('.cryptor-office-fullscreen').click();
+              await page.waitForFunction(()=>!document.fullscreenElement);
+              console.log('PASS common Office full screen and exit');
+              console.log('PASS office integration / Bulgarian language');
+              await frame.locator('#btnSample').click();
+              await frame.locator('#editor').waitFor({timeout:60000});
+              await frame.locator('#pagesWrap .page canvas').first().waitFor({timeout:30000});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+              console.log('PASS PDF sample open and render');
+              for(const [kind,expected] of [['word',['home','insert','layout','review','view','all']],['excel',['home','cells','formulas','data','view','all']]]){
+                await page.locator('#cryptor-tab-'+kind).click();
+                const panel=page.locator('#cryptor-office-'+kind);
+                await panel.locator('.de-office-ribbon').waitFor({timeout:30000});
+                const tabs=panel.locator('.de-office-ribbon-tab');
+                assert.deepEqual(await tabs.evaluateAll(els=>els.map(e=>e.dataset.ribbonTab)),expected);
+                for(const key of expected){
+                  const tab=panel.locator('[data-ribbon-tab="'+key+'"]');
+                  await tab.click();
+                  assert.equal(await tab.getAttribute('aria-pressed'),'true');
+                  assert.ok(await panel.locator('.de-ebar > .de-ebar-it').count()>0,kind+' '+key+' is empty');
+                }
+                await panel.locator('[data-ribbon-tab="home"]').click();
+                assert.equal(await panel.locator('[data-ribbon-tab="home"]').textContent(),'Начало');
+                await page.screenshot({path:path.join(dir,kind+'-v7.png')});
+                await panel.locator('.cryptor-office-ribbon-toggle').click();
+                await panel.locator('.de-office-ribbon').waitFor({state:'hidden'});
+                await panel.locator('.cryptor-office-ribbon-toggle').click();
+                await panel.locator('.de-office-ribbon').waitFor();
+                console.log('PASS '+kind+' six actual ribbon tabs, nonempty tools, Bulgarian labels, collapse/restore');
+              }
+              await page.locator('#langSelect').selectOption('en');
+              assert.equal(await page.locator('#cryptor-office-excel [data-ribbon-tab="home"]').textContent(),'Home');
+              // Actual document edits: exercise the original engine through the new ribbon.
+              await page.locator('#cryptor-tab-word').click();
+              const word=page.locator('#cryptor-office-word');
+              const doc=word.locator('.de-pages[contenteditable="true"]');
+              await doc.locator('.de-p').first().waitFor({timeout:30000});
+              await doc.locator('.de-p').first().click();
+              await page.keyboard.type('RibbonQAWord');
+              await doc.getByText('RibbonQAWord',{exact:true}).waitFor();
+              await page.keyboard.press('Shift+Home');
+              await word.locator('[data-ribbon-tab="home"]').click();
+              const bold=word.locator('.de-ebar button[title^="Bold"]').first();
+              await bold.click();
+              await page.waitForFunction(()=>{
+                const panel=document.querySelector('#cryptor-office-word');
+                const walk=root=>{for(const e of root.querySelectorAll('*')){if(e.shadowRoot&&walk(e.shadowRoot))return true;if(e.textContent==='RibbonQAWord'&&Number(getComputedStyle(e).fontWeight)>=600)return true}return false};
+                return walk(panel);
+              });
+              await word.locator('[data-ribbon-tab="insert"]').click();
+              await word.locator('[data-ribbon-tab="all"]').click();
+              assert.ok(await doc.getByText('RibbonQAWord',{exact:true}).count());
+              console.log('PASS Word input and bold through Home ribbon, text retained across menus');
+              await word.locator('[data-ribbon-tab="review"]').click();
+              const proof=word.getByRole('button',{name:'Spell check (browser)',exact:true});
+              await proof.click();
+              assert.equal(await doc.getAttribute('spellcheck'),'true');
+              assert.ok((await doc.getAttribute('lang')).startsWith('en'));
+              await proof.click();
+              assert.equal(await doc.getAttribute('spellcheck'),'false');
+              console.log('PASS Word browser proofing toggle and document language');
+              await word.locator('.de-ebar button[title="Words"]').click();
+              const stats=word.locator('.de-word-statistics');
+              await stats.waitFor();
+              const values=await stats.locator('dd').allTextContents();
+              assert.equal(values[1],'1');
+              assert.equal(values[2],'12');
+              await page.keyboard.press('Escape');
+              await stats.waitFor({state:'hidden'});
+              await word.locator('.de-ebar button[title="Words"]').click();
+              await stats.waitFor();
+              await word.getByRole('dialog').getByRole('button',{name:'OK',exact:true}).click();
+              await stats.waitFor({state:'hidden'});
+              console.log('PASS Word document statistics (1 word, 12 characters), Escape and OK');
+              await word.locator('[data-ribbon-tab="view"]').click();
+              await word.getByRole('button',{name:'Document outline',exact:true}).click();
+              await word.locator('.de-outline').waitFor();
+              await word.locator('.de-outline-head button').click();
+              await word.locator('.de-outline').waitFor({state:'hidden'});
+              console.log('PASS Word heading navigation opens and closes');
+              const rulers=word.getByRole('button',{name:'Rulers',exact:true});
+              await rulers.click();
+              const horizontal=word.locator('.de-word-ruler-horizontal').first();
+              const vertical=word.locator('.de-word-ruler-vertical').first();
+              await horizontal.waitFor();await vertical.waitFor();
+              assert.ok(Number(await horizontal.getAttribute('width'))>100);
+              assert.ok(Number(await vertical.getAttribute('height'))>100);
+              await rulers.click();
+              await horizontal.waitFor({state:'hidden'});
+              console.log('PASS Word physical horizontal and vertical ruler display toggle');
+              await doc.locator('.de-p').first().click();
+              await page.keyboard.press('End');
+              await page.keyboard.press('Control+Alt+Digit1');
+              await word.locator('[data-ribbon-tab="view"]').click();
+              await word.getByRole('button',{name:'Document outline',exact:true}).click();
+              await word.locator('.de-outline-item').filter({hasText:'RibbonQAWord'}).waitFor({timeout:15000});
+              await word.locator('.de-outline-head button').click();
+              await doc.locator('.de-p').first().click();
+              await page.keyboard.press('End');
+              await page.keyboard.press('Enter');
+              await page.keyboard.press('Control+Alt+Digit0');
+              await word.locator('[data-ribbon-tab="insert"]').click();
+              await word.getByRole('button',{name:'Contents from headings',exact:true}).click();
+              await doc.getByText('1. RibbonQAWord',{exact:true}).waitFor({timeout:15000});
+              assert.ok(await doc.getByText('Contents',{exact:true}).count());
+              console.log('PASS Word generated contents from actual styled heading');
+
+
+              await page.locator('#cryptor-tab-excel').click();
+              const sheet=page.locator('#cryptor-office-excel');
+              const fx=sheet.locator('.de-fx-input');
+              await fx.waitFor({timeout:30000});
+              await fx.click();
+              await fx.fill('=SUM(12,30)');
+              await fx.press('Enter');
+              await sheet.locator('.de-cell').getByText('42',{exact:true}).first().waitFor({timeout:15000});
+              await sheet.locator('[data-ribbon-tab="formulas"]').click();
+              await sheet.locator('[data-ribbon-tab="data"]').click();
+              await sheet.locator('[data-ribbon-tab="all"]').click();
+              await sheet.locator('.de-cell').getByText('42',{exact:true}).first().waitFor();
+              console.log('PASS Excel formula SUM(12,30)=42, result retained across menus');
+              // Paste real records, exercise the view filter, then clear duplicate values and Undo.
+              await sheet.locator('.de-cell').getByText('42',{exact:true}).first().click();
+              await sheet.locator('.de-grid').evaluate(grid=>{
+                const dt=new DataTransfer();
+                dt.setData('text/plain','Category\tAmount\nAlpha\t10\nBeta\t20\nAlpha\t10');
+                grid.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,composed:true,cancelable:true}));
+              });
+              const alpha=sheet.locator('.de-cell').getByText('Alpha',{exact:true});
+              const beta=sheet.locator('.de-cell').getByText('Beta',{exact:true});
+              await beta.waitFor();
+              assert.equal(await alpha.count(),2);
+              await alpha.first().click();
+              await sheet.locator('[data-ribbon-tab="data"]').click();
+              await sheet.getByRole('button',{name:'Filter by cell',exact:true}).click();
+              await beta.waitFor({state:'hidden'});
+              assert.equal(await alpha.count(),2);
+              await sheet.getByRole('button',{name:'Clear filter',exact:true}).click();
+              await beta.waitFor();
+              console.log('PASS Excel temporary filter by actual cell value and restore all rows');
+              await alpha.first().click();
+              await page.keyboard.press('Shift+ArrowDown');
+              await page.keyboard.press('Shift+ArrowDown');
+              await page.keyboard.press('Shift+ArrowRight');
+              assert.equal(await sheet.locator('.de-fx-ref').textContent(),'A2:B4');
+              await sheet.getByRole('button',{name:'Clear duplicate rows',exact:true}).click();
+              await alpha.last().waitFor();
+              await page.waitForFunction(()=>{
+                const root=document.querySelector('#cryptor-office-excel');
+                const count=(n)=>[...n.querySelectorAll('*')].reduce((sum,e)=>sum+(e.matches('.de-cell')&&e.textContent==='Alpha'?1:0)+(e.shadowRoot?count(e.shadowRoot):0),0);
+                return count(root)===1;
+              });
+              await beta.waitFor();
+              await page.keyboard.press('Control+z');
+              await page.waitForFunction(()=>{
+                const root=document.querySelector('#cryptor-office-excel');
+                const count=(n)=>[...n.querySelectorAll('*')].reduce((sum,e)=>sum+(e.matches('.de-cell')&&e.textContent==='Alpha'?1:0)+(e.shadowRoot?count(e.shadowRoot):0),0);
+                return count(root)===2;
+              });
+              console.log('PASS Excel duplicate cleanup and single-step undo restores both records');
+              await sheet.locator('.de-cell').getByText('Category',{exact:true}).click();
+              for(let i=0;i<3;i++)await page.keyboard.press('Shift+ArrowDown');
+              await page.keyboard.press('Shift+ArrowRight');
+              assert.equal(await sheet.locator('.de-fx-ref').textContent(),'A1:B4');
+              await sheet.getByRole('button',{name:'Category summary',exact:true}).click();
+              const report=sheet.locator('.de-excel-summary');
+              await report.waitFor();
+              assert.deepEqual(await report.locator('tbody tr').first().locator('td').allTextContents(),['Alpha','2','20','10']);
+              assert.deepEqual(await report.locator('tbody tr').nth(1).locator('td').allTextContents(),['Beta','1','20','20']);
+              await sheet.getByRole('dialog').getByRole('button',{name:'Chart',exact:true}).click();
+              const image=report.locator('.de-excel-summary-chart');
+              await image.waitFor();
+              await image.evaluate(el=>el.decode());
+              const svgDownload=page.waitForEvent('download');
+              await sheet.getByRole('dialog').getByRole('button',{name:'Download SVG',exact:true}).click();
+              const svgFile=await svgDownload;
+              await svgFile.saveAs(path.join(dir,'category-summary.svg'));
+              const svg=fs.readFileSync(path.join(dir,'category-summary.svg'),'utf8');
+              assert.ok(svg.includes('<svg')&&svg.includes('Alpha')&&svg.includes('Beta'));
+              const metric=report.locator('[data-summary-control="metric"]');
+              const sort=report.locator('[data-summary-control="sort"]');
+              const chartType=report.locator('[data-summary-control="type"]');
+              await metric.selectOption('count');
+              await sort.selectOption('asc');
+              assert.equal(await report.locator('tbody tr').first().locator('td').first().textContent(),'Beta');
+              await sort.selectOption('desc');
+              assert.equal(await report.locator('tbody tr').first().locator('td').first().textContent(),'Alpha');
+              for(const type of ['horizontal','line','pie','column']){
+                const oldSrc=await image.getAttribute('src');
+                await chartType.selectOption(type);
+                await page.waitForFunction(old=>{
+                  const panel=document.querySelector('#cryptor-office-excel');
+                  const find=root=>{const img=root.querySelector('.de-excel-summary-chart');if(img)return img;for(const e of root.querySelectorAll('*'))if(e.shadowRoot){const result=find(e.shadowRoot);if(result)return result;}return null};
+                  const img=find(panel);return img&&img.getAttribute('src')!==old&&img.complete&&img.naturalWidth>0;
+                },oldSrc);
+              }
+              const csvPending=page.waitForEvent('download');
+              await sheet.getByRole('dialog').getByRole('button',{name:'Download CSV',exact:true}).click();
+              const csvFile=await csvPending;await csvFile.saveAs(path.join(dir,'category-summary.csv'));
+              const csv=fs.readFileSync(path.join(dir,'category-summary.csv'),'utf8');
+              assert.ok(csv.includes('"Alpha",2,20,10')&&csv.includes('"Beta",1,20,20'));
+              console.log('PASS Excel v10 four chart types, metric selection, report sorting, valid CSV download');
+
+              await page.keyboard.press('Escape');
+              await report.waitFor({state:'hidden'});
+              console.log('PASS Excel actual grouped totals, counts, averages and native SVG chart export');
+              await sheet.locator('.de-cell').getByText('10',{exact:true}).first().click();
+              await sheet.getByRole('button',{name:'Color numbers ±',exact:true}).click();
+              const positive=sheet.locator('.de-cell').filter({hasText:/^10\.00$/}).first();
+              await positive.waitFor();
+              assert.equal(await positive.evaluate(el=>getComputedStyle(el).color),'rgb(0, 160, 0)');
+              await sheet.locator('.de-fx-input').click();
+              await sheet.locator('.de-fx-input').fill('-5');
+              await sheet.locator('.de-fx-input').press('Enter');
+              const negative=sheet.locator('.de-cell').filter({hasText:/^-5\.00$/}).first();
+              await negative.waitFor();
+              assert.equal(await negative.evaluate(el=>getComputedStyle(el).color),'rgb(255, 0, 0)');
+              console.log('PASS Excel native conditional numeric colors follow changed value');
+
+
+
+              await page.locator('#langSelect').selectOption('bg');
+              await page.locator('#cryptor-tab-powerpoint').click();
+              const ppt=page.locator('#cryptor-office-powerpoint');
+              await ppt.locator('.de-ebar').waitFor();
+              assert.equal(await ppt.locator('.de-office-ribbon').count(),0);
+              await page.locator('#cryptor-tab-pdf-editor').click();
+              await frame.locator('#editor').waitFor();
+              console.log('PASS language switch and unchanged PowerPoint/PDF editor');
+
+              const themes=page.locator('#themeSelect');
+              assert.equal(await themes.locator('option').count(),6);
+              for (const [theme,accent] of [['black-platinum','#a5a5a5'],['black-gold','#c5ae60']]) {
+                await themes.selectOption(theme);
+                await page.waitForFunction(t=>document.documentElement.dataset.theme===t,theme);
+                await frame.locator('html[data-theme="'+theme+'"]').waitFor();
+                assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()),accent);
+                assert.equal(await frame.locator('html').evaluate(el=>getComputedStyle(el).getPropertyValue('--accent').trim()),accent);
+                assert.equal(await frame.locator('.page').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(255, 255, 255)');
+                for(const mode of ['word','excel','powerpoint']){
+                  await page.locator('#cryptor-tab-'+mode).click();
+                  await page.locator('#cryptor-office-'+mode).waitFor();
+                  assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--page').trim()),'#090909');
+                }
+                await page.locator('#cryptor-tab-pdf-editor').click();
+                await frame.locator('#editor').waitFor();
+                assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+                assert.equal(await page.evaluate(()=>localStorage.getItem('bgdev.theme')),theme);
+                await page.screenshot({path:path.join(dir,theme+'.png')});
+                console.log('PASS '+theme+' host, Office tabs, PDF, saved setting, unchanged page');
+              }
+              await themes.selectOption('dark');
+              await frame.locator('html[data-theme="dark"]').waitFor();
+
+              const pdfFrame=page.frames().find(f=>f.url().includes('/pdf-editor/index.html'));
+              const sample=Buffer.from(await pdfFrame.evaluate(async()=>Array.from(await window.__pdfStudio.makeSample())));
+              await frame.locator('#fileMergePdf').setInputFiles([{name:'first.pdf',mimeType:'application/pdf',buffer:sample},{name:'second.pdf',mimeType:'application/pdf',buffer:sample}]);
+              await frame.locator('#pagesWrap .page').nth(3).waitFor({timeout:30000});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),4);
+              console.log('PASS merge two two-page PDF files');
+              await frame.locator('#btnRotateLeft').click();
+              assert.equal(await pdfFrame.evaluate(()=>window.__pdfStudio.S.pages[0].rot),270);
+              await frame.locator('#btnRotateRight').click();
+              assert.equal(await pdfFrame.evaluate(()=>window.__pdfStudio.S.pages[0].rot),0);
+              console.log('PASS rotate left and right');
+              const splitPending=page.waitForEvent('download',{timeout:30000});
+              await frame.locator('#btnSplitPdf').click();
+              const splitDownload=await splitPending;
+              const zipPath=path.join(dir,'split-pages.zip');
+              await splitDownload.saveAs(zipPath);
+              const z=fs.readFileSync(zipPath);
+              let off=0,count=0;
+              while(z.readUInt32LE(off)===0x04034b50){
+                const sz=z.readUInt32LE(off+18),start=off+30+z.readUInt16LE(off+26)+z.readUInt16LE(off+28);
+                const data=Array.from(z.subarray(start,start+sz));
+                await pdfFrame.evaluate(async b=>{const d=await PDFLib.PDFDocument.load(new Uint8Array(b));if(d.getPageCount()!==1)throw Error('Split output is not one page')},data);
+                off=start+sz;count++;
+              }
+              assert.equal(count,4);
+              console.log('PASS split ZIP with four valid individual PDFs');
+              await pdfFrame.evaluate(async()=>window.__pdfStudio.openBytes(await window.__pdfStudio.makeSample(),'sample-invoice.pdf'));
+              await frame.locator('#pagesWrap .page').nth(1).waitFor();
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+
+              const tools=await frame.locator('#tools').boundingBox();
+              const viewer=await frame.locator('#viewer').boundingBox();
+              assert.ok(tools.width>viewer.width && tools.y<viewer.y,'Tools must be a horizontal ribbon above the workspace');
+              await section.locator('.cryptor-office-ribbon-toggle').click();
+              await frame.locator('#tools').waitFor({state:'hidden'});
+              await section.locator('.cryptor-office-ribbon-toggle').click();
+              await frame.locator('#tools').waitFor();
+              console.log('PASS shared ribbon collapse/restore');
+              await frame.locator('[data-tool="text"]').click();
+              await frame.locator('#pagesWrap .layer').first().click({position:{x:120,y:120}});
+              await frame.locator('.tcontent[contenteditable="plaintext-only"], .tcontent[contenteditable="true"]').fill('PDF QA test');
+              await frame.locator('[data-tool="select"]').click();
+              assert.equal(await frame.locator('.obj.text').count(),1);
+              await frame.locator('#btnUndo').click();
+              assert.equal(await frame.locator('.obj.text').count(),0);
+              await frame.locator('#btnRedo').click();
+              assert.equal(await frame.locator('.obj.text').count(),1);
+              console.log('PASS add text and undo/redo');
+              await frame.locator('#btnAddPage').click();
+              assert.equal(await frame.locator('#pagesWrap .page').count(),3);
+              await frame.locator('#thumbs .thumb').last().locator('[data-op="rot"]').click({force:true});
+              const f=page.frames().find(f=>f.url().includes('/pdf-editor/index.html'));
+              assert.equal(await f.evaluate(()=>window.__pdfStudio.S.pages.at(-1).rot),90);
+              await frame.locator('#thumbs .thumb').last().locator('[data-op="up"]').click({force:true});
+              assert.equal(await f.evaluate(()=>window.__pdfStudio.S.pages[1].src),-1);
+              await frame.locator('#thumbs .thumb').nth(1).locator('[data-op="del"]').click({force:true});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+              console.log('PASS add/rotate/reorder/delete page');
+              await page.screenshot({path:path.join(dir,'02-edited-document-bg.png')});
+              const pending=page.waitForEvent('download',{timeout:30000});
+              await frame.locator('#btnDownload').click();
+              const download=await pending;
+              const pdf=path.join(dir,'qa-output.pdf');
+              await download.saveAs(pdf);
+              assert.equal(fs.readFileSync(pdf).subarray(0,5).toString(),'%PDF-');
+              const bytes=Array.from(fs.readFileSync(pdf));
+              await f.evaluate(async b=>{const d=await PDFLib.PDFDocument.load(new Uint8Array(b));if(d.getPageCount()!==2)throw Error('Invalid exported page count')},bytes);
+              console.log('PASS download and parse exported PDF');
+              if(original && original!=='pdf-editor'){
+                await page.locator('#cryptor-tab-word').click();
+                await page.locator('#cryptor-office-word').waitFor();
+                await page.locator('#cryptor-tab-excel').click();
+                await page.locator('#cryptor-office-excel').waitFor();
+                await page.locator('#cryptor-office-pdf-editor').waitFor({state:'hidden'});
+                await page.locator('#cryptor-tab-pdf-editor').click();
+                await frame.locator('#editor').waitFor();
+                assert.equal(await frame.locator('.obj.text').count(),1);
+                console.log('PASS tab switching retains document');
+              }
+
+              // Real local storage and native file roundtrip. No service or server involved.
+              await page.locator('#langSelect').selectOption('en');
+              await page.locator('#cryptor-tab-word').click();
+              const wp=page.locator('#cryptor-office-word');
+              const wordDoc=wp.locator('.de-pages[contenteditable="true"]');
+              await wordDoc.getByText('RibbonQAWord',{exact:true}).first().waitFor();
+              const menu=async(panel,label)=>{
+                await panel.locator('.de-file button').first().click();
+                await panel.getByText(label,{exact:true}).last().click();
+              };
+              await menu(wp,'Local recovery');
+              const recovery=wp.locator('.de-office-recovery');
+              await recovery.waitFor();
+              assert.equal(await recovery.locator('[data-recovery-auto]').isChecked(),false);
+              await recovery.locator('[data-recovery-action="backup"]').click();
+              await recovery.locator('[data-recovery-status]').getByText('Backup saved.',{exact:true}).waitFor();
+              const getRecord=key=>page.evaluate(key=>new Promise((resolve,reject)=>{
+                const req=indexedDB.open('WebOfficeRecoveryV11',1);
+                req.onerror=()=>reject(req.error);
+                req.onsuccess=()=>{const db=req.result,tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(key);r.onsuccess=async()=>{const x=r.result;db.close();if(!x)return resolve(null);const sig=Array.from(new Uint8Array(await x.blob.slice(0,2).arrayBuffer()));resolve({name:x.name,time:x.time,size:x.blob.size,sig});};r.onerror=()=>reject(r.error);};
+              }),key);
+              const firstBackup=await getRecord('word');
+              assert.ok(firstBackup.size>100&&firstBackup.name.endsWith('.docx'));
+              assert.deepEqual(firstBackup.sig,[80,75]);
+              assert.equal(await wp.locator('.de-save-dirty').count(),1);
+              await wp.getByRole('dialog').getByRole('button',{name:'OK',exact:true}).click();
+              await wordDoc.locator('.de-p').last().click();await page.keyboard.press('End');await page.keyboard.type('TemporaryChange');
+              await wordDoc.getByText(/TemporaryChange/).first().waitFor();
+              await menu(wp,'Local recovery');
+              await recovery.locator('[data-recovery-action="restore"]').click();
+              await wp.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true}).click();
+              await wordDoc.getByText('RibbonQAWord',{exact:true}).first().waitFor();
+              await wordDoc.getByText(/TemporaryChange/).first().waitFor({state:'hidden'});
+              console.log('PASS Word manual native backup, dirty state preserved, restore with confirmation');
+              await menu(wp,'Local recovery');
+              await recovery.locator('[data-recovery-auto]').check();
+              await wp.getByRole('dialog').getByRole('button',{name:'OK',exact:true}).click();
+              await wordDoc.locator('.de-p').last().click();await page.keyboard.press('End');await page.keyboard.type('AutoBackupQA');
+              await wordDoc.getByText(/AutoBackupQA/).first().waitFor();
+              await page.waitForFunction(old=>new Promise(resolve=>{
+                const req=indexedDB.open('WebOfficeRecoveryV11',1);
+                req.onsuccess=()=>{const db=req.result,r=db.transaction('drafts','readonly').objectStore('drafts').get('word');r.onsuccess=()=>{db.close();resolve(r.result?.time>old)};r.onerror=()=>{db.close();resolve(false)};};
+                req.onerror=()=>resolve(false);
+              }),firstBackup.time,{timeout:35000,polling:500});
+              await menu(wp,'Local recovery');
+              await recovery.locator('[data-recovery-action="delete"]').click();
+              await recovery.locator('[data-recovery-record]').getByText('No local backup.',{exact:true}).waitFor();
+              assert.equal(await getRecord('word'),null);
+              assert.equal(await recovery.locator('[data-recovery-auto]').isChecked(),false);
+              await wp.getByRole('dialog').getByRole('button',{name:'OK',exact:true}).click();
+              console.log('PASS Word opt-in autosave to IndexedDB and explicit deletion');
+              await menu(wp,'Template: meeting minutes');
+              await wp.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true}).click();
+              await wordDoc.getByText('Meeting minutes',{exact:true}).waitFor();
+              await wordDoc.getByText('Decisions',{exact:true}).waitFor();
+              await menu(wp,'Template: project report');
+              await wp.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true}).click();
+              await wordDoc.getByText('Project report',{exact:true}).waitFor();
+              console.log('PASS Word actual meeting minutes and project report DOCX templates');
+              await page.locator('#cryptor-tab-excel').click();
+              const ep=page.locator('#cryptor-office-excel');
+              await menu(ep,'Local recovery');
+              const er=ep.locator('.de-office-recovery');
+              await er.locator('[data-recovery-action="backup"]').click();
+              await er.locator('[data-recovery-status]').getByText('Backup saved.',{exact:true}).waitFor();
+              const excelBackup=await getRecord('excel');
+              assert.ok(excelBackup.size>100&&excelBackup.name.endsWith('.xlsx'));
+              assert.deepEqual(excelBackup.sig,[80,75]);assert.equal(await getRecord('word'),null);
+              await ep.getByRole('dialog').getByRole('button',{name:'OK',exact:true}).click();
+              await menu(ep,'Template: budget');
+              await ep.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true}).click();
+              await ep.locator('.de-cell').getByText('Planned (EUR)',{exact:true}).waitFor();
+              await menu(ep,'Template: task list');
+              await ep.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true}).click();
+              await ep.locator('.de-cell').getByText('Due date',{exact:true}).waitFor();
+              await menu(ep,'Local recovery');
+              await er.locator('[data-recovery-action="restore"]').click();
+              await ep.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true}).click();
+              await ep.locator('.de-cell').getByText('Category',{exact:true}).waitFor();
+              await ep.locator('.de-cell').getByText('Beta',{exact:true}).waitFor();
+              console.log('PASS Excel separate native XLSX backup, budget and task templates, original workbook restored');
+              assert.deepEqual(errors,[]);
+            }finally{
+              await page.screenshot({path:path.join(dir,'last-state.png')}).catch(()=>{});
+              await browser.close();
+            }
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          JS
+          node "$RUNNER_TEMP/pdf-qa/test.cjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-office-v11-browser-results
+          path: ${{ runner.temp }}/pdf-qa/results/
+          retention-days: 14
