@@ -1,0 +1,70 @@
+name: PDF Editor HTML preview (no deployment)
+on:
+  push:
+    branches: [web-office-pdf-editor]
+    paths: ['.github/workflows/pdf-editor-html-preview.yml']
+permissions:
+  contents: read
+jobs:
+  package:
+    if: github.ref == 'refs/heads/web-office-pdf-editor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package exact source and single HTML previews
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json, base64, shutil, mimetypes
+          root=Path('projects/devanagari-cryptor')
+          src=root/'pdf-editor'
+          out=Path('pdf-preview')
+          out.mkdir()
+          raw=src.joinpath('index.html').read_text(encoding='utf-8')
+          def data(path):
+              mime='font/woff2' if path.suffix=='.woff2' else 'font/ttf'
+              return 'data:'+mime+';base64,'+base64.b64encode(path.read_bytes()).decode()
+          fonts={p.name:data(p) for p in (src/'fonts').iterdir() if p.is_file()}
+          def font_css(css):
+              return re.sub(r'fonts/([\w.-]+\.(?:woff2|ttf))',lambda m:fonts.get(m[1],m[0]),css)
+          for name in ['styles.css','office-theme.css']:
+              raw=raw.replace('<link rel="stylesheet" href="'+name+'">','<style>'+font_css((src/name).read_text(encoding='utf-8'))+'</style>')
+          ui=(src/'office-ui.js').read_text(encoding='utf-8')
+          ui=ui.replace('new URLSearchParams(location.search)','new URLSearchParams(location.search || window.name)').replace('e.origin!==location.origin','e.origin!==window.origin')
+          ui=ui.replace('params.get("lang"):"en"','params.get("lang"):"bg"')
+          app=(src/'app.js').read_text(encoding='utf-8')
+          app=app.replace("return `fonts/${F.web}-latin-${VARIANT_CSS[v][0]}-${VARIANT_CSS[v][1]}.woff2`;","return previewFonts[`${F.web}-latin-${VARIANT_CSS[v][0]}-${VARIANT_CSS[v][1]}.woff2`];")
+          app=app.replace("`fonts/${f}`","previewFonts[f]")
+          app='const previewFonts='+json.dumps(fonts,separators=(',',':'))+';\n'+app
+          def safe(s): return re.sub(r'</script',r'<\\/script',s,flags=re.I)
+          raw=raw.replace('<script defer src="office-ui.js"></script>','<script defer type="module">'+safe(ui)+'</script>')
+          raw=raw.replace('<script type="module" src="app.js"></script>','<script type="module">'+safe(app)+'</script>')
+          assert 'previewFonts' in raw and 'src="app.js"' not in raw
+          (out/'PDF-Editor.html').write_text(raw,encoding='utf-8')
+          # Keep the exact original integrated folder for a local HTTP-server review.
+          folder=out/'Web-Office-original'
+          folder.mkdir()
+          shutil.copy2(root/'app-4.4.0.html',folder/'app-4.4.0.html')
+          shutil.copytree(src,folder/'pdf-editor')
+          main=(root/'app-4.4.0.html').read_text(encoding='utf-8')
+          bridge=(src/'bridge.js').read_text(encoding='utf-8')
+          bridge=bridge.replace('postMessage(settings(),location.origin)','postMessage(settings(),window.origin==="null"?"*":window.origin)')
+          enc=base64.b64encode(raw.encode()).decode()
+          bridge=bridge.replace('frame.src=url.href;','frame.name=url.searchParams.toString();frame.srcdoc=new TextDecoder().decode(Uint8Array.from(atob("'+enc+'"),c=>c.charCodeAt(0)));')
+          assert 'frame.srcdoc=' in bridge
+          pattern=r'<script\b[^>]*\bsrc\s*=\s*["\'](?:\./)?pdf-editor/bridge\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script\s*>'
+          main,count=re.subn(pattern,lambda m:'<script>'+safe(bridge)+'</script>',main,flags=re.I)
+          if count==1:
+              (out/'Web-Office-PDF-Editor.html').write_text(main,encoding='utf-8')
+          else:
+              print('Integrated standalone not generated: bridge tag match count',count)
+          (out/'README.txt').write_text('Preview only; not deployed. Open PDF-Editor.html or Web-Office-PDF-Editor.html in Chrome/Edge. Internet is required for CDN PDF engines. For the exact unmodified source folder, run python -m http.server 8765 inside Web-Office-original and open http://localhost:8765/app-4.4.0.html. Standalone packaging is for review only, not a production release.\n',encoding='utf-8')
+          shutil.copy2(src/'LICENSE',out/'LICENSE')
+          print([(p.name,p.stat().st_size) for p in out.glob('*.html')])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Web-Office-PDF-Editor-HTML
+          path: pdf-preview/
+          retention-days: 14
