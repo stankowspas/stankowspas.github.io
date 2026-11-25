@@ -623,6 +623,9 @@ jobs:
               const cell=ep.locator('.de-cell').getByText('42',{exact:true}).first();
               await cell.click();
               const cellGallery=ep.locator('[data-ribbon-group="styles"] .de-style-gallery');
+              // Opening replaces the old editor asynchronously; wait for the new toolbar and cell.
+              await cellGallery.locator('[data-style-tile="cell-1"]').waitFor({timeout:30000});
+              await cell.click();
               assert.equal(await cellGallery.locator('[data-style-tile]').count(),6);
               await cellGallery.locator('[data-style-tile="cell-1"]').click();
               const readColors=()=>cell.evaluate(el=>{const s=getComputedStyle(el.closest('.de-cell')||el);return [s.color,s.backgroundColor]});
