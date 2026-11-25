@@ -1211,7 +1211,14 @@ function bind() {
   $('#zoomOut').addEventListener('click', () => setZoom(S.zoom / 1.2));
   $('#zoomVal').addEventListener('click', () => setZoom(fitZoom()));
   const viewer = $('#viewer');
-  viewer.addEventListener('wheel', e => { if (e.ctrlKey || e.metaKey) { e.preventDefault(); setZoom(S.zoom * Math.exp(-e.deltaY * 0.0025), e.clientX, e.clientY); } }, { passive: false });
+  viewer.addEventListener('wheel', e => {
+    if (!S.base || !e.deltaY) return;
+    if (!e.ctrlKey && !e.metaKey && Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? viewer.clientHeight : 1);
+    e.preventDefault();
+    if (e.shiftKey && !e.ctrlKey && !e.metaKey) { viewer.scrollTop += dy; return; }
+    setZoom(S.zoom * Math.exp(-dy * 0.0025), e.clientX, e.clientY);
+  }, { passive: false });
   viewer.addEventListener('scroll', () => { clearTimeout(viewer._t); viewer._t = setTimeout(updatePageInd, 80); }, { passive: true });
   let pinch = null; // two-finger zoom on phones
   viewer.addEventListener('touchstart', e => { if (e.touches.length === 2) { const [a, b] = e.touches; pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), z: S.zoom }; } }, { passive: true });
