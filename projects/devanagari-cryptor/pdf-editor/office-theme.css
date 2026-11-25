@@ -75,3 +75,47 @@ select,input[type=number],input[type=color],.seg,.seg button,.stepper button,.ob
 .tcontent:empty::before{content:var(--placeholder-text,"Type here")}
 @media(max-width:820px){:root{--toolsW:0px}.tool{width:78px}.hero{padding-top:18px;gap:16px}.topbar{gap:4px}}
 @media print{body{background:#fff!important;color:#000!important}}
+
+/* Native Web Office layout: horizontal ribbon, common viewport, no second fullscreen. */
+html[data-office-embedded]{--top:44px;--toolsW:0px;--pagesW:158px;--propsW:236px;--pdf-ribbon-height:48px}
+html[data-office-embedded] .topbar{gap:6px;padding:0 8px;background:var(--panelhead);color:var(--text);border-bottom:1px solid var(--edge)}
+html[data-office-embedded] .brand{gap:5px;font-size:13px;color:var(--text)}
+html[data-office-embedded] .brand .logo{display:none}
+html[data-office-embedded] .docname{color:var(--muted)}
+html[data-office-embedded] .actions{gap:4px}
+html[data-office-embedded] .topbar .btn,html[data-office-embedded] .topbar .gh-btn{font-size:12px;border-radius:6px;padding:5px 8px}
+html[data-office-embedded] .landing{display:flex;align-items:center;justify-content:center;padding:calc(var(--top) + 8px) 8px 8px;min-height:100%;background:var(--page)}
+html[data-office-embedded] .hero{display:block;max-width:520px;width:100%;padding:8px 12px;text-align:center}
+html[data-office-embedded] .hero h1{font-size:20px;margin:0 0 6px;color:var(--text);letter-spacing:0}
+html[data-office-embedded] .hero .sub{font-size:13px;margin:0 0 8px}
+html[data-office-embedded] .source-credit{font-size:11px;margin:0 0 10px}
+html[data-office-embedded] .hero-card{padding:12px;border-radius:8px;box-shadow:none}
+html[data-office-embedded] .dropzone{padding:14px 10px}
+html[data-office-embedded] .dropzone .dz-icon{width:34px;height:34px}
+html[data-office-embedded] .tool{border-radius:6px;min-height:36px}
+html[data-office-embedded] .tool svg{width:18px;height:18px;flex-shrink:0}
+html[data-office-embedded] .pages-panel{padding:6px}
+html[data-office-embedded] .props{padding:8px 10px}
+html[data-office-embedded] .zoombar{border-radius:7px;padding:2px}
+html[data-office-embedded] [hidden]{display:none!important}
+@media(min-width:821px){
+ html[data-office-embedded] .editor{display:grid;grid-template-columns:var(--pagesW) minmax(0,1fr) var(--propsW);grid-template-rows:auto minmax(0,1fr)}
+ html[data-office-embedded] .tools{grid-row:1;grid-column:1/-1;flex-direction:row;justify-content:flex-start;align-items:center;padding:4px;gap:4px;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--edge);min-width:0;background:var(--panelhead)}
+ html[data-office-embedded] .tool{width:auto;flex:0 0 auto;flex-direction:row;gap:5px;padding:5px 8px;white-space:nowrap;font-size:12px}
+ html[data-office-embedded] .pages-panel{grid-row:2;grid-column:1;min-height:0}
+ html[data-office-embedded] .viewer{grid-row:2;grid-column:2;min-height:0;min-width:0}
+ html[data-office-embedded] .props{grid-row:2;grid-column:3;min-height:0;min-width:0}
+ html[data-office-embedded] .zoombar{position:absolute;left:calc(var(--pagesW) + (100% - var(--pagesW) - var(--propsW))/2);bottom:8px}
+ html[data-office-embedded][data-office-ribbon-collapsed] .editor{grid-template-rows:0 minmax(0,1fr)}
+}
+@media(max-width:820px){
+ html[data-office-embedded] .tools{top:var(--top);bottom:auto;height:var(--pdf-ribbon-height);border-top:0;border-bottom:1px solid var(--edge);padding:3px 5px}
+ html[data-office-embedded] .tool{width:auto;min-width:56px;padding:3px 6px}
+ html[data-office-embedded] .viewer{top:calc(var(--top) + var(--pdf-ribbon-height));bottom:0}
+ html[data-office-embedded] .pages-panel{top:calc(var(--top) + var(--pdf-ribbon-height))}
+ html[data-office-embedded] .props{bottom:0}
+ html[data-office-embedded] .zoombar{bottom:10px}
+ html[data-office-embedded][data-office-ribbon-collapsed] .viewer,html[data-office-embedded][data-office-ribbon-collapsed] .pages-panel{top:var(--top)}
+}
+html[data-office-embedded][data-office-ribbon-collapsed] .tools{display:none!important}
+@media print{html[data-office-embedded] .topbar,html[data-office-embedded] .editor{display:none!important}}
