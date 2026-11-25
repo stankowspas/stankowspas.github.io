@@ -1,0 +1,366 @@
+name: Web Office v7 Ribbon QA (no deployment)
+on:
+  push:
+    branches: [web-office-v7-ribbon]
+    paths: ['.github/workflows/web-office-v7-ribbon-qa.yml','projects/devanagari-cryptor/app-4.4.0.html']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: web-office-v7-ribbon-qa
+  cancel-in-progress: true
+jobs:
+  browser:
+    if: github.ref == 'refs/heads/web-office-v7-ribbon'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Word and Excel categorized ribbon (test branch only)
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/web-office-v7-ribbon
+          cat > /tmp/ribbon-v7.js <<'RIBBON'
+          // Categorized ribbons for Word and Excel. Existing command elements and handlers are reused.
+          const RIBBON_LABELS = {
+           bg:['Начало','Вмъкване','Оформление','Преглед','Изглед','Клетки','Формули','Данни','Всички инструменти'],
+           en:['Home','Insert','Layout','Review','View','Cells','Formulas','Data','All tools'],
+           de:['Start','Einfügen','Layout','Überprüfen','Ansicht','Zellen','Formeln','Daten','Alle Werkzeuge'],
+           fr:['Accueil','Insertion','Disposition','Révision','Affichage','Cellules','Formules','Données','Tous les outils'],
+           es:['Inicio','Insertar','Diseño','Revisar','Vista','Celdas','Fórmulas','Datos','Todas las herramientas'],
+           it:['Home','Inserisci','Layout','Revisione','Visualizza','Celle','Formule','Dati','Tutti gli strumenti'],
+           pt:['Início','Inserir','Layout','Revisão','Exibir','Células','Fórmulas','Dados','Todas as ferramentas'],
+           pl:['Narzędzia główne','Wstawianie','Układ','Recenzja','Widok','Komórki','Formuły','Dane','Wszystkie narzędzia'],
+           ro:['Pornire','Inserare','Aspect','Revizuire','Vizualizare','Celule','Formule','Date','Toate instrumentele'],
+           el:['Κεντρική','Εισαγωγή','Διάταξη','Αναθεώρηση','Προβολή','Κελιά','Τύποι','Δεδομένα','Όλα τα εργαλεία'],
+           cs:['Domů','Vložení','Rozložení','Revize','Zobrazení','Buňky','Vzorce','Data','Všechny nástroje'],
+           hi:['होम','सम्मिलित करें','लेआउट','समीक्षा','दृश्य','सेल','सूत्र','डेटा','सभी उपकरण']
+          };
+          const RIBBON_INDEX = {home:0,insert:1,layout:2,review:3,view:4,cells:5,formulas:6,data:7,all:8};
+          function ribbonCategory(el, mode, t) {
+              const p=el.props, icon=p.icon;
+              if (mode === 'word') {
+                  if (p.title === t.table.menu || p.title === t.docx.cellColor || p.title === t.docx.cellBorders) return 'home';
+                  if (['link','image','table','headerFooter','omega'].includes(icon)) return 'insert';
+                  if (['pageSetup','pagebreak'].includes(icon)) return 'layout';
+                  if (['track','review'].includes(icon)) return 'review';
+                  if (icon === 'outline') return 'view';
+              } else {
+                  if (['merge','rowAdd'].includes(icon)) return 'cells';
+                  if (icon === 'sum') return 'formulas';
+                  if (icon === 'sort') return 'data';
+                  if (icon === 'freeze') return 'view';
+              }
+              return 'home';
+          }
+          function RibbonRow({children, mode}) {
+              const t=(0,strings_1.useStrings)();
+              const [active,setActive]=(0,react_1.useState)('home');
+              const all=flatten(children);
+              const categories=mode==='word'?['home','insert','layout','review','view','all']:['home','cells','formulas','data','view','all'];
+              const groups=Object.fromEntries(categories.map(c=>[c,[]]));
+              for (const el of all) if (el.type!==exports.Sep) groups[ribbonCategory(el,mode,t)].push(el);
+              const visible=categories.filter(c=>c==='all'||groups[c].length);
+              const selected=visible.includes(active)?active:'home';
+              const labels=RIBBON_LABELS[String(t.locale||'en').split('-')[0]]||RIBBON_LABELS.en;
+              const content=selected==='all'?children:groups[selected];
+              return (0,jsx_runtime_1.jsxs)('div',{className:'de-office-ribbon','data-ribbon-mode':mode,children:[
+                  (0,jsx_runtime_1.jsx)('div',{className:'de-office-ribbon-tabs',role:'group','aria-label':labels[8],style:{display:'flex',gap:3,overflowX:'auto',padding:'0 0 5px',alignItems:'center'},children:visible.map(c=>(0,jsx_runtime_1.jsx)('button',{
+                      type:'button',className:'de-office-ribbon-tab','data-ribbon-tab':c,'aria-pressed':selected===c,
+                      onMouseDown:e=>e.preventDefault(),onClick:()=>setActive(c),
+                      style:{flex:'0 0 auto',font:'inherit',fontSize:12,fontWeight:selected===c?600:400,cursor:'pointer',whiteSpace:'nowrap',padding:'6px 11px',border:'1px solid '+(selected===c?'var(--de-accent)':'transparent'),borderRadius:5,color:selected===c?'var(--de-accent-ink)':'var(--de-text)',background:selected===c?'var(--de-accent)':'transparent'},children:labels[RIBBON_INDEX[c]]
+                  },c))}),
+                  (0,jsx_runtime_1.jsx)(ToolbarRow,{children:content},selected)
+              ]});
+          }
+          exports.RibbonRow=RibbonRow;
+          RIBBON
+          python3 - <<'PY'
+          from pathlib import Path
+          import re,gzip,base64
+          host=Path('projects/devanagari-cryptor/app-4.4.0.html')
+          s=host.read_text()
+          ribbon=Path('/tmp/ribbon-v7.js').read_text()
+          ms=[m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s) if base64.b64decode(m[1])[:2]==b'\x1f\x8b']
+          assert len(ms)==1
+          m=ms[0]; b=gzip.decompress(base64.b64decode(m[1])).decode()
+          def one(s,a,b):
+              assert s.count(a)==1,(a[:100],s.count(a));return s.replace(a,b,1)
+          if 'function RibbonRow(' not in b:
+              a=b.index('"src/react/edit/Toolbar.tsx":function');z=b.index('\n},\n',a)
+              p=one(b[a:z],'const PALETTE = [',ribbon+'\nconst PALETTE = [');b=b[:a]+p+b[z:]
+              b=one(b,'function EditorBar({ children }) {','function EditorBar({ children, ribbonMode }) {')
+              b=one(b,'(0, jsx_runtime_1.jsx)(Toolbar_1.ToolbarRow, { children: children }), bar)','(0, jsx_runtime_1.jsx)(ribbonMode ? Toolbar_1.RibbonRow : Toolbar_1.ToolbarRow, { children: children, mode: ribbonMode }), bar)')
+              for mod,mode in [('src/react/docx/DocxToolbar.tsx','word'),('src/react/xlsx/XlsxToolbar.tsx','excel')]:
+                  a=b.index('"'+mod+'":function');z=b.index('\n},\n',a)
+                  p=one(b[a:z],'(Slots_1.EditorBar, { children:','(Slots_1.EditorBar, { ribbonMode: "'+mode+'", children:');b=b[:a]+p+b[z:]
+              host.write_text(s[:m.start(1)]+base64.b64encode(gzip.compress(b.encode(),mtime=0)).decode()+s[m.end(1):])
+          Path('/tmp/office-v7.js').write_text(b)
+          PY
+          node --check /tmp/office-v7.js
+          git add projects/devanagari-cryptor/app-4.4.0.html
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Organize Word and Excel tools into categorized ribbons'
+            git push origin HEAD:refs/heads/web-office-v7-ribbon
+          fi
+      - name: Package exact source and single HTML previews
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json, base64, shutil, mimetypes
+          root=Path('projects/devanagari-cryptor')
+          src=root/'pdf-editor'
+          out=Path('pdf-preview')
+          out.mkdir()
+          raw=src.joinpath('index.html').read_text(encoding='utf-8')
+          def data(path):
+              mime='font/woff2' if path.suffix=='.woff2' else 'font/ttf'
+              return 'data:'+mime+';base64,'+base64.b64encode(path.read_bytes()).decode()
+          fonts={p.name:data(p) for p in (src/'fonts').iterdir() if p.is_file()}
+          def font_css(css):
+              return re.sub(r'fonts/([\w.-]+\.(?:woff2|ttf))',lambda m:fonts.get(m[1],m[0]),css)
+          for name in ['styles.css','office-theme.css']:
+              raw=raw.replace('<link rel="stylesheet" href="'+name+'">','<style>'+font_css((src/name).read_text(encoding='utf-8'))+'</style>')
+          ui=(src/'office-ui.js').read_text(encoding='utf-8')
+          ui=ui.replace('new URLSearchParams(location.search)','new URLSearchParams(location.search || window.name)').replace('e.origin!==location.origin','e.origin!==window.origin')
+          ui=ui.replace('params.get("lang"):"en"','params.get("lang"):"bg"')
+          app=(src/'app.js').read_text(encoding='utf-8')
+          app=app.replace("return `fonts/${F.web}-latin-${VARIANT_CSS[v][0]}-${VARIANT_CSS[v][1]}.woff2`;","return previewFonts[`${F.web}-latin-${VARIANT_CSS[v][0]}-${VARIANT_CSS[v][1]}.woff2`];")
+          app=app.replace("`fonts/${f}`","previewFonts[f]")
+          app='const previewFonts='+json.dumps(fonts,separators=(',',':'))+';\n'+app
+          def safe(s): return re.sub(r'</script',r'<\\/script',s,flags=re.I)
+          raw=raw.replace('<script defer src="office-ui.js"></script>','<script defer type="module">'+safe(ui)+'</script>')
+          raw=raw.replace('<script type="module" src="app.js"></script>','<script type="module">'+safe(app)+'</script>')
+          assert 'previewFonts' in raw and 'src="app.js"' not in raw
+          (out/'PDF-Editor.html').write_text(raw,encoding='utf-8')
+          # Keep the exact original integrated folder for a local HTTP-server review.
+          folder=out/'Web-Office-original'
+          folder.mkdir()
+          shutil.copy2(root/'app-4.4.0.html',folder/'app-4.4.0.html')
+          shutil.copytree(src,folder/'pdf-editor')
+          main=(root/'app-4.4.0.html').read_text(encoding='utf-8')
+          bridge=(src/'bridge.js').read_text(encoding='utf-8')
+          bridge=bridge.replace('postMessage(settings(),location.origin)','postMessage(settings(),window.origin==="null"?"*":window.origin)')
+          enc=base64.b64encode(raw.encode()).decode()
+          bridge=bridge.replace('frame.src=url.href;','frame.name=url.searchParams.toString();frame.srcdoc=new TextDecoder().decode(Uint8Array.from(atob("'+enc+'"),c=>c.charCodeAt(0)));')
+          assert 'frame.srcdoc=' in bridge
+          pattern=r'<script\b[^>]*\bsrc\s*=\s*["\'](?:\./)?pdf-editor/bridge\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script\s*>'
+          main,count=re.subn(pattern,lambda m:'<script>'+safe(bridge)+'</script>',main,flags=re.I)
+          if count==1:
+              (out/'Web-Office-PDF-Editor.html').write_text(main,encoding='utf-8')
+          else:
+              print('Integrated standalone not generated: bridge tag match count',count)
+          (out/'README.txt').write_text('Preview only; not deployed. Open PDF-Editor.html or Web-Office-PDF-Editor.html in Chrome/Edge. Internet is required for CDN PDF engines. For the exact unmodified source folder, run python -m http.server 8765 inside Web-Office-original and open http://localhost:8765/app-4.4.0.html. Standalone packaging is for review only, not a production release.\n',encoding='utf-8')
+          shutil.copy2(src/'LICENSE',out/'LICENSE')
+          print([(p.name,p.stat().st_size) for p in out.glob('*.html')])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Web-Office-v7-ribbon-preview
+          path: pdf-preview/
+          retention-days: 14
+      - name: Prepare browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pdf-qa" playwright@1.51.1 --no-audit --no-fund
+          "$RUNNER_TEMP/pdf-qa/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Test actual local Web Office in Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/pdf-qa/results"
+          python3 -m http.server 8765 --bind 127.0.0.1 > "$RUNNER_TEMP/pdf-qa/server.log" 2>&1 &
+          cat > "$RUNNER_TEMP/pdf-qa/test.cjs" <<'JS'
+          const {chromium}=require('playwright');
+          const assert=require('node:assert/strict');
+          const fs=require('node:fs');
+          const path=require('node:path');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const page=await browser.newPage({viewport:{width:1440,height:1000},acceptDownloads:true});
+            const errors=[];
+            page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message)});
+            page.on('dialog',d=>d.accept());
+            const dir=path.join(__dirname,'results');
+            const base='http://127.0.0.1:8765/projects/devanagari-cryptor/';
+            try{
+              await page.goto(base+'app-4.4.0.html',{waitUntil:'domcontentloaded'});
+              await page.locator('#cryptor-tab-pdf-editor').waitFor({timeout:30000});
+              const mode=page.locator('#modeSelect');
+              const original=await mode.inputValue();
+              await page.locator('#langSelect').selectOption('bg');
+              await page.locator('#cryptor-tab-pdf-editor').click();
+              await page.locator('#cryptor-office-pdf-editor iframe').waitFor();
+              const frame=page.frameLocator('#cryptor-office-pdf-editor iframe');
+              await frame.locator('#btnSample').waitFor();
+              await page.screenshot({path:path.join(dir,'01-office-editor-bg.png')});
+              assert.equal(await frame.locator('html').getAttribute('lang'),'bg');
+              assert.equal(await page.locator('#cryptorOffice > #cryptor-office-pdf-editor').count(),1);
+              const section=page.locator('#cryptor-office-pdf-editor');
+              await section.locator('.cryptor-office-expand').click();
+              await page.waitForFunction(()=>document.documentElement.hasAttribute('data-office-expanded'));
+              await section.locator('.cryptor-office-expand').click();
+              await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-office-expanded'));
+              console.log('PASS common Office expand/restore');
+              await section.locator('.cryptor-office-fullscreen').click();
+              await page.waitForFunction(()=>document.fullscreenElement?.id==='cryptor-office-pdf-editor');
+              await section.locator('.cryptor-office-fullscreen').click();
+              await page.waitForFunction(()=>!document.fullscreenElement);
+              console.log('PASS common Office full screen and exit');
+              console.log('PASS office integration / Bulgarian language');
+              await frame.locator('#btnSample').click();
+              await frame.locator('#editor').waitFor({timeout:60000});
+              await frame.locator('#pagesWrap .page canvas').first().waitFor({timeout:30000});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+              console.log('PASS PDF sample open and render');
+              for(const [kind,expected] of [['word',['home','insert','layout','review','view','all']],['excel',['home','cells','formulas','data','view','all']]]){
+                await page.locator('#cryptor-tab-'+kind).click();
+                const panel=page.locator('#cryptor-office-'+kind);
+                await panel.locator('.de-office-ribbon').waitFor({timeout:30000});
+                const tabs=panel.locator('.de-office-ribbon-tab');
+                assert.deepEqual(await tabs.evaluateAll(els=>els.map(e=>e.dataset.ribbonTab)),expected);
+                for(const key of expected){
+                  const tab=panel.locator('[data-ribbon-tab="'+key+'"]');
+                  await tab.click();
+                  assert.equal(await tab.getAttribute('aria-pressed'),'true');
+                  assert.ok(await panel.locator('.de-ebar > .de-ebar-it').count()>0,kind+' '+key+' is empty');
+                }
+                await panel.locator('[data-ribbon-tab="home"]').click();
+                assert.equal(await panel.locator('[data-ribbon-tab="home"]').textContent(),'Начало');
+                await page.screenshot({path:path.join(dir,kind+'-v7.png')});
+                await panel.locator('.cryptor-office-ribbon-toggle').click();
+                await panel.locator('.de-office-ribbon').waitFor({state:'hidden'});
+                await panel.locator('.cryptor-office-ribbon-toggle').click();
+                await panel.locator('.de-office-ribbon').waitFor();
+                console.log('PASS '+kind+' six actual ribbon tabs, nonempty tools, Bulgarian labels, collapse/restore');
+              }
+              await page.locator('#langSelect').selectOption('en');
+              assert.equal(await page.locator('#cryptor-office-excel [data-ribbon-tab="home"]').textContent(),'Home');
+              await page.locator('#langSelect').selectOption('bg');
+              await page.locator('#cryptor-tab-powerpoint').click();
+              const ppt=page.locator('#cryptor-office-powerpoint');
+              await ppt.locator('.de-ebar').waitFor();
+              assert.equal(await ppt.locator('.de-office-ribbon').count(),0);
+              await page.locator('#cryptor-tab-pdf-editor').click();
+              await frame.locator('#editor').waitFor();
+              console.log('PASS language switch and unchanged PowerPoint/PDF editor');
+
+              const themes=page.locator('#themeSelect');
+              assert.equal(await themes.locator('option').count(),6);
+              for (const [theme,accent] of [['black-platinum','#a5a5a5'],['black-gold','#c5ae60']]) {
+                await themes.selectOption(theme);
+                await page.waitForFunction(t=>document.documentElement.dataset.theme===t,theme);
+                await frame.locator('html[data-theme="'+theme+'"]').waitFor();
+                assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()),accent);
+                assert.equal(await frame.locator('html').evaluate(el=>getComputedStyle(el).getPropertyValue('--accent').trim()),accent);
+                assert.equal(await frame.locator('.page').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(255, 255, 255)');
+                for(const mode of ['word','excel','powerpoint']){
+                  await page.locator('#cryptor-tab-'+mode).click();
+                  await page.locator('#cryptor-office-'+mode).waitFor();
+                  assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--page').trim()),'#090909');
+                }
+                await page.locator('#cryptor-tab-pdf-editor').click();
+                await frame.locator('#editor').waitFor();
+                assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+                assert.equal(await page.evaluate(()=>localStorage.getItem('bgdev.theme')),theme);
+                await page.screenshot({path:path.join(dir,theme+'.png')});
+                console.log('PASS '+theme+' host, Office tabs, PDF, saved setting, unchanged page');
+              }
+              await themes.selectOption('dark');
+              await frame.locator('html[data-theme="dark"]').waitFor();
+
+              const pdfFrame=page.frames().find(f=>f.url().includes('/pdf-editor/index.html'));
+              const sample=Buffer.from(await pdfFrame.evaluate(async()=>Array.from(await window.__pdfStudio.makeSample())));
+              await frame.locator('#fileMergePdf').setInputFiles([{name:'first.pdf',mimeType:'application/pdf',buffer:sample},{name:'second.pdf',mimeType:'application/pdf',buffer:sample}]);
+              await frame.locator('#pagesWrap .page').nth(3).waitFor({timeout:30000});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),4);
+              console.log('PASS merge two two-page PDF files');
+              await frame.locator('#btnRotateLeft').click();
+              assert.equal(await pdfFrame.evaluate(()=>window.__pdfStudio.S.pages[0].rot),270);
+              await frame.locator('#btnRotateRight').click();
+              assert.equal(await pdfFrame.evaluate(()=>window.__pdfStudio.S.pages[0].rot),0);
+              console.log('PASS rotate left and right');
+              const splitPending=page.waitForEvent('download',{timeout:30000});
+              await frame.locator('#btnSplitPdf').click();
+              const splitDownload=await splitPending;
+              const zipPath=path.join(dir,'split-pages.zip');
+              await splitDownload.saveAs(zipPath);
+              const z=fs.readFileSync(zipPath);
+              let off=0,count=0;
+              while(z.readUInt32LE(off)===0x04034b50){
+                const sz=z.readUInt32LE(off+18),start=off+30+z.readUInt16LE(off+26)+z.readUInt16LE(off+28);
+                const data=Array.from(z.subarray(start,start+sz));
+                await pdfFrame.evaluate(async b=>{const d=await PDFLib.PDFDocument.load(new Uint8Array(b));if(d.getPageCount()!==1)throw Error('Split output is not one page')},data);
+                off=start+sz;count++;
+              }
+              assert.equal(count,4);
+              console.log('PASS split ZIP with four valid individual PDFs');
+              await pdfFrame.evaluate(async()=>window.__pdfStudio.openBytes(await window.__pdfStudio.makeSample(),'sample-invoice.pdf'));
+              await frame.locator('#pagesWrap .page').nth(1).waitFor();
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+
+              const tools=await frame.locator('#tools').boundingBox();
+              const viewer=await frame.locator('#viewer').boundingBox();
+              assert.ok(tools.width>viewer.width && tools.y<viewer.y,'Tools must be a horizontal ribbon above the workspace');
+              await section.locator('.cryptor-office-ribbon-toggle').click();
+              await frame.locator('#tools').waitFor({state:'hidden'});
+              await section.locator('.cryptor-office-ribbon-toggle').click();
+              await frame.locator('#tools').waitFor();
+              console.log('PASS shared ribbon collapse/restore');
+              await frame.locator('[data-tool="text"]').click();
+              await frame.locator('#pagesWrap .layer').first().click({position:{x:120,y:120}});
+              await frame.locator('.tcontent[contenteditable="plaintext-only"], .tcontent[contenteditable="true"]').fill('PDF QA test');
+              await frame.locator('[data-tool="select"]').click();
+              assert.equal(await frame.locator('.obj.text').count(),1);
+              await frame.locator('#btnUndo').click();
+              assert.equal(await frame.locator('.obj.text').count(),0);
+              await frame.locator('#btnRedo').click();
+              assert.equal(await frame.locator('.obj.text').count(),1);
+              console.log('PASS add text and undo/redo');
+              await frame.locator('#btnAddPage').click();
+              assert.equal(await frame.locator('#pagesWrap .page').count(),3);
+              await frame.locator('#thumbs .thumb').last().locator('[data-op="rot"]').click({force:true});
+              const f=page.frames().find(f=>f.url().includes('/pdf-editor/index.html'));
+              assert.equal(await f.evaluate(()=>window.__pdfStudio.S.pages.at(-1).rot),90);
+              await frame.locator('#thumbs .thumb').last().locator('[data-op="up"]').click({force:true});
+              assert.equal(await f.evaluate(()=>window.__pdfStudio.S.pages[1].src),-1);
+              await frame.locator('#thumbs .thumb').nth(1).locator('[data-op="del"]').click({force:true});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+              console.log('PASS add/rotate/reorder/delete page');
+              await page.screenshot({path:path.join(dir,'02-edited-document-bg.png')});
+              const pending=page.waitForEvent('download',{timeout:30000});
+              await frame.locator('#btnDownload').click();
+              const download=await pending;
+              const pdf=path.join(dir,'qa-output.pdf');
+              await download.saveAs(pdf);
+              assert.equal(fs.readFileSync(pdf).subarray(0,5).toString(),'%PDF-');
+              const bytes=Array.from(fs.readFileSync(pdf));
+              await f.evaluate(async b=>{const d=await PDFLib.PDFDocument.load(new Uint8Array(b));if(d.getPageCount()!==2)throw Error('Invalid exported page count')},bytes);
+              console.log('PASS download and parse exported PDF');
+              if(original && original!=='pdf-editor'){
+                await page.locator('#cryptor-tab-word').click();
+                await page.locator('#cryptor-office-word').waitFor();
+                await page.locator('#cryptor-tab-excel').click();
+                await page.locator('#cryptor-office-excel').waitFor();
+                await page.locator('#cryptor-office-pdf-editor').waitFor({state:'hidden'});
+                await page.locator('#cryptor-tab-pdf-editor').click();
+                await frame.locator('#editor').waitFor();
+                assert.equal(await frame.locator('.obj.text').count(),1);
+                console.log('PASS tab switching retains document');
+              }
+              assert.deepEqual(errors,[]);
+            }finally{
+              await page.screenshot({path:path.join(dir,'last-state.png')}).catch(()=>{});
+              await browser.close();
+            }
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          JS
+          node "$RUNNER_TEMP/pdf-qa/test.cjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-office-v7-browser-results
+          path: ${{ runner.temp }}/pdf-qa/results/
+          retention-days: 14
