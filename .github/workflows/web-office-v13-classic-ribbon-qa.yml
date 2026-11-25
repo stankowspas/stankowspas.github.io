@@ -1,0 +1,659 @@
+name: Web Office v13 Classic Ribbon QA (no deployment)
+on:
+  push:
+    branches: [web-office-v13-classic-ribbon]
+    paths: ['.github/workflows/web-office-v13-classic-ribbon-qa.yml','projects/devanagari-cryptor/app-4.4.0.html']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: web-office-v13-classic-ribbon-qa
+  cancel-in-progress: true
+jobs:
+  browser:
+    if: github.ref == 'refs/heads/web-office-v13-classic-ribbon'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install v13 classic ribbon (test branch only)
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/web-office-v13-classic-ribbon
+          printf '%s' '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' | base64 -d | gzip -d > /tmp/office-v13-patch.py
+          echo 'd2724b71811add22fd0d8eaef8f95aa7ef16999212363cf096222738f7154c67  /tmp/office-v13-patch.py' | sha256sum --check
+          host=projects/devanagari-cryptor/app-4.4.0.html
+          python3 /tmp/office-v13-patch.py "$host" "$host"
+          node --check /tmp/office-v13.js
+          git add "$host"
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Web Office v13: grouped classic ribbon for Word and Excel'
+            git push origin HEAD:refs/heads/web-office-v13-classic-ribbon
+          fi
+      - name: Package exact source and single HTML previews
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json, base64, shutil, mimetypes
+          root=Path('projects/devanagari-cryptor')
+          src=root/'pdf-editor'
+          out=Path('pdf-preview')
+          out.mkdir()
+          raw=src.joinpath('index.html').read_text(encoding='utf-8')
+          def data(path):
+              mime='font/woff2' if path.suffix=='.woff2' else 'font/ttf'
+              return 'data:'+mime+';base64,'+base64.b64encode(path.read_bytes()).decode()
+          fonts={p.name:data(p) for p in (src/'fonts').iterdir() if p.is_file()}
+          def font_css(css):
+              return re.sub(r'fonts/([\w.-]+\.(?:woff2|ttf))',lambda m:fonts.get(m[1],m[0]),css)
+          for name in ['styles.css','office-theme.css']:
+              raw=raw.replace('<link rel="stylesheet" href="'+name+'">','<style>'+font_css((src/name).read_text(encoding='utf-8'))+'</style>')
+          ui=(src/'office-ui.js').read_text(encoding='utf-8')
+          ui=ui.replace('new URLSearchParams(location.search)','new URLSearchParams(location.search || window.name)').replace('e.origin!==location.origin','e.origin!==window.origin')
+          ui=ui.replace('params.get("lang"):"en"','params.get("lang"):"bg"')
+          app=(src/'app.js').read_text(encoding='utf-8')
+          app=app.replace("return `fonts/${F.web}-latin-${VARIANT_CSS[v][0]}-${VARIANT_CSS[v][1]}.woff2`;","return previewFonts[`${F.web}-latin-${VARIANT_CSS[v][0]}-${VARIANT_CSS[v][1]}.woff2`];")
+          app=app.replace("`fonts/${f}`","previewFonts[f]")
+          app='const previewFonts='+json.dumps(fonts,separators=(',',':'))+';\n'+app
+          def safe(s): return re.sub(r'</script',r'<\\/script',s,flags=re.I)
+          raw=raw.replace('<script defer src="office-ui.js"></script>','<script defer type="module">'+safe(ui)+'</script>')
+          raw=raw.replace('<script type="module" src="app.js"></script>','<script type="module">'+safe(app)+'</script>')
+          assert 'previewFonts' in raw and 'src="app.js"' not in raw
+          (out/'PDF-Editor.html').write_text(raw,encoding='utf-8')
+          # Keep the exact original integrated folder for a local HTTP-server review.
+          folder=out/'Web-Office-original'
+          folder.mkdir()
+          shutil.copy2(root/'app-4.4.0.html',folder/'app-4.4.0.html')
+          shutil.copytree(src,folder/'pdf-editor')
+          main=(root/'app-4.4.0.html').read_text(encoding='utf-8')
+          bridge=(src/'bridge.js').read_text(encoding='utf-8')
+          bridge=bridge.replace('postMessage(settings(),location.origin)','postMessage(settings(),window.origin==="null"?"*":window.origin)')
+          enc=base64.b64encode(raw.encode()).decode()
+          bridge=bridge.replace('frame.src=url.href;','frame.name=url.searchParams.toString();frame.srcdoc=new TextDecoder().decode(Uint8Array.from(atob("'+enc+'"),c=>c.charCodeAt(0)));')
+          assert 'frame.srcdoc=' in bridge
+          pattern=r'<script\b[^>]*\bsrc\s*=\s*["\'](?:\./)?pdf-editor/bridge\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script\s*>'
+          main,count=re.subn(pattern,lambda m:'<script>'+safe(bridge)+'</script>',main,flags=re.I)
+          if count==1:
+              (out/'Web-Office-PDF-Editor.html').write_text(main,encoding='utf-8')
+          else:
+              print('Integrated standalone not generated: bridge tag match count',count)
+          (out/'README.txt').write_text('Preview only; not deployed. Open PDF-Editor.html or Web-Office-PDF-Editor.html in Chrome/Edge. Internet is required for CDN PDF engines. For the exact unmodified source folder, run python -m http.server 8765 inside Web-Office-original and open http://localhost:8765/app-4.4.0.html. Standalone packaging is for review only, not a production release.\n',encoding='utf-8')
+          shutil.copy2(src/'LICENSE',out/'LICENSE')
+          print([(p.name,p.stat().st_size) for p in out.glob('*.html')])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Web-Office-v13-Classic-Ribbon-preview
+          path: pdf-preview/
+          retention-days: 14
+      - name: Prepare browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pdf-qa" playwright@1.51.1 --no-audit --no-fund
+          "$RUNNER_TEMP/pdf-qa/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Test actual local Web Office in Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/pdf-qa/results"
+          python3 -m http.server 8765 --bind 127.0.0.1 > "$RUNNER_TEMP/pdf-qa/server.log" 2>&1 &
+          cat > "$RUNNER_TEMP/pdf-qa/test.cjs" <<'JS'
+          const {chromium}=require('playwright');
+          const assert=require('node:assert/strict');
+          const fs=require('node:fs');
+          const path=require('node:path');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const page=await browser.newPage({viewport:{width:1440,height:1000},acceptDownloads:true});
+            const errors=[];
+            page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message)});
+            page.on('dialog',d=>d.accept());
+            const dir=path.join(__dirname,'results');
+            const base='http://127.0.0.1:8765/projects/devanagari-cryptor/';
+            try{
+              await page.goto(base+'app-4.4.0.html',{waitUntil:'domcontentloaded'});
+              await page.locator('#cryptor-tab-pdf-editor').waitFor({timeout:30000});
+              const mode=page.locator('#modeSelect');
+              const original=await mode.inputValue();
+              await page.locator('#langSelect').selectOption('bg');
+              await page.locator('#cryptor-tab-pdf-editor').click();
+              await page.locator('#cryptor-office-pdf-editor iframe').waitFor();
+              const frame=page.frameLocator('#cryptor-office-pdf-editor iframe');
+              await frame.locator('#btnSample').waitFor();
+              await page.screenshot({path:path.join(dir,'01-office-editor-bg.png')});
+              assert.equal(await frame.locator('html').getAttribute('lang'),'bg');
+              assert.equal(await page.locator('#cryptorOffice > #cryptor-office-pdf-editor').count(),1);
+              const section=page.locator('#cryptor-office-pdf-editor');
+              await section.locator('.cryptor-office-expand').click();
+              await page.waitForFunction(()=>document.documentElement.hasAttribute('data-office-expanded'));
+              await section.locator('.cryptor-office-expand').click();
+              await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-office-expanded'));
+              console.log('PASS common Office expand/restore');
+              await section.locator('.cryptor-office-fullscreen').click();
+              await page.waitForFunction(()=>document.fullscreenElement?.id==='cryptor-office-pdf-editor');
+              await section.locator('.cryptor-office-fullscreen').click();
+              await page.waitForFunction(()=>!document.fullscreenElement);
+              console.log('PASS common Office full screen and exit');
+              console.log('PASS office integration / Bulgarian language');
+              await frame.locator('#btnSample').click();
+              await frame.locator('#editor').waitFor({timeout:60000});
+              await frame.locator('#pagesWrap .page canvas').first().waitFor({timeout:30000});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+              console.log('PASS PDF sample open and render');
+              for(const [kind,expected] of [['word',['home','insert','layout','references','review','view','all']],['excel',['home','insert','cells','formulas','data','view','all']]]){
+                await page.locator('#cryptor-tab-'+kind).click();
+                const panel=page.locator('#cryptor-office-'+kind);
+                await panel.locator('.de-office-ribbon').waitFor({timeout:30000});
+                const tabs=panel.locator('.de-office-ribbon-tab');
+                const actual=await tabs.evaluateAll(els=>els.map(e=>e.dataset.ribbonTab));
+                assert.deepEqual(kind==='excel'?actual.filter(k=>k!=='review'):actual,expected);
+                if(kind==='excel'&&actual.includes('review'))expected.splice(expected.indexOf('view'),0,'review');
+                for(const key of expected){
+                  const tab=panel.locator('[data-ribbon-tab="'+key+'"]');
+                  await tab.click();
+                  assert.equal(await tab.getAttribute('aria-pressed'),'true');
+                  assert.ok(await panel.locator('.de-ebar > .de-ebar-it').count()>0,kind+' '+key+' is empty');
+                }
+                await panel.locator('[data-ribbon-tab="home"]').click();
+                assert.equal(await panel.locator('[data-ribbon-tab="home"]').textContent(),'Начало');
+                await page.screenshot({path:path.join(dir,kind+'-v7.png')});
+                await panel.locator('.cryptor-office-ribbon-toggle').click();
+                await panel.locator('.de-office-ribbon').waitFor({state:'hidden'});
+                await panel.locator('.cryptor-office-ribbon-toggle').click();
+                await panel.locator('.de-office-ribbon').waitFor();
+                console.log('PASS '+kind+' six actual ribbon tabs, nonempty tools, Bulgarian labels, collapse/restore');
+              }
+              await page.locator('#langSelect').selectOption('en');
+              assert.equal(await page.locator('#cryptor-office-excel [data-ribbon-tab="home"]').textContent(),'Home');
+              // Actual document edits: exercise the original engine through the new ribbon.
+              await page.locator('#cryptor-tab-word').click();
+              const word=page.locator('#cryptor-office-word');
+              const doc=word.locator('.de-pages[contenteditable="true"]');
+              await doc.locator('.de-p').first().waitFor({timeout:30000});
+              await doc.locator('.de-p').first().click();
+              await page.keyboard.type('RibbonQAWord');
+              await doc.getByText('RibbonQAWord',{exact:true}).waitFor();
+              await page.keyboard.press('Shift+Home');
+              await word.locator('[data-ribbon-tab="home"]').click();
+              const bold=word.locator('.de-ebar button[title^="Bold"]').first();
+              await bold.click();
+              await page.waitForFunction(()=>{
+                const panel=document.querySelector('#cryptor-office-word');
+                const walk=root=>{for(const e of root.querySelectorAll('*')){if(e.shadowRoot&&walk(e.shadowRoot))return true;if(e.textContent==='RibbonQAWord'&&Number(getComputedStyle(e).fontWeight)>=600)return true}return false};
+                return walk(panel);
+              });
+              await word.locator('[data-ribbon-tab="insert"]').click();
+              await word.locator('[data-ribbon-tab="all"]').click();
+              assert.ok(await doc.getByText('RibbonQAWord',{exact:true}).count());
+              console.log('PASS Word input and bold through Home ribbon, text retained across menus');
+              await word.locator('[data-ribbon-tab="review"]').click();
+              const proof=word.getByRole('button',{name:'Spell check (browser)',exact:true});
+              await proof.click();
+              assert.equal(await doc.getAttribute('spellcheck'),'true');
+              assert.ok((await doc.getAttribute('lang')).startsWith('en'));
+              await proof.click();
+              assert.equal(await doc.getAttribute('spellcheck'),'false');
+              console.log('PASS Word browser proofing toggle and document language');
+              await word.locator('.de-ebar button[title="Words"]').click();
+              const stats=word.locator('.de-word-statistics');
+              await stats.waitFor();
+              const values=await stats.locator('dd').allTextContents();
+              assert.equal(values[1],'1');
+              assert.equal(values[2],'12');
+              await page.keyboard.press('Escape');
+              await stats.waitFor({state:'hidden'});
+              await word.locator('.de-ebar button[title="Words"]').click();
+              await stats.waitFor();
+              await word.getByRole('dialog').getByRole('button',{name:'OK',exact:true}).click();
+              await stats.waitFor({state:'hidden'});
+              console.log('PASS Word document statistics (1 word, 12 characters), Escape and OK');
+              await word.locator('[data-ribbon-tab="view"]').click();
+              await word.getByRole('button',{name:'Document outline',exact:true}).click();
+              await word.locator('.de-outline').waitFor();
+              await word.locator('.de-outline-head button').click();
+              await word.locator('.de-outline').waitFor({state:'hidden'});
+              console.log('PASS Word heading navigation opens and closes');
+              const rulers=word.getByRole('button',{name:'Rulers',exact:true});
+              await rulers.click();
+              const horizontal=word.locator('.de-word-ruler-horizontal').first();
+              const vertical=word.locator('.de-word-ruler-vertical').first();
+              await horizontal.waitFor();await vertical.waitFor();
+              assert.ok(Number(await horizontal.getAttribute('width'))>100);
+              assert.ok(Number(await vertical.getAttribute('height'))>100);
+              await rulers.click();
+              await horizontal.waitFor({state:'hidden'});
+              console.log('PASS Word physical horizontal and vertical ruler display toggle');
+              await doc.locator('.de-p').first().click();
+              await page.keyboard.press('End');
+              await page.keyboard.press('Control+Alt+Digit1');
+              await word.locator('[data-ribbon-tab="view"]').click();
+              await word.getByRole('button',{name:'Document outline',exact:true}).click();
+              await word.locator('.de-outline-item').filter({hasText:'RibbonQAWord'}).waitFor({timeout:15000});
+              await word.locator('.de-outline-head button').click();
+              await doc.locator('.de-p').first().click();
+              await page.keyboard.press('End');
+              await page.keyboard.press('Enter');
+              await page.keyboard.press('Control+Alt+Digit0');
+              await word.locator('[data-ribbon-tab="insert"]').click();
+              await word.getByRole('button',{name:'Contents from headings',exact:true}).click();
+              await doc.getByText('1. RibbonQAWord',{exact:true}).waitFor({timeout:15000});
+              assert.ok(await doc.getByText('Contents',{exact:true}).count());
+              console.log('PASS Word generated contents from actual styled heading');
+
+
+              await page.locator('#cryptor-tab-excel').click();
+              const sheet=page.locator('#cryptor-office-excel');
+              const fx=sheet.locator('.de-fx-input');
+              await fx.waitFor({timeout:30000});
+              await fx.click();
+              await fx.fill('=SUM(12,30)');
+              await fx.press('Enter');
+              await sheet.locator('.de-cell').getByText('42',{exact:true}).first().waitFor({timeout:15000});
+              await sheet.locator('[data-ribbon-tab="formulas"]').click();
+              await sheet.locator('[data-ribbon-tab="data"]').click();
+              await sheet.locator('[data-ribbon-tab="all"]').click();
+              await sheet.locator('.de-cell').getByText('42',{exact:true}).first().waitFor();
+              console.log('PASS Excel formula SUM(12,30)=42, result retained across menus');
+              // Paste real records, exercise the view filter, then clear duplicate values and Undo.
+              await sheet.locator('.de-cell').getByText('42',{exact:true}).first().click();
+              await sheet.locator('.de-grid').evaluate(grid=>{
+                const dt=new DataTransfer();
+                dt.setData('text/plain','Category\tAmount\nAlpha\t10\nBeta\t20\nAlpha\t10');
+                grid.dispatchEvent(new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,composed:true,cancelable:true}));
+              });
+              const alpha=sheet.locator('.de-cell').getByText('Alpha',{exact:true});
+              const beta=sheet.locator('.de-cell').getByText('Beta',{exact:true});
+              await beta.waitFor();
+              assert.equal(await alpha.count(),2);
+              await alpha.first().click();
+              await sheet.locator('[data-ribbon-tab="data"]').click();
+              await sheet.getByRole('button',{name:'Filter by cell',exact:true}).click();
+              await beta.waitFor({state:'hidden'});
+              assert.equal(await alpha.count(),2);
+              await sheet.getByRole('button',{name:'Clear filter',exact:true}).click();
+              await beta.waitFor();
+              console.log('PASS Excel temporary filter by actual cell value and restore all rows');
+              await alpha.first().click();
+              await page.keyboard.press('Shift+ArrowDown');
+              await page.keyboard.press('Shift+ArrowDown');
+              await page.keyboard.press('Shift+ArrowRight');
+              assert.equal(await sheet.locator('.de-fx-ref').textContent(),'A2:B4');
+              await sheet.getByRole('button',{name:'Clear duplicate rows',exact:true}).click();
+              await alpha.last().waitFor();
+              await page.waitForFunction(()=>{
+                const root=document.querySelector('#cryptor-office-excel');
+                const count=(n)=>[...n.querySelectorAll('*')].reduce((sum,e)=>sum+(e.matches('.de-cell')&&e.textContent==='Alpha'?1:0)+(e.shadowRoot?count(e.shadowRoot):0),0);
+                return count(root)===1;
+              });
+              await beta.waitFor();
+              await page.keyboard.press('Control+z');
+              await page.waitForFunction(()=>{
+                const root=document.querySelector('#cryptor-office-excel');
+                const count=(n)=>[...n.querySelectorAll('*')].reduce((sum,e)=>sum+(e.matches('.de-cell')&&e.textContent==='Alpha'?1:0)+(e.shadowRoot?count(e.shadowRoot):0),0);
+                return count(root)===2;
+              });
+              console.log('PASS Excel duplicate cleanup and single-step undo restores both records');
+              await sheet.locator('.de-cell').getByText('Category',{exact:true}).click();
+              for(let i=0;i<3;i++)await page.keyboard.press('Shift+ArrowDown');
+              await page.keyboard.press('Shift+ArrowRight');
+              assert.equal(await sheet.locator('.de-fx-ref').textContent(),'A1:B4');
+              await sheet.getByRole('button',{name:'Category summary',exact:true}).click();
+              const report=sheet.locator('.de-excel-summary');
+              await report.waitFor();
+              assert.deepEqual(await report.locator('tbody tr').first().locator('td').allTextContents(),['Alpha','2','20','10']);
+              assert.deepEqual(await report.locator('tbody tr').nth(1).locator('td').allTextContents(),['Beta','1','20','20']);
+              await sheet.getByRole('dialog').getByRole('button',{name:'Chart',exact:true}).click();
+              const image=report.locator('.de-excel-summary-chart');
+              await image.waitFor();
+              await image.evaluate(el=>el.decode());
+              const svgDownload=page.waitForEvent('download');
+              await sheet.getByRole('dialog').getByRole('button',{name:'Download SVG',exact:true}).click();
+              const svgFile=await svgDownload;
+              await svgFile.saveAs(path.join(dir,'category-summary.svg'));
+              const svg=fs.readFileSync(path.join(dir,'category-summary.svg'),'utf8');
+              assert.ok(svg.includes('<svg')&&svg.includes('Alpha')&&svg.includes('Beta'));
+              const metric=report.locator('[data-summary-control="metric"]');
+              const sort=report.locator('[data-summary-control="sort"]');
+              const chartType=report.locator('[data-summary-control="type"]');
+              await metric.selectOption('count');
+              await sort.selectOption('asc');
+              assert.equal(await report.locator('tbody tr').first().locator('td').first().textContent(),'Beta');
+              await sort.selectOption('desc');
+              assert.equal(await report.locator('tbody tr').first().locator('td').first().textContent(),'Alpha');
+              for(const type of ['horizontal','line','pie','column']){
+                const oldSrc=await image.getAttribute('src');
+                await chartType.selectOption(type);
+                await page.waitForFunction(old=>{
+                  const panel=document.querySelector('#cryptor-office-excel');
+                  const find=root=>{const img=root.querySelector('.de-excel-summary-chart');if(img)return img;for(const e of root.querySelectorAll('*'))if(e.shadowRoot){const result=find(e.shadowRoot);if(result)return result;}return null};
+                  const img=find(panel);return img&&img.getAttribute('src')!==old&&img.complete&&img.naturalWidth>0;
+                },oldSrc);
+              }
+              const csvPending=page.waitForEvent('download');
+              await sheet.getByRole('dialog').getByRole('button',{name:'Download CSV',exact:true}).click();
+              const csvFile=await csvPending;await csvFile.saveAs(path.join(dir,'category-summary.csv'));
+              const csv=fs.readFileSync(path.join(dir,'category-summary.csv'),'utf8');
+              assert.ok(csv.includes('"Alpha",2,20,10')&&csv.includes('"Beta",1,20,20'));
+              console.log('PASS Excel v10 four chart types, metric selection, report sorting, valid CSV download');
+
+              await page.keyboard.press('Escape');
+              await report.waitFor({state:'hidden'});
+              console.log('PASS Excel actual grouped totals, counts, averages and native SVG chart export');
+              await sheet.locator('.de-cell').getByText('10',{exact:true}).first().click();
+              await sheet.getByRole('button',{name:'Color numbers ±',exact:true}).click();
+              const positive=sheet.locator('.de-cell').filter({hasText:/^10\.00$/}).first();
+              await positive.waitFor();
+              assert.equal(await positive.evaluate(el=>getComputedStyle(el).color),'rgb(0, 160, 0)');
+              await sheet.locator('.de-fx-input').click();
+              await sheet.locator('.de-fx-input').fill('-5');
+              await sheet.locator('.de-fx-input').press('Enter');
+              const negative=sheet.locator('.de-cell').filter({hasText:/^-5\.00$/}).first();
+              await negative.waitFor();
+              assert.equal(await negative.evaluate(el=>getComputedStyle(el).color),'rgb(255, 0, 0)');
+              console.log('PASS Excel native conditional numeric colors follow changed value');
+
+
+
+              await page.locator('#langSelect').selectOption('bg');
+              await page.locator('#cryptor-tab-powerpoint').click();
+              const ppt=page.locator('#cryptor-office-powerpoint');
+              await ppt.locator('.de-ebar').waitFor();
+              assert.equal(await ppt.locator('.de-office-ribbon').count(),0);
+              await page.locator('#cryptor-tab-pdf-editor').click();
+              await frame.locator('#editor').waitFor();
+              console.log('PASS language switch and unchanged PowerPoint/PDF editor');
+
+              const themes=page.locator('#themeSelect');
+              assert.equal(await themes.locator('option').count(),6);
+              for (const [theme,accent] of [['black-platinum','#a5a5a5'],['black-gold','#c5ae60']]) {
+                await themes.selectOption(theme);
+                await page.waitForFunction(t=>document.documentElement.dataset.theme===t,theme);
+                await frame.locator('html[data-theme="'+theme+'"]').waitFor();
+                assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()),accent);
+                assert.equal(await frame.locator('html').evaluate(el=>getComputedStyle(el).getPropertyValue('--accent').trim()),accent);
+                assert.equal(await frame.locator('.page').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(255, 255, 255)');
+                for(const mode of ['word','excel','powerpoint']){
+                  await page.locator('#cryptor-tab-'+mode).click();
+                  await page.locator('#cryptor-office-'+mode).waitFor();
+                  assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--page').trim()),'#090909');
+                }
+                await page.locator('#cryptor-tab-pdf-editor').click();
+                await frame.locator('#editor').waitFor();
+                assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+                assert.equal(await page.evaluate(()=>localStorage.getItem('bgdev.theme')),theme);
+                await page.screenshot({path:path.join(dir,theme+'.png')});
+                console.log('PASS '+theme+' host, Office tabs, PDF, saved setting, unchanged page');
+              }
+              await themes.selectOption('dark');
+              await frame.locator('html[data-theme="dark"]').waitFor();
+
+              const pdfFrame=page.frames().find(f=>f.url().includes('/pdf-editor/index.html'));
+              const sample=Buffer.from(await pdfFrame.evaluate(async()=>Array.from(await window.__pdfStudio.makeSample())));
+              await frame.locator('#fileMergePdf').setInputFiles([{name:'first.pdf',mimeType:'application/pdf',buffer:sample},{name:'second.pdf',mimeType:'application/pdf',buffer:sample}]);
+              await frame.locator('#pagesWrap .page').nth(3).waitFor({timeout:30000});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),4);
+              console.log('PASS merge two two-page PDF files');
+              await frame.locator('#btnRotateLeft').click();
+              assert.equal(await pdfFrame.evaluate(()=>window.__pdfStudio.S.pages[0].rot),270);
+              await frame.locator('#btnRotateRight').click();
+              assert.equal(await pdfFrame.evaluate(()=>window.__pdfStudio.S.pages[0].rot),0);
+              console.log('PASS rotate left and right');
+              const splitPending=page.waitForEvent('download',{timeout:30000});
+              await frame.locator('#btnSplitPdf').click();
+              const splitDownload=await splitPending;
+              const zipPath=path.join(dir,'split-pages.zip');
+              await splitDownload.saveAs(zipPath);
+              const z=fs.readFileSync(zipPath);
+              let off=0,count=0;
+              while(z.readUInt32LE(off)===0x04034b50){
+                const sz=z.readUInt32LE(off+18),start=off+30+z.readUInt16LE(off+26)+z.readUInt16LE(off+28);
+                const data=Array.from(z.subarray(start,start+sz));
+                await pdfFrame.evaluate(async b=>{const d=await PDFLib.PDFDocument.load(new Uint8Array(b));if(d.getPageCount()!==1)throw Error('Split output is not one page')},data);
+                off=start+sz;count++;
+              }
+              assert.equal(count,4);
+              console.log('PASS split ZIP with four valid individual PDFs');
+              await pdfFrame.evaluate(async()=>window.__pdfStudio.openBytes(await window.__pdfStudio.makeSample(),'sample-invoice.pdf'));
+              await frame.locator('#pagesWrap .page').nth(1).waitFor();
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+
+              const tools=await frame.locator('#tools').boundingBox();
+              const viewer=await frame.locator('#viewer').boundingBox();
+              assert.ok(tools.width>viewer.width && tools.y<viewer.y,'Tools must be a horizontal ribbon above the workspace');
+              await section.locator('.cryptor-office-ribbon-toggle').click();
+              await frame.locator('#tools').waitFor({state:'hidden'});
+              await section.locator('.cryptor-office-ribbon-toggle').click();
+              await frame.locator('#tools').waitFor();
+              console.log('PASS shared ribbon collapse/restore');
+              await frame.locator('[data-tool="text"]').click();
+              await frame.locator('#pagesWrap .layer').first().click({position:{x:120,y:120}});
+              await frame.locator('.tcontent[contenteditable="plaintext-only"], .tcontent[contenteditable="true"]').fill('PDF QA test');
+              await frame.locator('[data-tool="select"]').click();
+              assert.equal(await frame.locator('.obj.text').count(),1);
+              await frame.locator('#btnUndo').click();
+              assert.equal(await frame.locator('.obj.text').count(),0);
+              await frame.locator('#btnRedo').click();
+              assert.equal(await frame.locator('.obj.text').count(),1);
+              console.log('PASS add text and undo/redo');
+              await frame.locator('#btnAddPage').click();
+              assert.equal(await frame.locator('#pagesWrap .page').count(),3);
+              await frame.locator('#thumbs .thumb').last().locator('[data-op="rot"]').click({force:true});
+              const f=page.frames().find(f=>f.url().includes('/pdf-editor/index.html'));
+              assert.equal(await f.evaluate(()=>window.__pdfStudio.S.pages.at(-1).rot),90);
+              await frame.locator('#thumbs .thumb').last().locator('[data-op="up"]').click({force:true});
+              assert.equal(await f.evaluate(()=>window.__pdfStudio.S.pages[1].src),-1);
+              await frame.locator('#thumbs .thumb').nth(1).locator('[data-op="del"]').click({force:true});
+              assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+              console.log('PASS add/rotate/reorder/delete page');
+              await page.screenshot({path:path.join(dir,'02-edited-document-bg.png')});
+              const pending=page.waitForEvent('download',{timeout:30000});
+              await frame.locator('#btnDownload').click();
+              const download=await pending;
+              const pdf=path.join(dir,'qa-output.pdf');
+              await download.saveAs(pdf);
+              assert.equal(fs.readFileSync(pdf).subarray(0,5).toString(),'%PDF-');
+              const bytes=Array.from(fs.readFileSync(pdf));
+              await f.evaluate(async b=>{const d=await PDFLib.PDFDocument.load(new Uint8Array(b));if(d.getPageCount()!==2)throw Error('Invalid exported page count')},bytes);
+              console.log('PASS download and parse exported PDF');
+              if(original && original!=='pdf-editor'){
+                await page.locator('#cryptor-tab-word').click();
+                await page.locator('#cryptor-office-word').waitFor();
+                await page.locator('#cryptor-tab-excel').click();
+                await page.locator('#cryptor-office-excel').waitFor();
+                await page.locator('#cryptor-office-pdf-editor').waitFor({state:'hidden'});
+                await page.locator('#cryptor-tab-pdf-editor').click();
+                await frame.locator('#editor').waitFor();
+                assert.equal(await frame.locator('.obj.text').count(),1);
+                console.log('PASS tab switching retains document');
+              }
+
+              // Real local storage and native file roundtrip. No service or server involved.
+              await page.locator('#langSelect').selectOption('en');
+              await page.locator('#cryptor-tab-word').click();
+              const wp=page.locator('#cryptor-office-word');
+              const wordDoc=wp.locator('.de-pages[contenteditable="true"]');
+              await wordDoc.getByText('RibbonQAWord',{exact:true}).first().waitFor();
+              const menu=async(panel,label)=>{
+                await panel.locator('button.de-file').click();
+                await panel.getByText(label,{exact:true}).last().click();
+              };
+              await menu(wp,'Local recovery');
+              const recovery=wp.locator('.de-office-recovery');
+              await recovery.waitFor();
+              assert.equal(await recovery.locator('[data-recovery-auto]').isChecked(),false);
+              await recovery.locator('[data-recovery-action="backup"]').click();
+              await recovery.locator('[data-recovery-status]').getByText('Backup saved.',{exact:true}).waitFor();
+              const getRecord=key=>page.evaluate(key=>new Promise((resolve,reject)=>{
+                const req=indexedDB.open('WebOfficeRecoveryV11',1);
+                req.onerror=()=>reject(req.error);
+                req.onsuccess=()=>{const db=req.result,tx=db.transaction('drafts','readonly'),r=tx.objectStore('drafts').get(key);r.onsuccess=async()=>{const x=r.result;db.close();if(!x)return resolve(null);const sig=Array.from(new Uint8Array(await x.blob.slice(0,2).arrayBuffer()));resolve({name:x.name,time:x.time,size:x.blob.size,sig});};r.onerror=()=>reject(r.error);};
+              }),key);
+              const firstBackup=await getRecord('word');
+              assert.ok(firstBackup.size>100&&firstBackup.name.endsWith('.docx'));
+              assert.deepEqual(firstBackup.sig,[80,75]);
+              assert.equal(await wp.locator('.de-save-dirty').count(),1);
+              await wp.getByRole('dialog').getByRole('button',{name:'OK',exact:true}).click();
+              await wordDoc.locator('.de-p').last().click();await page.keyboard.press('End');await page.keyboard.type('TemporaryChange');
+              await wordDoc.getByText(/TemporaryChange/).first().waitFor();
+              await menu(wp,'Local recovery');
+              await recovery.locator('[data-recovery-action="restore"]').click();
+              await wp.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true}).click();
+              await wordDoc.getByText('RibbonQAWord',{exact:true}).first().waitFor();
+              await wordDoc.getByText(/TemporaryChange/).first().waitFor({state:'hidden'});
+              console.log('PASS Word manual native backup, dirty state preserved, restore with confirmation');
+              await menu(wp,'Local recovery');
+              await recovery.locator('[data-recovery-auto]').check();
+              await wp.getByRole('dialog').getByRole('button',{name:'OK',exact:true}).click();
+              await wordDoc.locator('.de-p').last().click();await page.keyboard.press('End');await page.keyboard.type('AutoBackupQA');
+              await wordDoc.getByText(/AutoBackupQA/).first().waitFor();
+              await page.waitForFunction(old=>new Promise(resolve=>{
+                const req=indexedDB.open('WebOfficeRecoveryV11',1);
+                req.onsuccess=()=>{const db=req.result,r=db.transaction('drafts','readonly').objectStore('drafts').get('word');r.onsuccess=()=>{db.close();resolve(r.result?.time>old)};r.onerror=()=>{db.close();resolve(false)};};
+                req.onerror=()=>resolve(false);
+              }),firstBackup.time,{timeout:35000,polling:500});
+              await menu(wp,'Local recovery');
+              await recovery.locator('[data-recovery-action="delete"]').click();
+              await recovery.locator('[data-recovery-record]').getByText('No local backup.',{exact:true}).waitFor();
+              assert.equal(await getRecord('word'),null);
+              assert.equal(await recovery.locator('[data-recovery-auto]').isChecked(),false);
+              await wp.getByRole('dialog').getByRole('button',{name:'OK',exact:true}).click();
+              console.log('PASS Word opt-in autosave to IndexedDB and explicit deletion');
+              await menu(wp,'Template: meeting minutes');
+              await wp.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true}).click();
+              await wordDoc.getByText('Meeting minutes',{exact:true}).waitFor();
+              await wordDoc.getByText('Decisions',{exact:true}).waitFor();
+              await menu(wp,'Template: project report');
+              await wp.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true}).click();
+              await wordDoc.getByText('Project report',{exact:true}).waitFor();
+              console.log('PASS Word actual meeting minutes and project report DOCX templates');
+              await page.locator('#cryptor-tab-excel').click();
+              const ep=page.locator('#cryptor-office-excel');
+              await menu(ep,'Local recovery');
+              const er=ep.locator('.de-office-recovery');
+              await er.locator('[data-recovery-action="backup"]').click();
+              await er.locator('[data-recovery-status]').getByText('Backup saved.',{exact:true}).waitFor();
+              const excelBackup=await getRecord('excel');
+              assert.ok(excelBackup.size>100&&excelBackup.name.endsWith('.xlsx'));
+              assert.deepEqual(excelBackup.sig,[80,75]);assert.equal(await getRecord('word'),null);
+              await ep.getByRole('dialog').getByRole('button',{name:'OK',exact:true}).click();
+              await menu(ep,'Template: budget');
+              await ep.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true}).click();
+              await ep.locator('.de-cell').getByText('Planned (EUR)',{exact:true}).waitFor();
+              await menu(ep,'Template: task list');
+              await ep.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true}).click();
+              await ep.locator('.de-cell').getByText('Due date',{exact:true}).waitFor();
+              await menu(ep,'Local recovery');
+              await er.locator('[data-recovery-action="restore"]').click();
+              await ep.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true}).click();
+              await ep.locator('.de-cell').getByText('Category',{exact:true}).waitFor();
+              await ep.locator('.de-cell').getByText('Beta',{exact:true}).waitFor();
+              console.log('PASS Excel separate native XLSX backup, budget and task templates, original workbook restored');
+
+              // Test the cancelled picker path with the actual DOM event; subsequent native upload/download is real.
+              await page.evaluate(()=>{
+                const original=HTMLInputElement.prototype.click;
+                HTMLInputElement.prototype.click=function(...args){
+                  if(this.type==='file'){HTMLInputElement.prototype.click=original;this.dispatchEvent(new Event('cancel'));return;}
+                  return original.apply(this,args);
+                };
+              });
+              await menu(ep,'Import CSV into new sheet…');
+              await ep.locator('button.de-file').waitFor();
+              await page.waitForFunction(()=>{
+                const walk=r=>{for(const e of r.querySelectorAll('*')){if(e.matches('button.de-file'))return !e.disabled;if(e.shadowRoot){const v=walk(e.shadowRoot);if(v!==undefined)return v;}}};
+                return walk(document.querySelector('#cryptor-office-excel'))===true;
+              });
+              console.log('PASS file chooser cancel releases Import CSV busy state');
+              const downloadNative=async(panel,label,file)=>{
+                const pending=page.waitForEvent('download',{timeout:30000});
+                await menu(panel,label);const d=await pending;await d.saveAs(file);
+                assert.equal(fs.readFileSync(file).subarray(0,2).toString(),'PK');
+              };
+              const openNative=async(panel,file)=>{
+                const pending=page.waitForEvent('filechooser',{timeout:30000});
+                await menu(panel,'Open…');const chooser=await pending;await chooser.setFiles(file);
+                const confirm=panel.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true});
+                if(await confirm.isVisible())await confirm.click();
+                else await confirm.waitFor({timeout:1200}).then(()=>confirm.click()).catch(()=>{});
+              };
+              const python=require('node:child_process').execFileSync;
+              const xlsx=path.join(dir,'native-roundtrip.xlsx');
+              await ep.locator('.de-cell').getByText('Beta',{exact:true}).click();
+              await page.keyboard.press('ArrowRight');
+              await ep.locator('.de-fx-input').click();
+              await ep.locator('.de-fx-input').fill('=SUM(7,35)');
+              await ep.locator('.de-fx-input').press('Enter');
+              await ep.locator('.de-cell').getByText('42',{exact:true}).waitFor();
+              await downloadNative(ep,'Excel workbook',xlsx);
+              python('python3',['-c','import zipfile,sys,xml.etree.ElementTree as E\nz=zipfile.ZipFile(sys.argv[1]);assert z.testzip() is None\nns={"s":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"}\nroot=E.fromstring(z.read("xl/worksheets/sheet1.xml"))\nassert any(f.text=="SUM(7,35)" for f in root.findall(".//s:f",ns))\nassert any(v.text=="42" for v in root.findall(".//s:v",ns))',xlsx]);
+              await openNative(ep,xlsx);
+              await ep.locator('.de-cell').getByText('42',{exact:true}).waitFor();
+              await ep.locator('.de-cell').getByText('42',{exact:true}).click();
+              assert.equal(await ep.locator('.de-fx-input').inputValue(),'=SUM(7,35)');
+              console.log('PASS native XLSX download, ZIP/XML formula and value verification, reopen with intact formula');
+              // Test existing protection/validation retention; not a new validation editor.
+              const protectedFile=path.join(dir,'protected-fixture.xlsx');
+              python('python3',['-c','import zipfile,sys,xml.etree.ElementTree as E\nns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"\nE.register_namespace("",ns)\nwith zipfile.ZipFile(sys.argv[1]) as src,zipfile.ZipFile(sys.argv[2],"w",zipfile.ZIP_DEFLATED) as dst:\n for name in src.namelist():\n  data=src.read(name)\n  if name=="xl/worksheets/sheet1.xml":\n   r=E.fromstring(data);tag=lambda s:"{"+ns+"}"+s\n   assert r.find(tag("sheetProtection")) is None and r.find(tag("dataValidations")) is None\n   index=list(r).index(r.find(tag("sheetData")))+1\n   r.insert(index,E.Element(tag("sheetProtection"),{"sheet":"1","objects":"1","scenarios":"1"}))\n   v=E.Element(tag("dataValidations"),{"count":"1"});dv=E.SubElement(v,tag("dataValidation"),{"type":"list","sqref":"C2","allowBlank":"1","showErrorMessage":"1"});E.SubElement(dv,tag("formula1")).text=chr(34)+"Yes,No"+chr(34)\n   r.insert(index+1,v);data=E.tostring(r,encoding="utf-8",xml_declaration=True)\n  dst.writestr(name,data)',xlsx,protectedFile]);
+              await openNative(ep,protectedFile);
+              await ep.locator('.de-cell').getByText('42',{exact:true}).waitFor();
+              await ep.locator('.de-cell').getByText('42',{exact:true}).click();
+              await ep.locator('.de-fx-input').click();await ep.locator('.de-fx-input').fill('99');await ep.locator('.de-fx-input').press('Enter');
+              await ep.getByText(/This sheet is protected/).first().waitFor({timeout:15000});
+              await ep.locator('.de-cell').getByText('42',{exact:true}).waitFor();
+              const protectedOut=path.join(dir,'protected-roundtrip.xlsx');
+              await downloadNative(ep,'Excel workbook',protectedOut);
+              python('python3',['-c','import zipfile,sys,xml.etree.ElementTree as E\nz=zipfile.ZipFile(sys.argv[1]);assert z.testzip() is None\nr=E.fromstring(z.read("xl/worksheets/sheet1.xml"));n={"s":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"}\nassert r.find("s:sheetProtection",n).get("sheet")=="1"\nassert r.find("s:dataValidations/s:dataValidation",n).get("sqref")=="C2"\nassert r.find("s:dataValidations/s:dataValidation/s:formula1",n).text==chr(34)+"Yes,No"+chr(34)\nassert any(f.text=="SUM(7,35)" for f in r.findall(".//s:f",n))',protectedOut]);
+              console.log('PASS imported protected XLSX rejects locked-cell edit and preserves existing list validation and formula on download');
+              await page.locator('#cryptor-tab-word').click();
+              await wordDoc.getByText('Project report',{exact:true}).waitFor();
+              await wordDoc.locator('.de-p').last().click();await page.keyboard.press('End');await page.keyboard.insertText('Проверка на кирилица');
+              await wordDoc.getByText(/Проверка на кирилица/).first().waitFor();
+              const docx=path.join(dir,'native-roundtrip.docx');
+              await downloadNative(wp,'Word document',docx);
+              python('python3',['-c','import zipfile,sys,xml.etree.ElementTree as E\nz=zipfile.ZipFile(sys.argv[1]);assert z.testzip() is None\nr=E.fromstring(z.read("word/document.xml"));n={"w":"http://schemas.openxmlformats.org/wordprocessingml/2006/main"}\nt="".join(x.text or "" for x in r.findall(".//w:t",n));assert "Проверка на кирилица" in t and "Project report" in t\nassert any(x.get("{"+n["w"]+"}val")=="Heading1" for x in r.findall(".//w:pStyle",n))',docx]);
+              await openNative(wp,docx);
+              await wordDoc.getByText(/Проверка на кирилица/).first().waitFor();
+              await wordDoc.getByText('Project report',{exact:true}).waitFor();
+              console.log('PASS native DOCX download, ZIP/XML Cyrillic and heading styles, reopen with intact document');
+
+              // Check the classic ribbon groups and actual browser clipboard interaction.
+              await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+              await page.locator('#cryptor-tab-word').click();
+              await wp.locator('[data-ribbon-tab="home"]').click();
+              const clipboard=wp.locator('[data-ribbon-group="clipboard"]');
+              await clipboard.waitFor();
+              assert.equal(await wp.locator('[data-ribbon-group="font"] .de-ribbon-caption').textContent(),'Font');
+              await wordDoc.locator('.de-p').last().click();await page.keyboard.press('End');
+              await page.evaluate(()=>navigator.clipboard.writeText(' ClassicRibbonQA'));
+              await clipboard.getByRole('button',{name:'Paste',exact:true}).click();
+              await wordDoc.getByText(/ClassicRibbonQA/).first().waitFor();
+              await wp.locator('[data-ribbon-tab="references"]').click();
+              await wp.getByRole('button',{name:'Contents from headings',exact:true}).waitFor();
+              await wp.locator('[data-ribbon-tab="home"]').click();
+              await page.screenshot({path:path.join(dir,'word-classic-ribbon.png')});
+              await page.locator('#cryptor-tab-excel').click();
+              await ep.locator('[data-ribbon-tab="home"]').click();
+              await ep.locator('[data-ribbon-group="number"]').waitFor();
+              await ep.locator('[data-ribbon-group="alignment"]').waitFor();
+              await ep.locator('[data-ribbon-group="cells"]').waitFor();
+              await ep.locator('[data-ribbon-tab="insert"]').click();
+              await ep.getByRole('button',{name:'Category summary',exact:true}).waitFor();
+              await ep.locator('[data-ribbon-tab="home"]').click();
+              await page.screenshot({path:path.join(dir,'excel-classic-ribbon.png')});
+              console.log('PASS classic ribbon command grouping, native paste, References and Insert tabs');
+              assert.deepEqual(errors,[]);
+            }finally{
+              await page.screenshot({path:path.join(dir,'last-state.png')}).catch(()=>{});
+              await browser.close();
+            }
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          JS
+          node "$RUNNER_TEMP/pdf-qa/test.cjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-office-v13-browser-results
+          path: ${{ runner.temp }}/pdf-qa/results/
+          retention-days: 14
