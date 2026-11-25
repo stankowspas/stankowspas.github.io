@@ -55,6 +55,26 @@ jobs:
               edit('src/react/xlsx/XlsxToolbar.tsx',xt)
               edit('src/react/xlsx/XlsxView.tsx',xv)
               host.write_text(html[:m.start(1)]+base64.b64encode(gzip.compress(b.encode(),mtime=0)).decode()+html[m.end(1):],encoding='utf-8')
+          # Excel v9.1: native number formats and read-only analysis using existing chart renderer.
+          def xt91(s):
+              a='(0, jsx_runtime_1.jsx)(Toolbar_1.Btn, { ribbonGroup: "data", title: props.dataLabels[0],'
+              cmd='(0, jsx_runtime_1.jsx)(Toolbar_1.Btn, { ribbonGroup: "data", title: props.extraDataLabels[0], label: props.extraDataLabels[0], wide: true, onClick: props.onColorNumbers }), (0, jsx_runtime_1.jsx)(Toolbar_1.Btn, { ribbonGroup: "data", title: props.extraDataLabels[1], label: props.extraDataLabels[1], wide: true, onClick: props.onSummary }), '
+              return one(s,a,cmd+a)
+          def xv91(s):
+              s=one(s,'const strings_1 = require("src/react/strings/index.tsx");','const strings_1 = require("src/react/strings/index.tsx");\nconst wordV91UI=require("src/react/ui.tsx");\nconst chartV91=require("src/core/xlsx/chart-svg.ts");')
+              a='function SheetGrid({ store, sheet, meta, client, edit, setEdit, hold, onSheet, gotoSheet, zoom, setZoom }) {'
+              s=one(s,a,"const EXCEL_V91_LABELS={\"bg\":[\"Оцвети числата ±\",\"Обобщение по категории\",\"Избери две колони със заглавия: категория и числова стойност (до 5000 реда).\",\"Диаграма\",\"Категория\",\"Брой\",\"Сума\",\"Средно\",\"Пропуснати редове\",\"Изтегли SVG\",\"Обобщение към момента; не е свързана Pivot таблица.\"],\"en\":[\"Color numbers ±\",\"Category summary\",\"Select two columns with headers: category and numeric value (up to 5000 rows).\",\"Chart\",\"Category\",\"Count\",\"Sum\",\"Average\",\"Skipped rows\",\"Download SVG\",\"Snapshot summary; not a linked PivotTable.\"],\"de\":[\"Zahlen ± färben\",\"Gruppenübersicht\",\"Zwei Spalten mit Überschriften wählen (bis 5000 Zeilen).\",\"Diagramm\",\"Kategorie\",\"Anzahl\",\"Summe\",\"Mittelwert\",\"Übersprungene Zeilen\",\"SVG herunterladen\",\"Momentaufnahme; keine verknüpfte Pivot-Tabelle.\"],\"fr\":[\"Colorer les nombres ±\",\"Synthèse par catégorie\",\"Choisir deux colonnes avec en-têtes (5000 lignes max.).\",\"Graphique\",\"Catégorie\",\"Nombre\",\"Somme\",\"Moyenne\",\"Lignes ignorées\",\"Télécharger SVG\",\"Instantané, pas un tableau croisé lié.\"],\"es\":[\"Colorear números ±\",\"Resumen por categoría\",\"Seleccionar dos columnas con encabezados (hasta 5000 filas).\",\"Gráfico\",\"Categoría\",\"Cantidad\",\"Suma\",\"Media\",\"Filas omitidas\",\"Descargar SVG\",\"Resumen instantáneo, no una tabla dinámica vinculada.\"],\"it\":[\"Colora numeri ±\",\"Riepilogo per categoria\",\"Seleziona due colonne con intestazioni (fino a 5000 righe).\",\"Grafico\",\"Categoria\",\"Conteggio\",\"Somma\",\"Media\",\"Righe ignorate\",\"Scarica SVG\",\"Riepilogo istantaneo, non una pivot collegata.\"],\"pt\":[\"Colorir números ±\",\"Resumo por categoria\",\"Selecione duas colunas com cabeçalhos (até 5000 linhas).\",\"Gráfico\",\"Categoria\",\"Contagem\",\"Soma\",\"Média\",\"Linhas ignoradas\",\"Baixar SVG\",\"Resumo instantâneo, não uma tabela dinâmica vinculada.\"],\"pl\":[\"Koloruj liczby ±\",\"Podsumowanie kategorii\",\"Wybierz dwie kolumny z nagłówkami (do 5000 wierszy).\",\"Wykres\",\"Kategoria\",\"Liczba\",\"Suma\",\"Średnia\",\"Pominięte wiersze\",\"Pobierz SVG\",\"Migawka, nie połączona tabela przestawna.\"],\"ro\":[\"Colorează numere ±\",\"Rezumat pe categorii\",\"Selectează două coloane cu antet (max. 5000 rânduri).\",\"Diagramă\",\"Categorie\",\"Număr\",\"Sumă\",\"Medie\",\"Rânduri omise\",\"Descarcă SVG\",\"Rezumat static, nu tabel pivot conectat.\"],\"el\":[\"Χρώμα αριθμών ±\",\"Σύνοψη κατηγοριών\",\"Επιλέξτε δύο στήλες με κεφαλίδες (έως 5000 γραμμές).\",\"Γράφημα\",\"Κατηγορία\",\"Πλήθος\",\"Άθροισμα\",\"Μέσος όρος\",\"Παραλειφθείσες γραμμές\",\"Λήψη SVG\",\"Στιγμιότυπο, όχι συνδεδεμένος συγκεντρωτικός πίνακας.\"],\"cs\":[\"Barvy čísel ±\",\"Souhrn kategorií\",\"Vyberte dva sloupce se záhlavím (do 5000 řádků).\",\"Graf\",\"Kategorie\",\"Počet\",\"Součet\",\"Průměr\",\"Přeskočené řádky\",\"Stáhnout SVG\",\"Snímek, nikoli propojená kontingenční tabulka.\"],\"hi\":[\"संख्याओं के रंग ±\",\"श्रेणी सारांश\",\"शीर्षकों सहित दो कॉलम चुनें (5000 पंक्तियों तक)।\",\"चार्ट\",\"श्रेणी\",\"गिनती\",\"योग\",\"औसत\",\"छोड़ी गई पंक्तियाँ\",\"SVG डाउनलोड\",\"स्थिर सारांश, लिंक की गई पिवट तालिका नहीं।\"]};\nconst EXCEL_V91_FORMAT='[Green]#,##0.00;[Red]-#,##0.00;0.00;@';\nfunction excelV91Summary(cells) {\n    const groups=new Map();let skipped=0;\n    for(const row of cells.slice(1)) {\n        const a=row[0],v=row[1];\n        if(!a||a[0]===workbook_1.T_EMPTY||String(a[1]).trim()===''||!v||v[0]!==workbook_1.T_NUM||v[1]===''||!Number.isFinite(Number(v[1]))) {skipped++;continue;}\n        const name=String(a[1]), key=JSON.stringify([a[0],name]);\n        const g=groups.get(key)||{name,count:0,sum:0};\n        g.count++;g.sum+=Number(v[1]);groups.set(key,g);\n    }\n    return {rows:[...groups.values()].map(g=>({...g,avg:g.sum/g.count})),skipped};\n}\nfunction excelV91Chart(report) {\n    const rows=report.rows;\n    const model={groups:[{type:'bar',dir:'col',grouping:'clustered',gapWidth:100,overlap:0,varyColors:false,axIds:['c','v'],series:[{name:report.valueName,cats:rows.map(r=>r.name),values:rows.map(r=>r.sum),fill:'#4472c4',points:{},format:'General'}]}],axes:[{id:'c',kind:'cat',pos:'b',deleted:false,reverse:false,gridlines:false,labels:true,crossAx:'v',crosses:'autoZero'},{id:'v',kind:'val',pos:'l',deleted:false,reverse:false,gridlines:true,labels:true,crossAx:'c',crosses:'autoZero'}],fontSize:10,textColor:'#222222',bg:'#ffffff',border:null,gridColor:'#dddddd',axisColor:'#666666',blanks:'gap',date1904:false,title:{text:report.valueName,size:14,bold:true,color:'#222222'}};\n    return chartV91.renderChart(model,640,360);\n}\nfunction ExcelV91Report({report,labels,onClose,ok}) {\n    const x=jsx_runtime_1.jsx, xs=jsx_runtime_1.jsxs;\n    const Dialog=wordV91UI.useHostUI().Dialog??wordV91UI.DefaultDialog;\n    const [chart,setChart]=react_1.useState(false);\n    const svg=react_1.useMemo(()=>chart?excelV91Chart(report):'', [chart,report]);\n    const [url,setUrl]=react_1.useState('');\n    react_1.useEffect(()=>{if(!svg){setUrl('');return;}const u=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml'}));setUrl(u);return ()=>URL.revokeObjectURL(u);},[svg]);\n    const fmt=n=>Number.isFinite(n)?String(Number(n.toPrecision(12))):String(n);\n    return x(Dialog,{title:labels[1],onClose,actions:[{label:labels[3],onClick:()=>setChart(c=>!c)},...(url?[{label:labels[9],onClick:()=>{const a=document.createElement('a');a.href=url;a.download='category-summary.svg';a.click();}}]:[]),{label:ok,primary:true,autoFocus:true,onClick:onClose}],children:xs('div',{className:'de-excel-summary',style:{maxHeight:'55vh',overflow:'auto',minWidth:'min(420px,70vw)'},children:[x('p',{children:labels[10]}),chart&&url&&x('img',{className:'de-excel-summary-chart',src:url,alt:labels[3],style:{width:'100%',maxWidth:640}}),xs('table',{style:{width:'100%',borderCollapse:'collapse'},children:[x('thead',{children:x('tr',{children:[report.categoryName,labels[5],labels[6],labels[7]].map((v,i)=>x('th',{style:{padding:'5px',textAlign:i?'right':'left',borderBottom:'1px solid var(--de-border)'},children:v},i))})}),x('tbody',{children:report.rows.map((r,i)=>x('tr',{children:[r.name,r.count,fmt(r.sum),fmt(r.avg)].map((v,j)=>x('td',{style:{padding:'5px',textAlign:j?'right':'left',borderBottom:'1px solid var(--de-border)'},children:v},j))},i))})]}),x('p',{children:labels[8]+': '+report.skipped})]})});\n}\n"+a)
+              a='    const [dataFilter,setDataFilter]=(0,react_1.useState)(null);'
+              s=one(s,a,a+'\n    const [summary,setSummary]=react_1.useState(null);\n    const extraDataLabels=EXCEL_V91_LABELS[String(str.locale||"en").split("-")[0]]||EXCEL_V91_LABELS.en;')
+              a='    const rowsOp = (k) => {'
+              s=one(s,a,"    const colorNumbers=()=>fmt({numFmt:EXCEL_V91_FORMAT});\n    const showSummary=async()=>{\n        if(dataBusy.current||edit)return;\n        const R={...rect};\n        if(sel.whole||R.c1!==R.c0+1||R.r1<=R.r0||R.r1-R.r0>5000||s.merges.some(m=>m.r1>=R.r0&&m.r0<=R.r1&&m.c1>=R.c0&&m.c0<=R.c1))return setToast(extraDataLabels[2]);\n        dataBusy.current=true;const generation=store.edits;\n        try{\n            const data=await client.call('xlsx.copy',sheet,R);\n            const result=excelV91Summary(data.cells);\n            if(!result.rows.length||result.rows.length>200||result.rows.some(r=>!Number.isFinite(r.sum)))return setToast(extraDataLabels[2]);\n            if(generation!==store.edits)return;\n            setSummary({...result,categoryName:String(data.cells[0]?.[0]?.[1]||extraDataLabels[4]),valueName:String(data.cells[0]?.[1]?.[1]||extraDataLabels[6])});\n        }catch(e){setToast(e.message);}finally{dataBusy.current=false;}\n    };\n"+a)
+              s=one(s,'onDuplicates: clearDuplicates, onRows: rowsOp,','onDuplicates: clearDuplicates, extraDataLabels, onColorNumbers: colorNumbers, onSummary: showSummary, onRows: rowsOp,')
+              return one(s,'toast && (0, jsx_runtime_1.jsx)(Dialog_1.Toast, { text: toast, onDone: () => setToast(null) }), ctx &&','summary && (0,jsx_runtime_1.jsx)(ExcelV91Report,{report:summary,labels:extraDataLabels,ok:str.common.ok,onClose:()=>{setSummary(null);focusGrid();}}), toast && (0, jsx_runtime_1.jsx)(Dialog_1.Toast, { text: toast, onDone: () => setToast(null) }), ctx &&')
+          if 'EXCEL_V91_LABELS' not in b:
+              edit('src/react/xlsx/XlsxToolbar.tsx',xt91);edit('src/react/xlsx/XlsxView.tsx',xv91)
+              html=host.read_text(encoding='utf-8')
+              m=next(m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',html) if m[1].startswith('H4sI'))
+              host.write_text(html[:m.start(1)]+base64.b64encode(gzip.compress(b.encode(),mtime=0)).decode()+html[m.end(1):],encoding='utf-8')
           Path('/tmp/office-v9.js').write_text(b,encoding='utf-8')
           PY
           node --check /tmp/office-v9.js
@@ -323,6 +343,41 @@ jobs:
                 return count(root)===2;
               });
               console.log('PASS Excel duplicate cleanup and single-step undo restores both records');
+              await sheet.locator('.de-cell').getByText('Category',{exact:true}).click();
+              for(let i=0;i<3;i++)await page.keyboard.press('Shift+ArrowDown');
+              await page.keyboard.press('Shift+ArrowRight');
+              assert.equal(await sheet.locator('.de-fx-ref').textContent(),'A1:B4');
+              await sheet.getByRole('button',{name:'Category summary',exact:true}).click();
+              const report=sheet.locator('.de-excel-summary');
+              await report.waitFor();
+              assert.deepEqual(await report.locator('tbody tr').first().locator('td').allTextContents(),['Alpha','2','20','10']);
+              assert.deepEqual(await report.locator('tbody tr').nth(1).locator('td').allTextContents(),['Beta','1','20','20']);
+              await sheet.getByRole('dialog').getByRole('button',{name:'Chart',exact:true}).click();
+              const image=report.locator('.de-excel-summary-chart');
+              await image.waitFor();
+              await image.evaluate(el=>el.decode());
+              const svgDownload=page.waitForEvent('download');
+              await sheet.getByRole('dialog').getByRole('button',{name:'Download SVG',exact:true}).click();
+              const svgFile=await svgDownload;
+              await svgFile.saveAs(path.join(dir,'category-summary.svg'));
+              const svg=fs.readFileSync(path.join(dir,'category-summary.svg'),'utf8');
+              assert.ok(svg.includes('<svg')&&svg.includes('Alpha')&&svg.includes('Beta'));
+              await page.keyboard.press('Escape');
+              await report.waitFor({state:'hidden'});
+              console.log('PASS Excel actual grouped totals, counts, averages and native SVG chart export');
+              await sheet.locator('.de-cell').getByText('10',{exact:true}).first().click();
+              await sheet.getByRole('button',{name:'Color numbers ±',exact:true}).click();
+              const positive=sheet.locator('.de-cell').filter({hasText:/^10\.00$/}).first();
+              await positive.waitFor();
+              assert.equal(await positive.evaluate(el=>getComputedStyle(el).color),'rgb(0, 160, 0)');
+              await sheet.locator('.de-fx-input').click();
+              await sheet.locator('.de-fx-input').fill('-5');
+              await sheet.locator('.de-fx-input').press('Enter');
+              const negative=sheet.locator('.de-cell').filter({hasText:/^-5\.00$/}).first();
+              await negative.waitFor();
+              assert.equal(await negative.evaluate(el=>getComputedStyle(el).color),'rgb(255, 0, 0)');
+              console.log('PASS Excel native conditional numeric colors follow changed value');
+
 
 
               await page.locator('#langSelect').selectOption('bg');
