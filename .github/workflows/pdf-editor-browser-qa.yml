@@ -16,31 +16,23 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
-      - name: Extract bundled Office adapter
+      - name: Extract full adapter and mount contract
         run: |
           python3 - <<'PY'
-          import re,base64,gzip,zlib
+          import re,base64,gzip
           from pathlib import Path
           s=Path('projects/devanagari-cryptor/app-4.4.0.html').read_text()
-          l=s.splitlines()[1986]
-          print('BUNDLE LENGTH',len(l),'START',l[:400],'END',l[-2500:])
-          for m in re.finditer(r'[A-Za-z0-9+/]{300,}={0,2}',l):
-              try:
-                  b=base64.b64decode(m[0]); print('BLOB',len(b),repr(b[:60]))
-                  for v in [b]+[fn(b) for fn in []]:
-                      try: v=gzip.decompress(v)
-                      except: pass
-                      try: v=zlib.decompress(v)
-                      except: pass
-                      v=v.decode(errors='replace')
-                      keys=['cryptorOffice','data-office-expanded','cryptor-office-layout-actions','cryptor-office-expand','officeModes','modeSelect']
-                      for k in keys:
-                          for t in list(re.finditer(re.escape(k),v))[:10]:
-                              print('ADAPTER',k,v[max(0,t.start()-350):t.start()+800])
-              except Exception as e: print('decode error',e)
+          b=re.search(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s).group(1)
+          v=gzip.decompress(base64.b64decode(b)).decode()
+          i=v.index('function installOffice(')
+          print('OFFICE ADAPTER START')
+          print(v[max(0,i-5000):i+24000])
+          print('OFFICE ADAPTER END')
+          for m in list(re.finditer(r'installOffice\)\(|installOffice\(|exports\.MODES\s*=|mount:\s*|createBlank:',v))[-35:]:
+              print('CALLSITE',v[max(0,m.start()-160):m.start()+500])
           PY
   browser:
-    if: github.ref == 'refs/heads/web-office-pdf-editor'
+    if: github.ref == 'refs/heads/web-office-pdf-editor' && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
