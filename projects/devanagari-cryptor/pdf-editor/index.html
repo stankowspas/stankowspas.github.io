@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"><title>PDF Editor · Web Office</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="office-theme.css"><script defer src="office-ui.js"></script><script type="module" src="app.js"></script></head>
+<body class="no-doc">
+<a class="skip" href="#viewer">Skip to document</a>
+<header class="topbar">
+  <div class="brand" aria-label="PDF Editor">
+    <svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="2" width="22" height="28" rx="4" fill="#6366f1"/><path d="M19 2v6a2 2 0 0 0 2 2h4" fill="#a5b4fc"/><path d="M10 20.5l9.5-9.5 3 3-9.5 9.5H10z" fill="#fff"/></svg>
+    <span>PDF Editor</span>
+  </div>
+  <div class="docname" id="docName" title=""></div>
+  <div class="actions">
+    <button class="icon-btn doc-only" id="btnUndo" title="Undo (Ctrl+Z)" aria-label="Undo" disabled><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+    <button class="icon-btn doc-only" id="btnRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" disabled><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+    <span class="sep doc-only"></span>
+    <button class="btn ghost" id="btnOpen2" title="Open another PDF"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="lbl">Open</span></button>
+    <button class="btn ghost" id="btnMergePdf" type="button" title="Merge PDF files"><svg viewBox="0 0 24 24"><path d="M5 4v5l7 5 7-5V4M12 14v6m-3-3 3 3 3-3"/></svg><span class="lbl">Merge PDFs</span></button>
+    <button class="btn ghost doc-only" id="btnSplitPdf" type="button" title="Split into separate PDF files"><svg viewBox="0 0 24 24"><path d="M12 4v6m0 0-7 5v5m7-10 7 5v5M2 17l3 3 3-3m8 0 3 3 3-3"/></svg><span class="lbl">Split PDF</span></button>
+    <button class="btn ghost doc-only" id="btnPrint" title="Print"><svg viewBox="0 0 24 24"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg><span class="lbl">Print</span></button>
+    <button class="btn ghost doc-only" id="btnShare" title="Share" hidden><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg><span class="lbl">Share</span></button>
+    <button class="btn primary doc-only" id="btnDownload" title="Download edited PDF"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span class="lbl">Download</span></button>
+    
+  </div>
+</header>
+<main id="main">
+<section id="landing" class="landing" aria-labelledby="heroTitle"><div class="hero"><div class="hero-copy"><h1 id="heroTitle">PDF Editor</h1><p class="sub">Edit text, add images, sign, highlight and organize PDF pages.</p><p class="source-credit">PDF Studio · Amjad Ali · MIT</p></div><div class="hero-card">
+        <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Open a PDF: click or drop a file here">
+          <svg viewBox="0 0 24 24" class="dz-icon" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M12 17v-6"/><path d="m9 14 3-3 3 3"/></svg>
+          <strong>Choose a PDF</strong>
+          <span class="dz-hint">or drag and drop it here</span>
+          <button class="btn primary big" id="btnOpen" type="button">Open PDF</button>
+        </div>
+        <button class="linkish" id="btnSample" type="button">No PDF handy? Try a sample document</button>
+        <p class="privacy"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> <span>Your file never leaves your device. Opening, editing and saving all happen inside this page.</span></p>
+      </div></div></section>
+  <section id="editor" class="editor" hidden>
+    <nav id="tools" class="tools" aria-label="Editing tools">
+      <button class="tool active" data-tool="select" title="Select / move (V)"><svg viewBox="0 0 24 24"><path d="m4 3 7 17 2.5-7.5L21 10z"/></svg><span>Select</span></button>
+      <button class="tool" data-tool="text" title="Add text (T)"><svg viewBox="0 0 24 24"><path d="M5 6V4h14v2"/><path d="M12 4v16"/><path d="M9 20h6"/></svg><span>Text</span></button>
+      <button class="tool" data-tool="edittext" title="Edit existing text (E)"><svg viewBox="0 0 24 24"><path d="M4 7V5h9v2"/><path d="M8.5 5v12"/><path d="M6.5 17h4"/><path d="m14 19 6.5-6.5-2-2L12 17v2z"/></svg><span>Edit text</span></button>
+      <button class="tool" data-tool="image" title="Insert image (I)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg><span>Image</span></button>
+      <button class="tool" data-tool="whiteout" title="Whiteout / cover (W)"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="1.5"/><path d="M7 12h10" stroke-dasharray="2 2"/></svg><span>Whiteout</span></button>
+      <button class="tool" data-tool="highlight" title="Highlight (H)"><svg viewBox="0 0 24 24"><path d="m9 11-5 5v4h4l5-5"/><path d="m9 11 6-6 4 4-6 6z"/><path d="M14 21h7"/></svg><span>Highlight</span></button>
+      <button class="tool" data-tool="rect" title="Rectangle (R)"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1"/></svg><span>Box</span></button>
+      <button class="tool" data-tool="draw" title="Draw / sign (D)"><svg viewBox="0 0 24 24"><path d="M3 17c3-1 4-8 7-8s2 6 5 6 3-4 6-4"/><path d="M3 21h18"/></svg><span>Draw</span></button>
+      <button class="tool" id="btnRotateLeft" type="button" title="Rotate left 90°" aria-label="Rotate left 90°"><svg viewBox="0 0 24 24"><path d="M4 11a8 8 0 1 1 2.3 5.6L4 12M4 4v7h7"/></svg><span>Left 90°</span></button>
+      <button class="tool" id="btnRotateRight" type="button" title="Rotate right 90°" aria-label="Rotate right 90°"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.6L20 12m0-8v7h-7"/></svg><span>Right 90°</span></button>
+      <button class="tool mobile-only" data-panel="pages" id="btnPagesM" title="Pages"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="11" height="14" rx="1.5"/><path d="M9 21h9a2 2 0 0 0 2-2V8"/></svg><span>Pages</span></button>
+    </nav>
+
+    <aside id="pagesPanel" class="pages-panel" aria-label="Pages">
+      <div class="panel-head">
+        <h2>Pages</h2>
+        <button class="btn small" id="btnAddPage" title="Add a blank page at the end">+ Blank</button>
+        <button class="icon-btn mobile-only" id="btnClosePages" aria-label="Close pages"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+      <ol id="thumbs" class="thumbs"></ol>
+    </aside>
+
+    <div id="viewer" class="viewer" tabindex="-1">
+      <div id="pagesWrap" class="pages-wrap"></div>
+    </div>
+
+    <aside id="props" class="props" aria-label="Properties"></aside>
+
+    <div class="zoombar" role="group" aria-label="Zoom">
+      <button class="icon-btn" id="zoomOut" aria-label="Zoom out"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+      <button class="zoomval" id="zoomVal" title="Fit to width">100%</button>
+      <button class="icon-btn" id="zoomIn" aria-label="Zoom in"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      <span class="pageind" id="pageInd"></span>
+    </div>
+  </section>
+</main>
+
+<input type="file" id="fileMergePdf" accept="application/pdf,.pdf" multiple hidden>
+<input type="file" id="filePdf" accept="application/pdf,.pdf" hidden>
+<input type="file" id="fileImg" accept="image/*" hidden>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="busy" class="busy" hidden><div class="spinner"></div><span id="busyText">Working…</span></div>
+<div id="dropOverlay" class="drop-overlay" hidden><div>Drop to open</div></div>
+<div id="printArea" aria-hidden="true"></div>
+<noscript><p class="noscript">PDF Editor needs JavaScript to edit PDFs in your browser.</p></noscript>
+</body>
+</html>
