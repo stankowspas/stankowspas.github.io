@@ -597,11 +597,17 @@ jobs:
                 assert.equal(fs.readFileSync(file).subarray(0,2).toString(),'PK');
               };
               const openNative=async(panel,file)=>{
+                const editor=panel.locator('.de-grid, .de-pages[contenteditable]').first();
+                const old=await editor.elementHandle();
+                assert.ok(old,'old native editor not mounted');
                 const pending=page.waitForEvent('filechooser',{timeout:30000});
                 await menu(panel,'Open…');const chooser=await pending;await chooser.setFiles(file);
                 const confirm=panel.getByRole('alertdialog').getByRole('button',{name:'Continue',exact:true});
                 if(await confirm.isVisible())await confirm.click();
                 else await confirm.waitFor({timeout:1200}).then(()=>confirm.click()).catch(()=>{});
+                await page.waitForFunction(el=>!el.isConnected,old,{timeout:30000});
+                await old.dispose();
+                await editor.waitFor({timeout:30000});
               };
               const python=require('node:child_process').execFileSync;
               const xlsx=path.join(dir,'native-roundtrip.xlsx');
@@ -643,6 +649,7 @@ jobs:
               await openNative(ep,protectedFile);
               await ep.locator('.de-cell').getByText('42',{exact:true}).waitFor();
               await ep.locator('.de-cell').getByText('42',{exact:true}).click();
+              assert.equal(await ep.locator('.de-fx-ref').textContent(),'B3');
               await ep.locator('.de-fx-input').click();await ep.locator('.de-fx-input').fill('99');await ep.locator('.de-fx-input').press('Enter');
               await ep.getByText(/This sheet is protected/).first().waitFor({timeout:15000});
               await ep.locator('.de-cell').getByText('42',{exact:true}).waitFor();
