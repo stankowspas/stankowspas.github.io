@@ -16,23 +16,28 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
-      - name: Extract original office implementation
+      - name: Extract bundled Office adapter
         run: |
           python3 - <<'PY'
+          import re,base64,gzip,zlib
           from pathlib import Path
           s=Path('projects/devanagari-cryptor/app-4.4.0.html').read_text()
-          lines=s.splitlines()
-          print('TOTAL',len(lines))
-          for i in range(272,311):
-              print(f'SRC {i+1} {lines[i][:2500]}')
-          for i in range(1888,len(lines)):
-              l=lines[i]
-              if len(l)<2200:
-                  print(f'SRC {i+1} {l}')
-              else:
-                  import re
-                  for m in list(re.finditer(r'cryptorOffice|office-expanded|fullscreen|fullScreen|expand|data-office|wordPanel|excelPanel|modeSelect|officeModes|officeTab|officeSection',l,re.I))[:12]:
-                      print(f'SRC {i+1} {l[max(0,m.start()-110):m.start()+230]}')
+          l=s.splitlines()[1986]
+          print('BUNDLE LENGTH',len(l),'START',l[:400],'END',l[-2500:])
+          for m in re.finditer(r'[A-Za-z0-9+/]{300,}={0,2}',l):
+              try:
+                  b=base64.b64decode(m[0]); print('BLOB',len(b),repr(b[:60]))
+                  for v in [b]+[fn(b) for fn in []]:
+                      try: v=gzip.decompress(v)
+                      except: pass
+                      try: v=zlib.decompress(v)
+                      except: pass
+                      v=v.decode(errors='replace')
+                      keys=['cryptorOffice','data-office-expanded','cryptor-office-layout-actions','cryptor-office-expand','officeModes','modeSelect']
+                      for k in keys:
+                          for t in list(re.finditer(re.escape(k),v))[:10]:
+                              print('ADAPTER',k,v[max(0,t.start()-350):t.start()+800])
+              except Exception as e: print('decode error',e)
           PY
   browser:
     if: github.ref == 'refs/heads/web-office-pdf-editor'
