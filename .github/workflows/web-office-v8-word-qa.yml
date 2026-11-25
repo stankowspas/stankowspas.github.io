@@ -73,6 +73,70 @@ jobs:
               m=next(m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s) if m[1].startswith('H4sI'))
               host.write_text(s[:m.start(1)]+base64.b64encode(gzip.compress(b.encode(),mtime=0)).decode()+s[m.end(1):],encoding='utf-8')
           assert b.count(new)==1
+          # Word v8.2 additions: use existing heading parser and editor insertion; screen-only physical rulers.
+          labels={'bg':['Съдържание от заглавия','Линийки','Няма заглавия с приложен стил.','Постави курсора в празен обикновен абзац.','Съдържание'], 'en':['Contents from headings','Rulers','No styled headings found.','Place the cursor in an empty normal paragraph.','Contents'], 'de':['Inhalt aus Überschriften','Lineale','Keine Überschriften mit Formatvorlage.','Cursor in einen leeren Standardabsatz setzen.','Inhalt'], 'fr':['Sommaire des titres','Règles','Aucun titre mis en forme.','Placez le curseur dans un paragraphe normal vide.','Sommaire'], 'es':['Índice de encabezados','Reglas','No hay encabezados con estilo.','Coloca el cursor en un párrafo normal vacío.','Índice'], 'it':['Indice dai titoli','Righelli','Nessun titolo con stile.','Posiziona il cursore in un paragrafo normale vuoto.','Indice'], 'pt':['Índice dos títulos','Réguas','Não há títulos com estilo.','Coloque o cursor num parágrafo normal vazio.','Índice'], 'pl':['Spis nagłówków','Linijki','Brak nagłówków ze stylem.','Ustaw kursor w pustym zwykłym akapicie.','Spis treści'], 'ro':['Cuprins din titluri','Rigle','Nu există titluri cu stil.','Plasează cursorul într-un paragraf normal gol.','Cuprins'], 'el':['Περιεχόμενα από επικεφαλίδες','Χάρακες','Δεν υπάρχουν μορφοποιημένες επικεφαλίδες.','Τοποθετήστε τον δρομέα σε κενή κανονική παράγραφο.','Περιεχόμενα'], 'cs':['Obsah z nadpisů','Pravítka','Žádné nadpisy se stylem.','Umístěte kurzor do prázdného běžného odstavce.','Obsah'], 'hi':['शीर्षकों से विषयसूची','रूलर','शैली वाले शीर्षक नहीं हैं।','कर्सर खाली सामान्य अनुच्छेद में रखें।','विषयसूची']}
+          import json
+          label_code='const WORD_V82_LABELS='+json.dumps(labels,ensure_ascii=False,separators=(',',':'))+';\n'
+          def toolbar82(s):
+              return one(s,'if (mode === "word" && p.ribbonGroup === "review") return "review";', 'if (mode === "word" && ["review","insert","view"].includes(p.ribbonGroup)) return p.ribbonGroup;')
+          def wordtoolbar82(s):
+              a='(0, jsx_runtime_1.jsx)(Toolbar_1.Btn, { icon: "pageSetup",'
+              cmd='(0, jsx_runtime_1.jsx)(Toolbar_1.Btn, { ribbonGroup: "insert", title: props.extraLabels[0], label: props.extraLabels[0], wide: true, disabled: dis || !props.canContents, onClick: props.onContents }), '
+              s=one(s,a,cmd+a)
+              a='props.onOutline && (0, jsx_runtime_1.jsx)(Toolbar_1.Btn, { icon: "outline",'
+              cmd='(0, jsx_runtime_1.jsx)(Toolbar_1.Btn, { ribbonGroup: "view", title: props.extraLabels[1], label: props.extraLabels[1], wide: true, active: props.rulers, onClick: props.onRulers }), '
+              return one(s,a,cmd+a)
+          ruler=r'''function WordPageRulers({ page, top, left, zoom }) {
+              const x=(0,jsx_runtime_1.jsx), scale=96*zoom/2.54, w=page.w*PX*zoom, h=page.h*PX*zoom;
+              function axis(vertical, length, start, end) {
+                  const children=[x('rect',{x:0,y:0,width:vertical?18:length,height:vertical?length:18,fill:'var(--de-chrome)',stroke:'var(--de-border)'},'base')];
+                  for (const [i,a,z] of [[0,0,start],[1,length-end,end]]) if(z>0) children.push(x('rect',{x:vertical?0:a,y:vertical?a:0,width:vertical?18:z,height:vertical?z:18,fill:'var(--de-muted)',opacity:0.18},'margin'+i));
+                  const step=scale<16?2:scale<28?1:0.5;
+                  for(let cm=0;cm*scale<=length+0.01;cm+=step){
+                      const p=cm*scale, major=Number.isInteger(cm), n=major?8:4;
+                      children.push(x('line',{x1:vertical?18-n:p,y1:vertical?p:18-n,x2:vertical?18:p,y2:vertical?p:18,stroke:'var(--de-ink)',strokeWidth:1},'t'+cm));
+                      if(major && cm>0 && p<length-8) children.push(x('text',{x:vertical?2:p+2,y:vertical?p-2:8,fill:'var(--de-ink)',fontSize:8,children:String(cm)},'n'+cm));
+                  }
+                  return x('svg',{className:vertical?'de-word-ruler-vertical':'de-word-ruler-horizontal',width:vertical?18:length,height:vertical?length:18,style:{position:'absolute',top:vertical?top:top-20,left:vertical?left-20:left,pointerEvents:'none',zIndex:3},'aria-hidden':true,children});
+              }
+              return x('div',{className:'de-word-rulers',contentEditable:false,'aria-hidden':true,style:{pointerEvents:'none'},children:[axis(false,w,page.ml*PX*zoom,page.mr*PX*zoom),axis(true,h,page.mt*PX*zoom,page.mb*PX*zoom)]});
+          }
+          '''
+          def view82(s):
+              s=one(s,'function DocxView({ client, onStatus, initialZoom = \'fit\' }) {',label_code+ruler+'function DocxView({ client, onStatus, initialZoom = \'fit\' }) {')
+              a='    const [proof, setProof] = (0, react_1.useState)(false);'
+              s=one(s,a,a+'\n    const [rulers, setRulers] = (0, react_1.useState)(false);\n    const extraLabels=WORD_V82_LABELS[String(str.locale||"en").split("-")[0]]||WORD_V82_LABELS.en;')
+              a='    // ---- controller: zoom, page, headings, undo ----'
+              cmd=r'''    // A generated static contents list; never overwrites selected text or adds unsupported OOXML fields.
+              const insertContents = () => {
+                  if (!isEditing || !complete) return;
+                  const items=outlineOf(st.blocks,undefined);
+                  if (!items.length) { setToast(extraLabels[2]); return; }
+                  const sel=editor.input.sel();
+                  const p=sel && editor.para(sel.a.pa);
+                  if (!sel || !(0,rich_1.collapsed)(sel) || sel.a.pa.includes('.') || !p || p.ro || p.ps.outline!==undefined && p.ps.outline<9 || p.sid===titleId && !!titleId || p.code!==undefined || p.runs.some(r=>r.t!=='text'||r.text.length)) { setToast(extraLabels[3]); return; }
+                  const counters=[];
+                  const entries=items.map(h=>{
+                      while(counters.length<=h.lvl)counters.push(0);
+                      counters.length=h.lvl+1;
+                      for(let i=0;i<h.lvl;i++) if(!counters[i]) counters[i]=1;
+                      counters[h.lvl]++;
+                      return counters.join('.')+'. '+h.text.replace(/\s+/g,' ');
+                  });
+                  editor.insertText([extraLabels[4],...entries,''].join('\n'));
+              };
+          '''
+              s=one(s,a,cmd+a)
+              a='onStats: () => setShowStats(true), painter:'
+              s=one(s,a,'onStats: () => setShowStats(true), extraLabels, rulers, onRulers: () => setRulers(v=>!v), canContents: complete, onContents: insertContents, painter:')
+              a='children: [pages.map((p, i) => (i < first || i > last) && !pinned.has(i) ? null : ((0, jsx_runtime_1.jsx)(PageView,'
+              s=one(s,a,'children: [rulers && pages.map((p,i)=>(i<first||i>last)&&!pinned.has(i)?null:(0,jsx_runtime_1.jsx)(WordPageRulers,{page,top:tops[i]-scrollOffset,left,zoom:z},"ruler"+i)), pages.map((p, i) => (i < first || i > last) && !pinned.has(i) ? null : ((0, jsx_runtime_1.jsx)(PageView,')
+              return s
+          if 'WORD_V82_LABELS' not in b:
+              edit('src/react/edit/Toolbar.tsx',toolbar82);edit('src/react/docx/DocxToolbar.tsx',wordtoolbar82);edit('src/react/docx/DocxView.tsx',view82)
+              s=host.read_text(encoding='utf-8')
+              m=next(m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s) if m[1].startswith('H4sI'))
+              host.write_text(s[:m.start(1)]+base64.b64encode(gzip.compress(b.encode(),mtime=0)).decode()+s[m.end(1):],encoding='utf-8')
           Path('/tmp/office-v8.js').write_text(b,encoding='utf-8')
           PY
           node --check /tmp/office-v8.js
@@ -261,6 +325,33 @@ jobs:
               await word.locator('.de-outline-head button').click();
               await word.locator('.de-outline').waitFor({state:'hidden'});
               console.log('PASS Word heading navigation opens and closes');
+              const rulers=word.getByRole('button',{name:'Rulers',exact:true});
+              await rulers.click();
+              const horizontal=word.locator('.de-word-ruler-horizontal').first();
+              const vertical=word.locator('.de-word-ruler-vertical').first();
+              await horizontal.waitFor();await vertical.waitFor();
+              assert.ok(Number(await horizontal.getAttribute('width'))>100);
+              assert.ok(Number(await vertical.getAttribute('height'))>100);
+              await rulers.click();
+              await horizontal.waitFor({state:'hidden'});
+              console.log('PASS Word physical horizontal and vertical ruler display toggle');
+              await doc.locator('.de-p').first().click();
+              await page.keyboard.press('End');
+              await page.keyboard.press('Control+Alt+1');
+              await word.locator('[data-ribbon-tab="view"]').click();
+              await word.locator('.de-ebar button[title*="Outline"], .de-ebar button[title*="Navigation"]').first().click();
+              await word.locator('.de-outline-item').getByText('RibbonQAWord',{exact:true}).waitFor({timeout:15000});
+              await word.locator('.de-outline-head button').click();
+              await doc.locator('.de-p').first().click();
+              await page.keyboard.press('End');
+              await page.keyboard.press('Enter');
+              await page.keyboard.press('Control+Alt+0');
+              await word.locator('[data-ribbon-tab="insert"]').click();
+              await word.getByRole('button',{name:'Contents from headings',exact:true}).click();
+              await doc.getByText('1. RibbonQAWord',{exact:true}).waitFor({timeout:15000});
+              assert.ok(await doc.getByText('Contents',{exact:true}).count());
+              console.log('PASS Word generated contents from actual styled heading');
+
 
               await page.locator('#cryptor-tab-excel').click();
               const sheet=page.locator('#cryptor-office-excel');
