@@ -17,7 +17,7 @@ Devanagari Cryptor is a standalone browser application for reversible Unicode-to
 
 ## Usage
 
-Open the live application or save `index.html` and open it locally in a compatible browser. Use a strong, memorable password for protected text and files. **There is no password recovery.**
+Open the live application or save `app-4.4.0.html` and open it locally in a compatible browser. Use a strong, memorable password for protected text and files. **There is no password recovery.**
 
 Encrypted data is processed locally in the browser; this application does not require a server to upload your files. Do not rely on it as the sole copy of important data. Verify recovered files before deleting originals.
 
