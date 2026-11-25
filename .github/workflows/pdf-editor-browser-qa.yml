@@ -16,31 +16,23 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
-      - name: Inspect existing Office workspace and fullscreen
+      - name: Extract original office implementation
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
-          from html.parser import HTMLParser
           s=Path('projects/devanagari-cryptor/app-4.4.0.html').read_text()
-          print('HOST LENGTH',len(s))
-          class P(HTMLParser):
-              def handle_starttag(self,tag,attrs):
-                  a=dict(attrs)
-                  id=a.get('id','') or ''
-                  cl=a.get('class','') or ''
-                  mode=a.get('data-mode','') or ''
-                  if re.search(r'office|word|excel|full.?screen|sheet|ribbon|mode|toolbar|workspace',id+' '+cl+' '+mode,re.I) and len(id+cl+mode)<350:
-                      if tag not in ['svg','path','g','style','script']:
-                          print('DOM',tag,id,cl,mode, str(a.get('title',''))[:80])
-          P().feed(s)
-          for i,l in enumerate(s.splitlines()):
-              if re.search(r'function\s+\w*(office|word|excel|fullscreen|sheet|mode)|requestFullscreen|exitFullscreen|fullscreenchange|cryptorOffice|officeFullscreen|office-fullscreen|modeSelect',l,re.I):
-                  if len(l)<5000:
-                      print('LINE',i+1,l[:1400])
-                  elif len(l)>5000:
-                      for m in list(re.finditer(r'function\s+\w*(?:office|word|excel|fullscreen|sheet|mode)|requestFullscreen|exitFullscreen|fullscreenchange|officeFullscreen|office-fullscreen',l,re.I))[:12]:
-                          print('SNIPPET',i+1,l[max(0,m.start()-150):m.start()+500])
+          lines=s.splitlines()
+          print('TOTAL',len(lines))
+          for i in range(272,311):
+              print(f'SRC {i+1} {lines[i][:2500]}')
+          for i in range(1888,len(lines)):
+              l=lines[i]
+              if len(l)<2200:
+                  print(f'SRC {i+1} {l}')
+              else:
+                  import re
+                  for m in list(re.finditer(r'cryptorOffice|office-expanded|fullscreen|fullScreen|expand|data-office|wordPanel|excelPanel|modeSelect|officeModes|officeTab|officeSection',l,re.I))[:12]:
+                      print(f'SRC {i+1} {l[max(0,m.start()-110):m.start()+230]}')
           PY
   browser:
     if: github.ref == 'refs/heads/web-office-pdf-editor'
