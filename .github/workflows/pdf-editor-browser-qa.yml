@@ -82,6 +82,45 @@ jobs:
             git commit -m 'Integrate PDF Editor into native Office workspace and shared fullscreen'
             git push origin HEAD:refs/heads/web-office-pdf-editor
           fi
+      - name: Add approved Black Platinum and Black Gold host themes
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/web-office-pdf-editor
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, gzip, base64
+          root=Path('projects/devanagari-cryptor')
+          host=root/'app-4.4.0.html'
+          html=host.read_text(encoding='utf-8')
+          def one(s,a,b):
+              assert s.count(a)==1,(a[:120],s.count(a))
+              return s.replace(a,b,1)
+          if 'value="black-platinum"' not in html:
+              css=(root/'pdf-editor/office-theme.css').read_text(encoding='utf-8')
+              palettes='\n'.join(re.search(r'\[data-theme="'+name+r'"\]\{[^}]+\}',css).group(0) for name in ('black-platinum','black-gold'))
+              html=one(html,'html,body{background:var(--page);color:var(--text)}',palettes+'\nhtml,body{background:var(--page);color:var(--text)}')
+              html=one(html,'<option value="graphite">Графит</option>','<option value="graphite">Графит</option><option value="black-platinum">Black Platinum</option><option value="black-gold">Black Gold</option>')
+              html=one(html,"const validThemes = new Set(['dark','sand','blue','graphite']);","const validThemes = new Set(['dark','sand','blue','graphite','black-platinum','black-gold']);")
+              m=re.search(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',html)
+              assert m
+              bundle=gzip.decompress(base64.b64decode(m.group(1))).decode()
+              bundle=one(bundle,"theme === 'dark' || theme === 'graphite' ? 'dark' : 'light'","['dark','graphite','black-platinum','black-gold'].includes(theme) ? 'dark' : 'light'")
+              html=html[:m.start(1)]+base64.b64encode(gzip.compress(bundle.encode(),mtime=0)).decode()+html[m.end(1):]
+              host.write_text(html,encoding='utf-8')
+          else:
+              m=re.search(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',html)
+              bundle=gzip.decompress(base64.b64decode(m.group(1))).decode()
+          assert "'black-platinum','black-gold'].includes(theme)" in bundle
+          Path('/tmp/web-office-theme-bundle.js').write_text(bundle,encoding='utf-8')
+          PY
+          node --check /tmp/web-office-theme-bundle.js
+          git add projects/devanagari-cryptor/app-4.4.0.html
+          if ! git diff --cached --quiet; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Add Black Platinum and Black Gold to native Office theme settings'
+            git push origin HEAD:refs/heads/web-office-pdf-editor
+          fi
       - name: Package exact source and single HTML previews
         run: |
           python3 - <<'PY'
@@ -189,6 +228,30 @@ jobs:
               await frame.locator('#pagesWrap .page canvas').first().waitFor({timeout:30000});
               assert.equal(await frame.locator('#pagesWrap .page').count(),2);
               console.log('PASS PDF sample open and render');
+              const themes=page.locator('#themeSelect');
+              assert.equal(await themes.locator('option').count(),6);
+              for (const [theme,accent] of [['black-platinum','#a5a5a5'],['black-gold','#c5ae60']]) {
+                await themes.selectOption(theme);
+                await page.waitForFunction(t=>document.documentElement.dataset.theme===t,theme);
+                await frame.locator('html[data-theme="'+theme+'"]').waitFor();
+                assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()),accent);
+                assert.equal(await frame.locator('html').evaluate(el=>getComputedStyle(el).getPropertyValue('--accent').trim()),accent);
+                assert.equal(await frame.locator('.page').first().evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(255, 255, 255)');
+                for(const mode of ['word','excel','powerpoint']){
+                  await page.locator('#cryptor-tab-'+mode).click();
+                  await page.locator('#cryptor-office-'+mode).waitFor();
+                  assert.equal(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--page').trim()),'#090909');
+                }
+                await page.locator('#cryptor-tab-pdf-editor').click();
+                await frame.locator('#editor').waitFor();
+                assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+                assert.equal(await page.evaluate(()=>localStorage.getItem('bgdev.theme')),theme);
+                await page.screenshot({path:path.join(dir,theme+'.png')});
+                console.log('PASS '+theme+' host, Office tabs, PDF, saved setting, unchanged page');
+              }
+              await themes.selectOption('dark');
+              await frame.locator('html[data-theme="dark"]').waitFor();
+
               const pdfFrame=page.frames().find(f=>f.url().includes('/pdf-editor/index.html'));
               const sample=Buffer.from(await pdfFrame.evaluate(async()=>Array.from(await window.__pdfStudio.makeSample())));
               await frame.locator('#fileMergePdf').setInputFiles([{name:'first.pdf',mimeType:'application/pdf',buffer:sample},{name:'second.pdf',mimeType:'application/pdf',buffer:sample}]);

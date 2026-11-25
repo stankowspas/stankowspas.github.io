@@ -3,7 +3,7 @@
  "use strict";
  const params=new URLSearchParams(location.search || window.name),root=document.documentElement;
  root.toggleAttribute("data-office-embedded",params.get("embedded")==="1");
- const supported=new Set(["en",...langs]),themes=new Set(["dark","sand","blue","graphite"]);
+ const supported=new Set(["en",...langs]),themes=new Set(["dark","sand","blue","graphite","black-platinum","black-gold"]);
  let lang=supported.has(params.get("lang"))?params.get("lang"):"en";
  const texts=new WeakMap(),attrs=new WeakMap();
  function translate(source){
