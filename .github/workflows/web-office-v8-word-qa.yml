@@ -320,7 +320,7 @@ jobs:
               await stats.waitFor({state:'hidden'});
               console.log('PASS Word document statistics (1 word, 12 characters), Escape and OK');
               await word.locator('[data-ribbon-tab="view"]').click();
-              await word.locator('.de-ebar button').first().click();
+              await word.getByRole('button',{name:'Document outline',exact:true}).click();
               await word.locator('.de-outline').waitFor();
               await word.locator('.de-outline-head button').click();
               await word.locator('.de-outline').waitFor({state:'hidden'});
@@ -337,15 +337,15 @@ jobs:
               console.log('PASS Word physical horizontal and vertical ruler display toggle');
               await doc.locator('.de-p').first().click();
               await page.keyboard.press('End');
-              await page.keyboard.press('Control+Alt+1');
+              await page.keyboard.press('Control+Alt+Digit1');
               await word.locator('[data-ribbon-tab="view"]').click();
-              await word.locator('.de-ebar button[title*="Outline"], .de-ebar button[title*="Navigation"]').first().click();
-              await word.locator('.de-outline-item').getByText('RibbonQAWord',{exact:true}).waitFor({timeout:15000});
+              await word.getByRole('button',{name:'Document outline',exact:true}).click();
+              await word.locator('.de-outline-item').filter({hasText:'RibbonQAWord'}).waitFor({timeout:15000});
               await word.locator('.de-outline-head button').click();
               await doc.locator('.de-p').first().click();
               await page.keyboard.press('End');
               await page.keyboard.press('Enter');
-              await page.keyboard.press('Control+Alt+0');
+              await page.keyboard.press('Control+Alt+Digit0');
               await word.locator('[data-ribbon-tab="insert"]').click();
               await word.getByRole('button',{name:'Contents from headings',exact:true}).click();
               await doc.getByText('1. RibbonQAWord',{exact:true}).waitFor({timeout:15000});
