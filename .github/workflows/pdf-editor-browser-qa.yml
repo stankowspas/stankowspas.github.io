@@ -10,15 +10,12 @@ on:
 permissions:
   contents: read
 jobs:
-  browser:
+  inspect:
     if: github.ref == 'refs/heads/web-office-pdf-editor'
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
       - name: Inspect existing Office workspace and fullscreen
         run: |
           python3 - <<'PY'
@@ -45,6 +42,15 @@ jobs:
                       for m in list(re.finditer(r'function\s+\w*(?:office|word|excel|fullscreen|sheet|mode)|requestFullscreen|exitFullscreen|fullscreenchange|officeFullscreen|office-fullscreen',l,re.I))[:12]:
                           print('SNIPPET',i+1,l[max(0,m.start()-150):m.start()+500])
           PY
+  browser:
+    if: github.ref == 'refs/heads/web-office-pdf-editor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: JavaScript syntax
         run: |
           for f in projects/devanagari-cryptor/pdf-editor/*.js; do node --check "$f"; done
