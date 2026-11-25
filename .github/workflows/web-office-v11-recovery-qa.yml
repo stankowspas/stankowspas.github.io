@@ -631,7 +631,7 @@ jobs:
               const wordDoc=wp.locator('.de-pages[contenteditable="true"]');
               await wordDoc.getByText('RibbonQAWord',{exact:true}).first().waitFor();
               const menu=async(panel,label)=>{
-                await panel.locator('.de-file button').first().click();
+                await panel.locator('button.de-file').click();
                 await panel.getByText(label,{exact:true}).last().click();
               };
               await menu(wp,'Local recovery');
