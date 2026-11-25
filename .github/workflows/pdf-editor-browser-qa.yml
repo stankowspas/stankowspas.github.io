@@ -1,4 +1,4 @@
-name: PDF Editor browser QA (no deployment)
+name: PDF Editor native Office QA (no deployment)
 on:
   push:
     branches: [web-office-pdf-editor]
@@ -8,41 +8,136 @@ on:
       - 'projects/devanagari-cryptor/app-4.4.0.html'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: pdf-editor-native-qa
+  cancel-in-progress: true
 jobs:
-  inspect:
+  browser:
     if: github.ref == 'refs/heads/web-office-pdf-editor'
     runs-on: ubuntu-24.04
-    timeout-minutes: 3
-    steps:
-      - uses: actions/checkout@v4
-      - name: Extract full adapter and mount contract
-        run: |
-          python3 - <<'PY'
-          import re,base64,gzip
-          from pathlib import Path
-          s=Path('projects/devanagari-cryptor/app-4.4.0.html').read_text()
-          b=re.search(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s).group(1)
-          v=gzip.decompress(base64.b64decode(b)).decode()
-          i=v.index('function installOffice(')
-          print('OFFICE ADAPTER START')
-          print(v[max(0,i-5000):i+24000])
-          print('OFFICE ADAPTER END')
-          for m in list(re.finditer(r'installOffice\)\(|installOffice\(|exports\.MODES\s*=|mount:\s*|createBlank:',v))[-35:]:
-              print('CALLSITE',v[max(0,m.start()-160):m.start()+500])
-          PY
-  browser:
-    if: github.ref == 'refs/heads/web-office-pdf-editor' && github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: JavaScript syntax
+      - name: Register PDF inside original Office host
         run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/web-office-pdf-editor
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, gzip, base64
+          root=Path('projects/devanagari-cryptor')
+          host=root/'app-4.4.0.html'
+          src=root/'pdf-editor'
+          html=host.read_text(encoding='utf-8')
+          m=re.search(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',html)
+          assert m
+          bundle=gzip.decompress(base64.b64decode(m.group(1))).decode()
+          marker='window.WebOfficePdfMount(panel.mountPoint'
+          def one(s,a,b):
+              assert s.count(a)==1, (a[:150],s.count(a))
+              return s.replace(a,b,1)
+          if marker not in bundle:
+              bundle=one(bundle,"exports.MODES = { word: 'docx', excel: 'xlsx', powerpoint: 'pptx' };","exports.MODES = { word: 'docx', excel: 'xlsx', powerpoint: 'pptx', 'pdf-editor': 'pdf' };")
+              bundle=one(bundle,"const labels = { word: 'Word', excel: 'Excel', powerpoint: 'PowerPoint' };","const labels = { word: 'Word', excel: 'Excel', powerpoint: 'PowerPoint', 'pdf-editor': 'PDF Editor' };")
+              bundle=one(bundle,"const blankNames = { word: 'Нов документ', excel: 'Нова таблица', powerpoint: 'Нова презентация' };","const blankNames = { word: 'Нов документ', excel: 'Нова таблица', powerpoint: 'Нова презентация', 'pdf-editor': 'Нов PDF' };")
+              bundle=one(bundle,"            const src = await createBlank(exports.MODES[panel.mode]);", """            if (panel.mode === 'pdf-editor') {
+                          panel.instance = window.WebOfficePdfMount(panel.mountPoint, { doc, root, lang, shadowHost: panel.shadowHost, onLoad: () => { panel.status.hidden = true; scheduleLayout(); } });
+                          return;
+                      }
+                      const src = await createBlank(exports.MODES[panel.mode]);""")
+              # Helper must be ready before the existing asynchronously decompressed Office bundle.
+              html=one(html,'<script src="pdf-editor/bridge.js?v=1"></script>','')
+              m=re.search(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',html)
+              html=html[:m.start(1)]+base64.b64encode(gzip.compress(bundle.encode(),mtime=0)).decode()+html[m.end(1):]
+              html=one(html,'<script>(async()=>{const b=Uint8Array.from(atob("','<script src="pdf-editor/bridge.js?v=2"></script><script>(async()=>{const b=Uint8Array.from(atob("')
+              host.write_text(html,encoding='utf-8')
+              (src/'bridge.js').write_text("/* Mount the original local PDF engine inside the native Office workspace. */\n(function () {\n \"use strict\";\n window.WebOfficePdfMount=function(mountPoint,{doc,root,lang,shadowHost,onLoad}){\n  const frame=doc.createElement(\"iframe\");\n  frame.title=\"PDF Editor\";frame.allow=\"web-share\";\n  frame.style.cssText=\"display:block;width:100%;height:100%;border:0;background:transparent\";\n  const collapsed=()=>shadowHost.hasAttribute(\"data-ribbon-collapsed\");\n  const settings=()=>({type:\"web-office:pdf-settings\",lang:lang.value,theme:root.dataset.theme||\"dark\",ribbonCollapsed:collapsed()});\n  const send=()=>{if(frame.contentWindow)frame.contentWindow.postMessage(settings(),window.origin===\"null\"?\"*\":window.origin)};\n  const url=new URL(\"pdf-editor/index.html\",doc.baseURI);\n  url.searchParams.set(\"embedded\",\"1\");\n  url.searchParams.set(\"lang\",lang.value);\n  url.searchParams.set(\"theme\",root.dataset.theme||\"dark\");\n  url.searchParams.set(\"ribbonCollapsed\",String(collapsed()));\n  frame.name=url.searchParams.toString();\n  frame.addEventListener(\"load\",()=>{send();onLoad?.()});\n  const observer=new MutationObserver(send);\n  observer.observe(shadowHost,{attributes:true,attributeFilter:[\"data-ribbon-collapsed\"]});\n  frame.src=url.href;\n  mountPoint.append(frame);\n  return {update:send,destroy(){observer.disconnect();frame.remove()}};\n };\n})();\n",encoding='utf-8')
+              ui=src/'office-ui.js'
+              s=ui.read_text(encoding='utf-8')
+              s=one(s,'new URLSearchParams(location.search)','new URLSearchParams(location.search || window.name)')
+              s=one(s,'const supported=new Set','root.toggleAttribute("data-office-embedded",params.get("embedded")==="1");\n const supported=new Set')
+              s=one(s,'  root.lang=lang;','  root.lang=lang;\n  if(typeof settings.ribbonCollapsed==="boolean")root.toggleAttribute("data-office-ribbon-collapsed",settings.ribbonCollapsed);')
+              s=one(s,'e.origin!==location.origin','e.origin!==window.origin')
+              s=one(s,'applySettings({lang,theme:themes.has(params.get("theme"))?params.get("theme"):"dark"});','applySettings({lang,theme:themes.has(params.get("theme"))?params.get("theme"):"dark",ribbonCollapsed:params.get("ribbonCollapsed")==="true"});')
+              ui.write_text(s,encoding='utf-8')
+              theme=src/'office-theme.css'
+              theme.write_text(theme.read_text(encoding='utf-8')+"\n/* Native Web Office layout: horizontal ribbon, common viewport, no second fullscreen. */\nhtml[data-office-embedded]{--top:44px;--toolsW:0px;--pagesW:158px;--propsW:236px;--pdf-ribbon-height:48px}\nhtml[data-office-embedded] .topbar{gap:6px;padding:0 8px;background:var(--panelhead);color:var(--text);border-bottom:1px solid var(--edge)}\nhtml[data-office-embedded] .brand{gap:5px;font-size:13px;color:var(--text)}\nhtml[data-office-embedded] .brand .logo{display:none}\nhtml[data-office-embedded] .docname{color:var(--muted)}\nhtml[data-office-embedded] .actions{gap:4px}\nhtml[data-office-embedded] .topbar .btn,html[data-office-embedded] .topbar .gh-btn{font-size:12px;border-radius:6px;padding:5px 8px}\nhtml[data-office-embedded] .landing{display:flex;align-items:center;justify-content:center;padding:calc(var(--top) + 8px) 8px 8px;min-height:100%;background:var(--page)}\nhtml[data-office-embedded] .hero{display:block;max-width:520px;width:100%;padding:8px 12px;text-align:center}\nhtml[data-office-embedded] .hero h1{font-size:20px;margin:0 0 6px;color:var(--text);letter-spacing:0}\nhtml[data-office-embedded] .hero .sub{font-size:13px;margin:0 0 8px}\nhtml[data-office-embedded] .source-credit{font-size:11px;margin:0 0 10px}\nhtml[data-office-embedded] .hero-card{padding:12px;border-radius:8px;box-shadow:none}\nhtml[data-office-embedded] .dropzone{padding:14px 10px}\nhtml[data-office-embedded] .dropzone .dz-icon{width:34px;height:34px}\nhtml[data-office-embedded] .tool{border-radius:6px;min-height:36px}\nhtml[data-office-embedded] .tool svg{width:18px;height:18px;flex-shrink:0}\nhtml[data-office-embedded] .pages-panel{padding:6px}\nhtml[data-office-embedded] .props{padding:8px 10px}\nhtml[data-office-embedded] .zoombar{border-radius:7px;padding:2px}\nhtml[data-office-embedded] [hidden]{display:none!important}\n@media(min-width:821px){\n html[data-office-embedded] .editor{display:grid;grid-template-columns:var(--pagesW) minmax(0,1fr) var(--propsW);grid-template-rows:auto minmax(0,1fr)}\n html[data-office-embedded] .tools{grid-row:1;grid-column:1/-1;flex-direction:row;justify-content:flex-start;align-items:center;padding:4px;gap:4px;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--edge);min-width:0;background:var(--panelhead)}\n html[data-office-embedded] .tool{width:auto;flex:0 0 auto;flex-direction:row;gap:5px;padding:5px 8px;white-space:nowrap;font-size:12px}\n html[data-office-embedded] .pages-panel{grid-row:2;grid-column:1;min-height:0}\n html[data-office-embedded] .viewer{grid-row:2;grid-column:2;min-height:0;min-width:0}\n html[data-office-embedded] .props{grid-row:2;grid-column:3;min-height:0;min-width:0}\n html[data-office-embedded] .zoombar{position:absolute;left:calc(var(--pagesW) + (100% - var(--pagesW) - var(--propsW))/2);bottom:8px}\n html[data-office-embedded][data-office-ribbon-collapsed] .editor{grid-template-rows:0 minmax(0,1fr)}\n}\n@media(max-width:820px){\n html[data-office-embedded] .tools{top:var(--top);bottom:auto;height:var(--pdf-ribbon-height);border-top:0;border-bottom:1px solid var(--edge);padding:3px 5px}\n html[data-office-embedded] .tool{width:auto;min-width:56px;padding:3px 6px}\n html[data-office-embedded] .viewer{top:calc(var(--top) + var(--pdf-ribbon-height));bottom:0}\n html[data-office-embedded] .pages-panel{top:calc(var(--top) + var(--pdf-ribbon-height))}\n html[data-office-embedded] .props{bottom:0}\n html[data-office-embedded] .zoombar{bottom:10px}\n html[data-office-embedded][data-office-ribbon-collapsed] .viewer,html[data-office-embedded][data-office-ribbon-collapsed] .pages-panel{top:var(--top)}\n}\nhtml[data-office-embedded][data-office-ribbon-collapsed] .tools{display:none!important}\n@media print{html[data-office-embedded] .topbar,html[data-office-embedded] .editor{display:none!important}}\n",encoding='utf-8')
+              print('Native Office host patched; original Word/Excel/PowerPoint branches preserved.')
+          else:
+              print('Native Office registration already present.')
+          assert marker in bundle
+          Path('/tmp/web-office-native-bundle.js').write_text(bundle,encoding='utf-8')
+          PY
+          node --check /tmp/web-office-native-bundle.js
           for f in projects/devanagari-cryptor/pdf-editor/*.js; do node --check "$f"; done
+          git add projects/devanagari-cryptor/app-4.4.0.html projects/devanagari-cryptor/pdf-editor/bridge.js projects/devanagari-cryptor/pdf-editor/office-ui.js projects/devanagari-cryptor/pdf-editor/office-theme.css
+          if ! git diff --cached --quiet; then
+            git diff --cached --stat
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Integrate PDF Editor into native Office workspace and shared fullscreen'
+            git push origin HEAD:refs/heads/web-office-pdf-editor
+          fi
+      - name: Package exact source and single HTML previews
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json, base64, shutil, mimetypes
+          root=Path('projects/devanagari-cryptor')
+          src=root/'pdf-editor'
+          out=Path('pdf-preview')
+          out.mkdir()
+          raw=src.joinpath('index.html').read_text(encoding='utf-8')
+          def data(path):
+              mime='font/woff2' if path.suffix=='.woff2' else 'font/ttf'
+              return 'data:'+mime+';base64,'+base64.b64encode(path.read_bytes()).decode()
+          fonts={p.name:data(p) for p in (src/'fonts').iterdir() if p.is_file()}
+          def font_css(css):
+              return re.sub(r'fonts/([\w.-]+\.(?:woff2|ttf))',lambda m:fonts.get(m[1],m[0]),css)
+          for name in ['styles.css','office-theme.css']:
+              raw=raw.replace('<link rel="stylesheet" href="'+name+'">','<style>'+font_css((src/name).read_text(encoding='utf-8'))+'</style>')
+          ui=(src/'office-ui.js').read_text(encoding='utf-8')
+          ui=ui.replace('new URLSearchParams(location.search)','new URLSearchParams(location.search || window.name)').replace('e.origin!==location.origin','e.origin!==window.origin')
+          ui=ui.replace('params.get("lang"):"en"','params.get("lang"):"bg"')
+          app=(src/'app.js').read_text(encoding='utf-8')
+          app=app.replace("return `fonts/${F.web}-latin-${VARIANT_CSS[v][0]}-${VARIANT_CSS[v][1]}.woff2`;","return previewFonts[`${F.web}-latin-${VARIANT_CSS[v][0]}-${VARIANT_CSS[v][1]}.woff2`];")
+          app=app.replace("`fonts/${f}`","previewFonts[f]")
+          app='const previewFonts='+json.dumps(fonts,separators=(',',':'))+';\n'+app
+          def safe(s): return re.sub(r'</script',r'<\\/script',s,flags=re.I)
+          raw=raw.replace('<script defer src="office-ui.js"></script>','<script defer type="module">'+safe(ui)+'</script>')
+          raw=raw.replace('<script type="module" src="app.js"></script>','<script type="module">'+safe(app)+'</script>')
+          assert 'previewFonts' in raw and 'src="app.js"' not in raw
+          (out/'PDF-Editor.html').write_text(raw,encoding='utf-8')
+          # Keep the exact original integrated folder for a local HTTP-server review.
+          folder=out/'Web-Office-original'
+          folder.mkdir()
+          shutil.copy2(root/'app-4.4.0.html',folder/'app-4.4.0.html')
+          shutil.copytree(src,folder/'pdf-editor')
+          main=(root/'app-4.4.0.html').read_text(encoding='utf-8')
+          bridge=(src/'bridge.js').read_text(encoding='utf-8')
+          bridge=bridge.replace('postMessage(settings(),location.origin)','postMessage(settings(),window.origin==="null"?"*":window.origin)')
+          enc=base64.b64encode(raw.encode()).decode()
+          bridge=bridge.replace('frame.src=url.href;','frame.name=url.searchParams.toString();frame.srcdoc=new TextDecoder().decode(Uint8Array.from(atob("'+enc+'"),c=>c.charCodeAt(0)));')
+          assert 'frame.srcdoc=' in bridge
+          pattern=r'<script\b[^>]*\bsrc\s*=\s*["\'](?:\./)?pdf-editor/bridge\.js(?:\?[^"\']*)?["\'][^>]*>\s*</script\s*>'
+          main,count=re.subn(pattern,lambda m:'<script>'+safe(bridge)+'</script>',main,flags=re.I)
+          if count==1:
+              (out/'Web-Office-PDF-Editor.html').write_text(main,encoding='utf-8')
+          else:
+              print('Integrated standalone not generated: bridge tag match count',count)
+          (out/'README.txt').write_text('Preview only; not deployed. Open PDF-Editor.html or Web-Office-PDF-Editor.html in Chrome/Edge. Internet is required for CDN PDF engines. For the exact unmodified source folder, run python -m http.server 8765 inside Web-Office-original and open http://localhost:8765/app-4.4.0.html. Standalone packaging is for review only, not a production release.\n',encoding='utf-8')
+          shutil.copy2(src/'LICENSE',out/'LICENSE')
+          print([(p.name,p.stat().st_size) for p in out.glob('*.html')])
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Web-Office-PDF-Editor-HTML-v2
+          path: pdf-preview/
+          retention-days: 14
       - name: Prepare browser
         run: |
           npm install --prefix "$RUNNER_TEMP/pdf-qa" playwright@1.51.1 --no-audit --no-fund
@@ -66,25 +161,45 @@ jobs:
             const base='http://127.0.0.1:8765/projects/devanagari-cryptor/';
             try{
               await page.goto(base+'app-4.4.0.html',{waitUntil:'domcontentloaded'});
-              await page.locator('#pdfEditorTab').waitFor({timeout:30000});
+              await page.locator('#cryptor-tab-pdf-editor').waitFor({timeout:30000});
               const mode=page.locator('#modeSelect');
               const original=await mode.inputValue();
               await page.locator('#langSelect').selectOption('bg');
-              await page.locator('#pdfEditorTab').click();
-              await page.locator('#pdfEditorPanel iframe').waitFor();
-              const frame=page.frameLocator('#pdfEditorPanel iframe');
+              await page.locator('#cryptor-tab-pdf-editor').click();
+              await page.locator('#cryptor-office-pdf-editor iframe').waitFor();
+              const frame=page.frameLocator('#cryptor-office-pdf-editor iframe');
               await frame.locator('#btnSample').waitFor();
               await page.screenshot({path:path.join(dir,'01-office-editor-bg.png')});
               assert.equal(await frame.locator('html').getAttribute('lang'),'bg');
+              assert.equal(await page.locator('#cryptorOffice > #cryptor-office-pdf-editor').count(),1);
+              const section=page.locator('#cryptor-office-pdf-editor');
+              await section.locator('.cryptor-office-expand').click();
+              await page.waitForFunction(()=>document.documentElement.hasAttribute('data-office-expanded'));
+              await section.locator('.cryptor-office-expand').click();
+              await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-office-expanded'));
+              console.log('PASS common Office expand/restore');
+              await section.locator('.cryptor-office-fullscreen').click();
+              await page.waitForFunction(()=>document.fullscreenElement?.id==='cryptor-office-pdf-editor');
+              await section.locator('.cryptor-office-fullscreen').click();
+              await page.waitForFunction(()=>!document.fullscreenElement);
+              console.log('PASS common Office full screen and exit');
               console.log('PASS office integration / Bulgarian language');
               await frame.locator('#btnSample').click();
               await frame.locator('#editor').waitFor({timeout:60000});
               await frame.locator('#pagesWrap .page canvas').first().waitFor({timeout:30000});
               assert.equal(await frame.locator('#pagesWrap .page').count(),2);
               console.log('PASS PDF sample open and render');
+              const tools=await frame.locator('#tools').boundingBox();
+              const viewer=await frame.locator('#viewer').boundingBox();
+              assert.ok(tools.width>viewer.width && tools.y<viewer.y,'Tools must be a horizontal ribbon above the workspace');
+              await section.locator('.cryptor-office-ribbon-toggle').click();
+              await frame.locator('#tools').waitFor({state:'hidden'});
+              await section.locator('.cryptor-office-ribbon-toggle').click();
+              await frame.locator('#tools').waitFor();
+              console.log('PASS shared ribbon collapse/restore');
               await frame.locator('[data-tool="text"]').click();
               await frame.locator('#pagesWrap .layer').first().click({position:{x:120,y:120}});
-              await frame.locator('.tcontent[contenteditable="true"]').fill('PDF QA test');
+              await frame.locator('.tcontent[contenteditable="plaintext-only"], .tcontent[contenteditable="true"]').fill('PDF QA test');
               await frame.locator('[data-tool="select"]').click();
               assert.equal(await frame.locator('.obj.text').count(),1);
               await frame.locator('#btnUndo').click();
@@ -113,9 +228,12 @@ jobs:
               await f.evaluate(async b=>{const d=await PDFLib.PDFDocument.load(new Uint8Array(b));if(d.getPageCount()!==2)throw Error('Invalid exported page count')},bytes);
               console.log('PASS download and parse exported PDF');
               if(original && original!=='pdf-editor'){
-                await mode.selectOption(original,{force:true});
-                await page.locator('#pdfEditorPanel').waitFor({state:'hidden'});
-                await page.locator('#pdfEditorTab').click();
+                await page.locator('#cryptor-tab-word').click();
+                await page.locator('#cryptor-office-word').waitFor();
+                await page.locator('#cryptor-tab-excel').click();
+                await page.locator('#cryptor-office-excel').waitFor();
+                await page.locator('#cryptor-office-pdf-editor').waitFor({state:'hidden'});
+                await page.locator('#cryptor-tab-pdf-editor').click();
                 await frame.locator('#editor').waitFor();
                 assert.equal(await frame.locator('.obj.text').count(),1);
                 console.log('PASS tab switching retains document');
@@ -131,6 +249,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pdf-editor-qa-preview
+          name: pdf-editor-native-qa-results
           path: ${{ runner.temp }}/pdf-qa/results/
-          retention-days: 7
+          retention-days: 14
