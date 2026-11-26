@@ -1,0 +1,154 @@
+name: Excel classic desktop exact build and browser QA (no deployment)
+on:
+  push:
+    branches: [web-office-excel-classic-qa]
+    paths: ['.github/workflows/web-office-excel-classic-qa.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: office-excel-classic-qa
+  cancel-in-progress: true
+jobs:
+  browser:
+    if: github.ref == 'refs/heads/web-office-excel-classic-qa'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build exact consolidated Excel source and run all local regressions
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/web-office-excel-classic-qa
+          mkdir -p "$RUNNER_TEMP/excel-source/base" "$RUNNER_TEMP/excel-build"
+          base64 -d .qa/office28-patches.b64 > "$RUNNER_TEMP/excel-source.tar.gz"
+          echo "c0edfea2d1be8b8a63f8fed70fe0b95f3924dd43e1c3e7691d6dfd47bb77935a  $RUNNER_TEMP/excel-source.tar.gz" | sha256sum --check
+          tar xzf "$RUNNER_TEMP/excel-source.tar.gz" -C "$RUNNER_TEMP/excel-source"
+          cp projects/devanagari-cryptor/app-4.4.0.html "$RUNNER_TEMP/excel-source/base/Web-Office-v17-Color-Scales-Preview.html"
+          python3 "$RUNNER_TEMP/excel-source/build.py" --out "$RUNNER_TEMP/excel-build" --test
+          cp "$RUNNER_TEMP/excel-build/Web-Office-Excel-365-Classic-Interface.html" projects/devanagari-cryptor/app-4.4.0.html
+          python3 - <<'PY'
+          import re,base64,gzip,hashlib
+          from pathlib import Path
+          s=Path("projects/devanagari-cryptor/app-4.4.0.html").read_text()
+          m=next(m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s) if m[1].startswith("H4sI"))
+          actual=hashlib.sha256(gzip.decompress(base64.b64decode(m[1]))).hexdigest()
+          print("Exact editor bundle SHA256:",actual)
+          assert actual=="118012d9f47016b2f8646eaa42288e43c5829d79702ee7a7322cb5f025242a9c"
+          PY
+      - name: Prepare browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/excel-qa" playwright@1.51.1 --no-audit --no-fund
+          "$RUNNER_TEMP/excel-qa/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Inspect and test actual browser UI
+        run: |
+          mkdir -p "$RUNNER_TEMP/excel-qa/results"
+          python3 -m http.server 8765 --bind 127.0.0.1 > "$RUNNER_TEMP/excel-qa/server.log" 2>&1 &
+          cat > "$RUNNER_TEMP/excel-qa/test.cjs" <<'JS'
+          const {chromium}=require('playwright');
+          const assert=require('node:assert/strict');
+          const path=require('node:path');
+          const fs=require('node:fs');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const page=await browser.newPage({viewport:{width:1440,height:1000},acceptDownloads:true});
+            const errors=[];
+            page.on('pageerror',e=>{errors.push(e.message);console.log('PAGE ERROR',e.message)});
+            page.on('dialog',d=>d.accept());
+            const dir=path.join(__dirname,'results');
+            const shot=name=>page.screenshot({path:path.join(dir,name+'.png')});
+            const panel=page.locator('#cryptor-office-excel');
+            try{
+              await page.goto('http://127.0.0.1:8765/projects/devanagari-cryptor/app-4.4.0.html',{waitUntil:'domcontentloaded'});
+              await page.locator('#cryptor-tab-excel').waitFor({timeout:30000});
+              await page.locator('#langSelect').selectOption('en');
+              await page.locator('#cryptor-tab-excel').click();
+              await panel.locator('.de-grid').waitFor({timeout:45000});
+              await panel.locator('.de-excel28-quick-slot .de-excel-quick').waitFor({timeout:15000});
+              await panel.locator('.de-excel28-search-slot input').waitFor({timeout:15000});
+              assert.equal(await panel.locator('.de-office-ribbon-tabs .de-excel27-search').count(),0);
+              const tabs=await panel.locator('.de-office-ribbon-tab').evaluateAll(els=>els.map(e=>e.dataset.ribbonTab));
+              assert.ok(tabs.includes('home')&&tabs.includes('layout')&&tabs.includes('data')&&tabs.includes('formulas'));
+              console.log('PASS real Excel titlebar, quick-access and command search portal, ribbon tabs');
+              await shot('excel-normal');
+              const metrics=async()=>{const a={};for(const [name,selector] of Object.entries({title:'.de-bar',tabs:'.de-office-ribbon-tabs',ribbon:'.de-ribbon-classic',formula:'.de-fx',grid:'.de-grid',sheets:'.de-tabs',status:'.de-excel-status'})){a[name]=await panel.locator(selector).boundingBox();assert.ok(a[name],name)}return a};
+              let measure=await metrics();assert.ok(measure.title.height>=38&&measure.title.height<=48);assert.ok(measure.ribbon.height>=100&&measure.ribbon.height<=115);assert.ok(measure.formula.height>=26&&measure.formula.height<=40);fs.writeFileSync(path.join(dir,'geometry-normal.json'),JSON.stringify(measure,null,2));
+              await panel.locator('.cryptor-office-expand').click();
+              await page.waitForFunction(()=>document.documentElement.hasAttribute('data-office-expanded'));
+              await shot('excel-expanded');
+              measure=await metrics();assert.ok(measure.grid.height>400);fs.writeFileSync(path.join(dir,'geometry-expanded.json'),JSON.stringify(measure,null,2));
+              console.log('PASS rendered title/ribbon/formula dimensions and expanded sheet area');
+              const file=panel.locator('button.de-file');
+              await file.click();
+              const backstage=panel.locator('.de-excel28-backstage');
+              await backstage.waitFor();
+              assert.equal(await backstage.getAttribute('role'),'dialog');
+              for(const command of ['open','original','print'])assert.ok(await backstage.locator('[data-file-command="'+command+'"]').isVisible());
+              await shot('excel-backstage');
+              await page.keyboard.press('Escape');
+              await backstage.waitFor({state:'hidden'});
+              console.log('PASS actual full Backstage File screen, command access and Escape');
+              const address=panel.locator('.de-excel-address');
+              await address.fill('B2');await address.press('Enter');
+              const formula=panel.locator('.de-fx-input');
+              await formula.click();await formula.fill('=SUM(12,30)');await formula.press('Enter');
+              const result=panel.locator('.de-cell').getByText('42',{exact:true}).first();
+              await result.waitFor();
+              await result.click();
+              assert.equal(await formula.inputValue(),'=SUM(12,30)');
+              const search=panel.locator('.de-excel28-search-slot input');
+              await search.fill('Bold');
+              const hits=panel.locator('.de-excel27-search-list button');
+              await hits.first().waitFor();
+              await hits.first().click();
+              const backup=panel.locator('.de-excel28-backup');
+              await backup.waitFor();
+              assert.equal(await backup.getAttribute('aria-checked'),'false');
+              await backup.click();assert.equal(await backup.getAttribute('aria-checked'),'true');
+              await backup.click();assert.equal(await backup.getAttribute('aria-checked'),'false');
+              console.log('PASS actual name box, formula result, executable command search and local backup switch');
+              await file.click();
+              const download=page.waitForEvent('download',{timeout:30000});
+              await backstage.locator('[data-file-command="original"]').click();
+              const downloaded=await download;await downloaded.saveAs(path.join(dir,'classic-formula.xlsx'));
+              require('node:child_process').execFileSync('python3',['-c','import zipfile,sys,xml.etree.ElementTree as E\nz=zipfile.ZipFile(sys.argv[1]);assert z.testzip() is None\nr=E.fromstring(z.read("xl/worksheets/sheet1.xml"));n={"s":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"};assert any(f.text=="SUM(12,30)" for f in r.findall(".//s:f",n));assert any(v.text=="42" for v in r.findall(".//s:v",n))',path.join(dir,'classic-formula.xlsx')]);
+              console.log('PASS actual Backstage native XLSX export with correct formula and cached value');
+              await panel.locator('.cryptor-office-expand').click();
+              await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-office-expanded'));
+              for(const theme of ['dark','sand','blue','graphite','black-platinum','black-gold']){
+                await page.locator('#themeSelect').selectOption(theme);
+                await page.waitForFunction(t=>document.documentElement.dataset.theme===t,theme);
+                await panel.locator('.de-grid').waitFor();
+                await shot('excel-'+theme);
+                const colors=await panel.locator('.de-bar').evaluate(el=>({bg:getComputedStyle(el).backgroundColor,color:getComputedStyle(el).color}));
+                assert.ok(colors.bg!==colors.color);
+                await file.click();await backstage.waitFor();await shot('backstage-'+theme);await page.keyboard.press('Escape');await backstage.waitFor({state:'hidden'});
+                console.log('PASS actual Excel and Backstage theme '+theme);
+              }
+              await page.setViewportSize({width:1024,height:768});
+              await panel.locator('.de-ribbon-classic').waitFor();
+              await shot('excel-1024');
+              const compact=panel.locator('.de-excel27-group-toggle');await compact.first().waitFor();
+              await compact.first().click();await panel.locator('.de-excel27-group-pop').waitFor();
+              await page.keyboard.press('Escape');
+              console.log('PASS compact functional group at 1024px');
+              await page.setViewportSize({width:1440,height:1000});
+              await page.locator('#cryptor-tab-word').click();const word=page.locator('#cryptor-office-word');await word.locator('.de-pages[contenteditable="true"]').waitFor();assert.equal(await word.locator('.de-excel28-backstage').count(),0);
+              await word.locator('.de-p').first().click();await page.keyboard.type('RegressionWordQA');await word.getByText(/RegressionWordQA/).first().waitFor();
+              await page.locator('#cryptor-tab-powerpoint').click();await page.locator('#cryptor-office-powerpoint').waitFor();
+              await page.locator('#cryptor-tab-pdf-editor').click();const frame=page.frameLocator('#cryptor-office-pdf-editor iframe');await frame.locator('#btnSample').waitFor({timeout:30000});await frame.locator('#btnSample').click();await frame.locator('#pagesWrap .page canvas').first().waitFor({timeout:30000});assert.equal(await frame.locator('#pagesWrap .page').count(),2);
+              console.log('PASS Word typing, PowerPoint mount and PDF sample regression');
+              assert.deepEqual(errors,[]);
+            }finally{await shot('last-state').catch(()=>{});await browser.close();}
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          JS
+          node "$RUNNER_TEMP/excel-qa/test.cjs"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: excel-classic-browser-results
+          path: ${{ runner.temp }}/excel-qa/results/
+          retention-days: 14
