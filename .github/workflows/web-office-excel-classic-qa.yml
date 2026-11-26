@@ -84,6 +84,12 @@ jobs:
           gzip -dc "$RUNNER_TEMP/excel36.gz" > "$RUNNER_TEMP/excel36/patch36.py"
           python3 "$RUNNER_TEMP/excel36/patch36.py" "$host" "$host"
           node --check "$RUNNER_TEMP/excel36/office-v36.js"
+          mkdir -p "$RUNNER_TEMP/excel37"
+          base64 -d .qa/office37-patches.b64 > "$RUNNER_TEMP/excel37.gz"
+          echo "b9315d16396d71df25862f210a9c60768f95655a45a727ddaed45e678ab787df  $RUNNER_TEMP/excel37.gz" | sha256sum --check
+          gzip -dc "$RUNNER_TEMP/excel37.gz" > "$RUNNER_TEMP/excel37/patch37.py"
+          python3 "$RUNNER_TEMP/excel37/patch37.py" "$host" "$host"
+          node --check "$RUNNER_TEMP/excel37/office-v37.js"
           python3 - <<'PY'
           import re,base64,gzip,hashlib
           from pathlib import Path
@@ -91,7 +97,7 @@ jobs:
           m=next(m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s) if m[1].startswith("H4sI"))
           actual=hashlib.sha256(gzip.decompress(base64.b64decode(m[1]))).hexdigest()
           print("Exact editor bundle SHA256:",actual)
-          assert actual=="be5be3be87feca7cbadf76663346a6088e2c2275d10db74e1df2ae571ee8799b"
+          assert actual=="ac2b2c7fd1620595aeeb02d97734ff2963a38f063b78357c7c174875581b96db"
           PY
       - name: Prepare browser
         run: |
@@ -402,6 +408,40 @@ jobs:
               for(const label of await grp34('protect34').locator('.de-excel35-label').all()){const box=await label.boundingBox(),btn=await label.locator('..').boundingBox();assert.ok(box.x>=btn.x-1&&box.x+box.width<=btn.x+btn.width+1);}
               await tab34('home').click();
               console.log('PASS direct page layout controls persist native XLSX settings, large insert tiles and bounded review labels');
+              await address.fill('B3');await address.press('Enter');
+              assert.equal(await formula.inputValue(),'=SUM(12,30)');
+              await launch('font').click();await fd.waitFor();
+              await fd.locator('[data-format31="sz"]').fill('36');
+              await fd.getByRole('button',{name:'OK',exact:true}).click();await fd.waitFor({state:'hidden'});
+              const ch37=panel.locator('.de-head-c[data-col="1"]').first(),rh37=panel.locator('.de-head-r[data-row="2"]').first();
+              const beforeW=(await ch37.boundingBox()).width,beforeH=(await rh37.boundingBox()).height;
+              const waitSize37=async(sel,key,target,mode)=>{
+                await page.waitForFunction(({sel,key,target,mode})=>{
+                  const walk=r=>{const e=r.querySelector(sel);if(e){const v=e.getBoundingClientRect()[key];return mode==='grow'?v>target+5:Math.abs(v-target)<2;}for(const n of r.querySelectorAll('*'))if(n.shadowRoot&&walk(n.shadowRoot))return true;return false};
+                  return walk(document.querySelector('#cryptor-office-excel'));
+                },{sel,key,target,mode});
+              };
+              await grp34('cells').getByRole('button',{name:'Format',exact:true}).click();
+              await panel.getByRole('option',{name:'AutoFit Column Width',exact:true}).click();
+              await waitSize37('.de-head-c[data-col="1"]','width',beforeW,'grow');
+              const afterW=(await ch37.boundingBox()).width;
+              await rh37.click({button:'right'});await ctx32.waitFor();
+              await menuLabel(ctx32,'AutoFit Row Height').waitFor();await shot('excel-autofit-row-menu');
+              await menuLabel(ctx32,'AutoFit Row Height').click();await ctx32.waitFor({state:'hidden'});
+              await waitSize37('.de-head-r[data-row="2"]','height',beforeH,'grow');
+              const afterH=(await rh37.boundingBox()).height;
+              await page.keyboard.press('Control+z');await waitSize37('.de-head-r[data-row="2"]','height',beforeH,'equal');
+              await page.keyboard.press('Control+y');await waitSize37('.de-head-r[data-row="2"]','height',afterH,'equal');
+              await address.fill('B3');await address.press('Enter');
+              assert.equal(await formula.inputValue(),'=SUM(12,30)');
+              await shot('excel-autofit-result');
+              await file.click();const fitDownload=page.waitForEvent('download',{timeout:30000});
+              await backstage.locator('[data-file-command="original"]').click();
+              await (await fitDownload).saveAs(path.join(dir,'autofit-native.xlsx'));
+              require('node:child_process').execFileSync('python3',['-c','import zipfile,sys,xml.etree.ElementTree as E\nz=zipfile.ZipFile(sys.argv[1]);n={"s":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"};r=E.fromstring(z.read("xl/worksheets/sheet2.xml"));c=r.find(".//s:c[@r=\\\"B3\\\"]",n);assert c.find("s:f",n).text=="SUM(12,30)";assert c.find("s:v",n).text=="42";row=r.find(".//s:row[@r=\\\"3\\\"]",n);assert float(row.get("ht"))>30;cols=r.find("s:cols",n);assert any(int(x.get("min"))<=2<=int(x.get("max")) and float(x.get("width"))>8 for x in cols)',path.join(dir,'autofit-native.xlsx')]);
+              fs.writeFileSync(path.join(dir,'autofit-geometry.json'),JSON.stringify({beforeW,afterW,beforeH,afterH},null,2));
+              console.log('PASS native AutoFit column via Ribbon and row via context menu, real geometry, Undo/Redo, XLSX dimensions and preserved formula');
+
 
 
 
