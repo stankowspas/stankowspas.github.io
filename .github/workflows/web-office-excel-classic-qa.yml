@@ -389,7 +389,7 @@ jobs:
               const printDownload=page.waitForEvent('download',{timeout:30000});
               await backstage.locator('[data-file-command="original"]').click();
               await (await printDownload).saveAs(path.join(dir,'native-page-layout.xlsx'));
-              require('node:child_process').execFileSync('python3',['-c','import zipfile,sys,xml.etree.ElementTree as E\nz=zipfile.ZipFile(sys.argv[1]);n={"s":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"};r=E.fromstring(z.read("xl/worksheets/sheet2.xml"));p=r.find("s:pageSetup",n);assert p.get("paperSize")=="8" and p.get("orientation")=="landscape" and p.get("fitToWidth")=="1";m=r.find("s:pageMargins",n);assert float(m.get("left"))>0.8;assert r.find("s:printOptions",n).get("gridLines")=="1"',path.join(dir,'native-page-layout.xlsx')]);
+              require('node:child_process').execFileSync('python3',['-c','import zipfile,sys,xml.etree.ElementTree as E\nz=zipfile.ZipFile(sys.argv[1]);n={"s":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"};r=E.fromstring(z.read("xl/worksheets/sheet2.xml"));p=r.find("s:pageSetup",n);assert p.get("paperSize")=="8" and p.get("orientation")=="landscape" and p.get("fitToWidth")=="1";m=r.find("s:pageMargins",n);assert all(abs(float(m.get(k))-20/25.4)<1e-9 for k in ("left","right","top","bottom"));assert r.find("s:printOptions",n).get("gridLines")=="1"',path.join(dir,'native-page-layout.xlsx')]);
               await tab34('insert').click();
               const big35=grp34('tables').locator('.de-excel35-large');await big35.waitFor();assert.ok((await big35.boundingBox()).height>=65);
               await tab34('review').click();await grp34('protect34').waitFor();
