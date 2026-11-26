@@ -24,12 +24,12 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REF" = refs/heads/web-office-excel-classic-qa
           mkdir -p "$RUNNER_TEMP/excel-source/base" "$RUNNER_TEMP/excel-build"
-          base64 -d .qa/office28-patches.b64 > "$RUNNER_TEMP/excel-source.tar.gz"
-          echo "c0edfea2d1be8b8a63f8fed70fe0b95f3924dd43e1c3e7691d6dfd47bb77935a  $RUNNER_TEMP/excel-source.tar.gz" | sha256sum --check
+          base64 -d .qa/office29-patches.b64 > "$RUNNER_TEMP/excel-source.tar.gz"
+          echo "ef61f6d9cea84ca0ab9b9974cfac573477f266f8dbb9fc0f75e1d5c10d656422  $RUNNER_TEMP/excel-source.tar.gz" | sha256sum --check
           tar xzf "$RUNNER_TEMP/excel-source.tar.gz" -C "$RUNNER_TEMP/excel-source"
           cp projects/devanagari-cryptor/app-4.4.0.html "$RUNNER_TEMP/excel-source/base/Web-Office-v17-Color-Scales-Preview.html"
           python3 "$RUNNER_TEMP/excel-source/build.py" --out "$RUNNER_TEMP/excel-build" --test
-          cp "$RUNNER_TEMP/excel-build/Web-Office-Excel-365-Classic-Interface.html" projects/devanagari-cryptor/app-4.4.0.html
+          cp "$RUNNER_TEMP/excel-build/Web-Office-Excel-365-Refined-Interface.html" projects/devanagari-cryptor/app-4.4.0.html
           python3 - <<'PY'
           import re,base64,gzip,hashlib
           from pathlib import Path
@@ -37,7 +37,7 @@ jobs:
           m=next(m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s) if m[1].startswith("H4sI"))
           actual=hashlib.sha256(gzip.decompress(base64.b64decode(m[1]))).hexdigest()
           print("Exact editor bundle SHA256:",actual)
-          assert actual=="118012d9f47016b2f8646eaa42288e43c5829d79702ee7a7322cb5f025242a9c"
+          assert actual=="5a60da7ecd5fc7c1d85efb91ef86eef3f7c05f1061c41832aaf59ee4ec6fd0d9"
           PY
       - name: Prepare browser
         run: |
@@ -73,6 +73,16 @@ jobs:
               const tabs=await panel.locator('.de-office-ribbon-tab').evaluateAll(els=>els.map(e=>e.dataset.ribbonTab));
               assert.ok(tabs.includes('home')&&tabs.includes('layout')&&tabs.includes('data')&&tabs.includes('formulas'));
               console.log('PASS real Excel titlebar, quick-access and command search portal, ribbon tabs');
+              const fontName=panel.locator('[data-excel29-slot="font-name"]');
+              const fontSize=panel.locator('[data-excel29-slot="font-size"]');
+              await fontName.waitFor();await fontSize.waitFor();
+              const fn=await fontName.boundingBox(),fz=await fontSize.boundingBox();
+              assert.ok(Math.abs(fn.y-fz.y)<=2,'Font family and size must share the same ribbon row');
+              assert.ok(fz.x>=fn.x+fn.width-2,'font size overlaps font family');
+              assert.ok(await panel.locator('[data-excel29-slot="wrap"]').isVisible());
+              assert.ok(await panel.locator('[data-excel29-slot="merge"]').isVisible());
+              await panel.locator('[data-ribbon-group="number"]').getByText('General',{exact:true}).waitFor();
+              console.log('PASS precise desktop font row, alignment slots and native General label');
               await shot('excel-normal');
               const metrics=async()=>{const a={};for(const [name,selector] of Object.entries({title:'.de-bar',tabs:'.de-office-ribbon-tabs',ribbon:'.de-ribbon-classic',formula:'.de-fx',grid:'.de-grid',sheets:'.de-tabs',status:'.de-excel-status'})){a[name]=await panel.locator(selector).boundingBox();assert.ok(a[name],name)}return a};
               let measure=await metrics();assert.ok(measure.title.height>=38&&measure.title.height<=48);assert.ok(measure.ribbon.height>=100&&measure.ribbon.height<=115);assert.ok(measure.formula.height>=26&&measure.formula.height<=40);fs.writeFileSync(path.join(dir,'geometry-normal.json'),JSON.stringify(measure,null,2));
