@@ -35,6 +35,13 @@ jobs:
           tar xzf "$RUNNER_TEMP/excel30.tar.gz" -C "$RUNNER_TEMP/excel30"
           python3 "$RUNNER_TEMP/excel30/patch30.py" "$RUNNER_TEMP/excel-build/Web-Office-Excel-365-Refined-Interface.html" projects/devanagari-cryptor/app-4.4.0.html
           node --check "$RUNNER_TEMP/excel30/office-v30.js"
+          mkdir -p "$RUNNER_TEMP/excel31"
+          base64 -d .qa/office31-patches.b64 > "$RUNNER_TEMP/excel31.tar.gz"
+          echo "dbd08594cd03dd4863564d3d4a0d425c9ef6c46946bc36e91397eda97ceaee2d  $RUNNER_TEMP/excel31.tar.gz" | sha256sum --check
+          tar xzf "$RUNNER_TEMP/excel31.tar.gz" -C "$RUNNER_TEMP/excel31"
+          host=projects/devanagari-cryptor/app-4.4.0.html
+          python3 "$RUNNER_TEMP/excel31/patch31.py" "$host" "$host"
+          node --check "$RUNNER_TEMP/excel31/office-v31.js"
           python3 - <<'PY'
           import re,base64,gzip,hashlib
           from pathlib import Path
@@ -42,7 +49,7 @@ jobs:
           m=next(m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s) if m[1].startswith("H4sI"))
           actual=hashlib.sha256(gzip.decompress(base64.b64decode(m[1]))).hexdigest()
           print("Exact editor bundle SHA256:",actual)
-          assert actual=="712cafaf3749bbfc5b123ef49506349aa7eb44fe5c67c7ff1e1ed8399da71331"
+          assert actual=="47372be6e4fbfe2f0f0623de581fb8627feac06b0c7a68e109222f9c0cd5cc89"
           PY
       - name: Prepare browser
         run: |
@@ -156,6 +163,54 @@ jobs:
               const downloaded=await download;await downloaded.saveAs(path.join(dir,'classic-formula.xlsx'));
               require('node:child_process').execFileSync('python3',['-c','import zipfile,sys,xml.etree.ElementTree as E\nz=zipfile.ZipFile(sys.argv[1]);assert z.testzip() is None\nr=E.fromstring(z.read("xl/worksheets/sheet1.xml"));n={"s":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"};assert any(f.text=="SUM(12,30)" for f in r.findall(".//s:f",n));assert any(v.text=="42" for v in r.findall(".//s:v",n))',path.join(dir,'classic-formula.xlsx')]);
               console.log('PASS actual Backstage native XLSX export with correct formula and cached value');
+              await result.click();
+              await panel.locator('[data-ribbon-tab="home"]').click();
+              const launch=name=>panel.locator('[data-excel31-launch="'+name+'"]');
+              for(const name of ['number','alignment','font'])await launch(name).waitFor();
+              await launch('font').click();
+              const fd=panel.getByRole('dialog',{name:'Format Cells',exact:true});
+              await fd.waitFor();
+              assert.equal(await fd.locator('[data-format31-tab="font"]').getAttribute('aria-selected'),'true');
+              await fd.locator('[data-format31="sz"]').fill('28');
+              await fd.getByRole('button',{name:'Cancel',exact:true}).click();
+              await fd.waitFor({state:'hidden'});
+              await launch('number').click();
+              await fd.waitFor();
+              await fd.locator('[data-format31="numFmt"]').selectOption('0.00');
+              assert.equal(await fd.locator('.de-excel31-sample>div').textContent(),'123.45');
+              await fd.locator('[data-format31-tab="font"]').click();
+              await fd.locator('[data-format31="sz"]').fill('14');
+              await fd.locator('[data-format31="b"]').setChecked(true);
+              await fd.locator('[data-format31-tab="alignment"]').click();
+              await fd.locator('[data-format31="align"]').selectOption('center');
+              await fd.locator('[data-format31-tab="fill"]').click();
+              await fd.getByRole('button',{name:'#C6EFCE',exact:true}).click();
+              await fd.locator('[data-format31-tab="border"]').click();
+              await fd.locator('[data-format31="border"]').selectOption('all');
+              await fd.locator('[data-format31-tab="protection"]').click();
+              await fd.locator('[data-format31="locked"]').selectOption('false');
+              await fd.locator('[data-format31-tab="font"]').click();
+              await shot('excel-format-cells-font');
+              await fd.locator('[data-format31-tab="number"]').click();
+              await shot('excel-format-cells-number');
+              await fd.getByRole('button',{name:'OK',exact:true}).click();
+              await fd.waitFor({state:'hidden'});
+              const formatted=panel.locator('.de-cell').getByText('42.00',{exact:true}).first();
+              await formatted.waitFor();
+              const cs=await formatted.evaluate(e=>{const s=getComputedStyle(e.closest('.de-cell')||e);return {bg:s.backgroundColor,weight:s.fontWeight}});
+              assert.equal(cs.bg,'rgb(198, 239, 206)');assert.ok(Number(cs.weight)>=600);
+              await file.click();
+              const d2=page.waitForEvent('download',{timeout:30000});
+              await backstage.locator('[data-file-command="original"]').click();
+              await (await d2).saveAs(path.join(dir,'format-cells-native.xlsx'));
+              require('node:child_process').execFileSync('python3',['-c','import zipfile,sys,xml.etree.ElementTree as E\nz=zipfile.ZipFile(sys.argv[1]);n={"s":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"};r=E.fromstring(z.read("xl/worksheets/sheet1.xml"));c=r.find(".//s:c[@r=\\\"B2\\\"]",n);assert c.find("s:f",n).text=="SUM(12,30)";s=E.fromstring(z.read("xl/styles.xml"));xf=s.find("s:cellXfs",n)[int(c.get("s","0"))];assert xf.get("numFmtId")=="2";f=s.find("s:fonts",n)[int(xf.get("fontId","0"))];assert float(f.find("s:sz",n).get("val"))==14 and f.find("s:b",n) is not None;assert xf.find("s:alignment",n).get("horizontal")=="center";assert xf.find("s:protection",n).get("locked")=="0";fill=s.find("s:fills",n)[int(xf.get("fillId","0"))];assert fill.find("s:patternFill/s:fgColor",n).get("rgb")=="FFC6EFCE";border=s.find("s:borders",n)[int(xf.get("borderId","0"))];assert all(border.find("s:"+k,n).get("style")=="thin" for k in ["top","bottom","left","right"])',path.join(dir,'format-cells-native.xlsx')]);
+              await formatted.click();
+              await page.keyboard.press('Control+z');
+              await result.waitFor();
+              await page.keyboard.press('Control+y');
+              await formatted.waitFor();
+              console.log('PASS Format Cells launches six real tabs, preserves canceled changes, applies native XLSX style and supports single-step Undo/Redo');
+
               await panel.locator('.cryptor-office-expand').click();
               await page.waitForFunction(()=>!document.documentElement.hasAttribute('data-office-expanded'));
               for(const theme of ['dark','sand','blue','graphite','black-platinum','black-gold']){
