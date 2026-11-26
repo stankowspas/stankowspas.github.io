@@ -264,8 +264,17 @@ jobs:
               await mini.waitFor();
               await mini.locator('[data-mini33="size"]').selectOption('18');
               await ctx32.waitFor({state:'hidden'});
-              await page.waitForFunction(()=>{const p=document.querySelector('#cryptor-office-excel');const walk=r=>{for(const e of r.querySelectorAll('.de-cell'))if(e.textContent.trim()==='42.00'&&parseFloat(getComputedStyle(e).fontSize)>=23)return true;for(const e of r.querySelectorAll('*'))if(e.shadowRoot&&walk(e.shadowRoot))return true;return false};return walk(p)});
+              const enlarged=panel.locator('.de-cell').getByText(/^42(?:\.00)?$/).first();
+              await enlarged.waitFor();
+              assert.equal(await formula.inputValue(),'=SUM(12,30)');
+              await file.click();
+              const miniDownload=page.waitForEvent('download',{timeout:30000});
+              await backstage.locator('[data-file-command="original"]').click();
+              await (await miniDownload).saveAs(path.join(dir,'mini-font-native.xlsx'));
+              require('node:child_process').execFileSync('python3',['-c','import zipfile,sys,xml.etree.ElementTree as E\nz=zipfile.ZipFile(sys.argv[1]);n={"s":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"};r=E.fromstring(z.read("xl/worksheets/sheet1.xml"));c=r.find(".//s:c[@r=\\\"B2\\\"]",n);assert c.find("s:f",n).text=="SUM(12,30)";s=E.fromstring(z.read("xl/styles.xml"));xf=s.find("s:cellXfs",n)[int(c.get("s","0"))];assert xf.get("numFmtId")=="2";f=s.find("s:fonts",n)[int(xf.get("fontId","0"))];assert float(f.find("s:sz",n).get("val"))==18',path.join(dir,'mini-font-native.xlsx')]);
+              await enlarged.click();
               await page.keyboard.press('Control+z');
+              await formatted.waitFor();
               await formatted.click({button:'right'});
               await mini.waitFor();
               await mini.getByRole('button',{name:'Borders',exact:true}).click();
