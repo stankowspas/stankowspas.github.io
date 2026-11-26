@@ -29,7 +29,12 @@ jobs:
           tar xzf "$RUNNER_TEMP/excel-source.tar.gz" -C "$RUNNER_TEMP/excel-source"
           cp projects/devanagari-cryptor/app-4.4.0.html "$RUNNER_TEMP/excel-source/base/Web-Office-v17-Color-Scales-Preview.html"
           python3 "$RUNNER_TEMP/excel-source/build.py" --out "$RUNNER_TEMP/excel-build" --test
-          cp "$RUNNER_TEMP/excel-build/Web-Office-Excel-365-Refined-Interface.html" projects/devanagari-cryptor/app-4.4.0.html
+          mkdir -p "$RUNNER_TEMP/excel30"
+          base64 -d .qa/office30-patches.b64 > "$RUNNER_TEMP/excel30.tar.gz"
+          echo "237f10797e635bd4c7f13686e8c841cac22e7cb018bb38e96db548dfd3800500  $RUNNER_TEMP/excel30.tar.gz" | sha256sum --check
+          tar xzf "$RUNNER_TEMP/excel30.tar.gz" -C "$RUNNER_TEMP/excel30"
+          python3 "$RUNNER_TEMP/excel30/patch30.py" "$RUNNER_TEMP/excel-build/Web-Office-Excel-365-Refined-Interface.html" projects/devanagari-cryptor/app-4.4.0.html
+          node --check "$RUNNER_TEMP/excel30/office-v30.js"
           python3 - <<'PY'
           import re,base64,gzip,hashlib
           from pathlib import Path
@@ -37,7 +42,7 @@ jobs:
           m=next(m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s) if m[1].startswith("H4sI"))
           actual=hashlib.sha256(gzip.decompress(base64.b64decode(m[1]))).hexdigest()
           print("Exact editor bundle SHA256:",actual)
-          assert actual=="5a60da7ecd5fc7c1d85efb91ef86eef3f7c05f1061c41832aaf59ee4ec6fd0d9"
+          assert actual=="712cafaf3749bbfc5b123ef49506349aa7eb44fe5c67c7ff1e1ed8399da71331"
           PY
       - name: Prepare browser
         run: |
@@ -83,6 +88,31 @@ jobs:
               assert.ok(await panel.locator('[data-excel29-slot="merge"]').isVisible());
               await panel.locator('[data-ribbon-group="number"]').getByText('General',{exact:true}).waitFor();
               console.log('PASS precise desktop font row, alignment slots and native General label');
+              const clip=panel.locator('[data-ribbon-group="clipboard"]');
+              const coords={};for(const name of ['paste','cut','copy','paint']){
+                const slot=clip.locator('[data-excel29-slot="'+name+'"]');
+                await slot.waitFor();
+                coords[name]=await slot.boundingBox();
+              }
+              const painter=clip.locator('[data-excel29-slot="paint"] .de-excel30-clip-label');
+              assert.equal(await painter.textContent(),'Format Painter');
+              for(const name of ['cut','copy','paint']){
+                const text=clip.locator('[data-excel29-slot="'+name+'"] .de-excel30-clip-label');
+                const box=await text.boundingBox();
+                const p=coords[name];
+                assert.ok(box.x>=p.x-1&&box.x+box.width<=p.x+p.width+1&&box.y>=p.y-1&&box.y+box.height<=p.y+p.height+1, name+' label outside slot');
+                const single=await text.evaluate(e=>{const c=getComputedStyle(e);return c.whiteSpace==='nowrap'&&e.scrollHeight<=e.clientHeight+1});
+                assert.ok(single,name+' has wrapped or overflowed vertically');
+              }
+              assert.ok(coords.cut.y+coords.cut.height<=coords.copy.y+1);
+              assert.ok(coords.copy.y+coords.copy.height<=coords.paint.y+1);
+              assert.ok(coords.paste.x+coords.paste.width<=coords.cut.x+1);
+              const ribbon=panel.locator('.de-ribbon-home');
+              const groups=await ribbon.locator(':scope > [data-ribbon-group]').evaluateAll(es=>es.map(e=>({id:e.dataset.ribbonGroup,box:e.getBoundingClientRect().toJSON()})));
+              assert.deepEqual(groups.map(x=>x.id),['clipboard','font','alignment','number','styles','cells','editing']);
+              for(let i=1;i<groups.length;i++)assert.ok(groups[i-1].box.right<=groups[i].box.left+1,'group overlap');
+              fs.writeFileSync(path.join(dir,'home-control-geometry.json'),JSON.stringify({coords,groups},null,2));
+              console.log('PASS clipboard labels single-line and nonoverlapping; explicit Home group geometry');
               await shot('excel-normal');
               const metrics=async()=>{const a={};for(const [name,selector] of Object.entries({title:'.de-bar',tabs:'.de-office-ribbon-tabs',ribbon:'.de-ribbon-classic',formula:'.de-fx',grid:'.de-grid',sheets:'.de-tabs',status:'.de-excel-status'})){a[name]=await panel.locator(selector).boundingBox();assert.ok(a[name],name)}return a};
               let measure=await metrics();assert.ok(measure.title.height>=38&&measure.title.height<=48);assert.ok(measure.ribbon.height>=100&&measure.ribbon.height<=115);assert.ok(measure.formula.height>=26&&measure.formula.height<=40);fs.writeFileSync(path.join(dir,'geometry-normal.json'),JSON.stringify(measure,null,2));
