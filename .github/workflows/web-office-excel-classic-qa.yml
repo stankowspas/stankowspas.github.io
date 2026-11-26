@@ -72,6 +72,12 @@ jobs:
           gzip -dc "$RUNNER_TEMP/excel34.tar.gz" > "$RUNNER_TEMP/excel34/patch34.py"
           python3 "$RUNNER_TEMP/excel34/patch34.py" "$host" "$host"
           node --check "$RUNNER_TEMP/excel34/office-v34.js"
+          mkdir -p "$RUNNER_TEMP/excel35"
+          base64 -d .qa/office35-patches.b64 > "$RUNNER_TEMP/excel35.tar.gz"
+          echo "afa9f28c1f3c479c6f72748d418fcee54b03177b4d7f2acf95302a0148700037  $RUNNER_TEMP/excel35.tar.gz" | sha256sum --check
+          gzip -dc "$RUNNER_TEMP/excel35.tar.gz" > "$RUNNER_TEMP/excel35/patch35.py"
+          python3 "$RUNNER_TEMP/excel35/patch35.py" "$host" "$host"
+          node --check "$RUNNER_TEMP/excel35/office-v35.js"
           python3 - <<'PY'
           import re,base64,gzip,hashlib
           from pathlib import Path
@@ -79,7 +85,7 @@ jobs:
           m=next(m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s) if m[1].startswith("H4sI"))
           actual=hashlib.sha256(gzip.decompress(base64.b64decode(m[1]))).hexdigest()
           print("Exact editor bundle SHA256:",actual)
-          assert actual=="0a86164408077363e1d05fa118fc4d67f35a9d773a8d9862d3e8bbc0c866d92c"
+          assert actual=="37acccd3ea98d17ff635e6cb9025265e91eebfb2db44012931b771c083f37a13"
           PY
       - name: Prepare browser
         run: |
@@ -366,6 +372,31 @@ jobs:
               await grp34('filter').getByRole('button',{name:'Sort range Z → A',exact:true}).waitFor();
               await tab34('home').click();
               console.log('PASS dedicated gridline toggle restores native state and ascending/descending sort controls are accessible');
+              await tab34('layout').click();
+              await grp34('setup').waitFor();await grp34('scale35').waitFor();await grp34('sheet35').waitFor();
+              const pick35=async(g,title,value)=>{await grp34(g).getByRole('button',{name:title,exact:true}).click();await panel.getByRole('option',{name:value,exact:true}).click();};
+              await pick35('setup','Orientation','Landscape');
+              await pick35('setup','Paper','A3');
+              await pick35('setup','Margins','Wide');
+              await pick35('scale35','Scaling','Fit to width');
+              await pick35('sheet35','Gridlines','Show');
+              await grp34('setup').getByRole('button',{name:'Page setup',exact:true}).click();
+              const setup35=panel.locator('.de-print21-dialog');await setup35.waitFor();
+              for(const [key,val] of Object.entries({paper:'A3',orientation:'landscape',margin:'wide',scale:'fit',grid:'show'}))assert.equal(await setup35.locator('[data-print21="'+key+'"]').inputValue(),val);
+              await page.keyboard.press('Escape');await setup35.waitFor({state:'hidden'});
+              await shot('excel-v35-page-layout');
+              await file.click();
+              const printDownload=page.waitForEvent('download',{timeout:30000});
+              await backstage.locator('[data-file-command="original"]').click();
+              await (await printDownload).saveAs(path.join(dir,'native-page-layout.xlsx'));
+              require('node:child_process').execFileSync('python3',['-c','import zipfile,sys,xml.etree.ElementTree as E\nz=zipfile.ZipFile(sys.argv[1]);n={"s":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"};r=E.fromstring(z.read("xl/worksheets/sheet2.xml"));p=r.find("s:pageSetup",n);assert p.get("paperSize")=="8" and p.get("orientation")=="landscape" and p.get("fitToWidth")=="1";m=r.find("s:pageMargins",n);assert float(m.get("left"))>0.8;assert r.find("s:printOptions",n).get("gridLines")=="1"',path.join(dir,'native-page-layout.xlsx')]);
+              await tab34('insert').click();
+              const big35=grp34('tables').locator('.de-excel35-large');await big35.waitFor();assert.ok((await big35.boundingBox()).height>=65);
+              await tab34('review').click();await grp34('protect34').waitFor();
+              for(const label of await grp34('protect34').locator('.de-excel35-label').all()){const box=await label.boundingBox(),btn=await label.locator('..').boundingBox();assert.ok(box.x>=btn.x-1&&box.x+box.width<=btn.x+btn.width+1);}
+              await tab34('home').click();
+              console.log('PASS direct page layout controls persist native XLSX settings, large insert tiles and bounded review labels');
+
 
 
 
