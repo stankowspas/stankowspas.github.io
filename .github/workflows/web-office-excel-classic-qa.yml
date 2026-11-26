@@ -66,6 +66,12 @@ jobs:
           gzip -dc "$RUNNER_TEMP/excel33.tar.gz" > "$RUNNER_TEMP/excel33/patch33.py"
           python3 "$RUNNER_TEMP/excel33/patch33.py" "$host" "$host"
           node --check "$RUNNER_TEMP/excel33/office-v33.js"
+          mkdir -p "$RUNNER_TEMP/excel34"
+          base64 -d .qa/office34-patches.b64 > "$RUNNER_TEMP/excel34.tar.gz"
+          echo "7dd82dfe0902167d45df18b68215a99d6072505629a266de9c7fd83837006a0f  $RUNNER_TEMP/excel34.tar.gz" | sha256sum --check
+          gzip -dc "$RUNNER_TEMP/excel34.tar.gz" > "$RUNNER_TEMP/excel34/patch34.py"
+          python3 "$RUNNER_TEMP/excel34/patch34.py" "$host" "$host"
+          node --check "$RUNNER_TEMP/excel34/office-v34.js"
           python3 - <<'PY'
           import re,base64,gzip,hashlib
           from pathlib import Path
@@ -73,7 +79,7 @@ jobs:
           m=next(m for m in re.finditer(r'atob\("([A-Za-z0-9+/=]{10000,})"\)',s) if m[1].startswith("H4sI"))
           actual=hashlib.sha256(gzip.decompress(base64.b64decode(m[1]))).hexdigest()
           print("Exact editor bundle SHA256:",actual)
-          assert actual=="031b146621c7391177ea25076b1b0eefe461db782cba594156bfaf3d91d60e40"
+          assert actual=="0a86164408077363e1d05fa118fc4d67f35a9d773a8d9862d3e8bbc0c866d92c"
           PY
       - name: Prepare browser
         run: |
@@ -331,6 +337,36 @@ jobs:
               await sub32.getByRole('menuitem').first().click();
               await page.waitForFunction(n=>{const p=document.querySelector('#cryptor-office-excel');const count=r=>{let c=r.querySelectorAll('.de-tabs [role="tab"]').length;for(const e of r.querySelectorAll('*'))if(e.shadowRoot)c+=count(e.shadowRoot);return c};return count(p)===n+1},n);
               console.log('PASS sheet context Move or Copy duplicates a real worksheet');
+              const tab34=k=>panel.locator('[data-ribbon-tab="'+k+'"]');
+              const grp34=k=>panel.locator('.de-ribbon-classic > [data-ribbon-group="'+k+'"]');
+              for(const [tab,groups] of Object.entries({insert:['tables','charts34'],layout:['setup'],formulas:['functions'],data:['filter','datatools','analysis','format'],review:['protect34'],view:['show','window34']})){
+                await tab34(tab).click();
+                for(const group of groups)await grp34(group).waitFor();
+                await shot('excel-v34-'+tab);
+                const boxes=await panel.locator('.de-ribbon-classic > [data-ribbon-group]').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().toJSON()));
+                for(let i=1;i<boxes.length;i++)assert.ok(boxes[i-1].right<=boxes[i].left+1,'overlap in '+tab);
+              }
+              await tab34('formulas').click();
+              await grp34('functions').getByRole('button',{name:'More functions…',exact:true}).click();
+              await panel.locator('.de-func18-dialog').waitFor();
+              await panel.locator('[data-func18-search]').fill('SUM');
+              await panel.locator('[data-func18-name="SUM"]').waitFor();
+              await page.keyboard.press('Escape');
+              await panel.locator('.de-func18-dialog').waitFor({state:'hidden'});
+              console.log('PASS six specialized ribbon tabs, desktop group geometry and real function library');
+              await tab34('view').click();
+              const gridToggle=grp34('show').locator('button.de-excel34-command');
+              const label0=await gridToggle.getAttribute('title');
+              await gridToggle.click();
+              await page.waitForFunction(label=>{const p=document.querySelector('#cryptor-office-excel');const walk=r=>{const e=r.querySelector('[data-ribbon-group="show"] .de-excel34-command');if(e)return e.title!==label;for(const x of r.querySelectorAll('*'))if(x.shadowRoot&&walk(x.shadowRoot))return true;return false};return walk(p)},label0);
+              await gridToggle.click();
+              await page.waitForFunction(label=>{const p=document.querySelector('#cryptor-office-excel');const walk=r=>{const e=r.querySelector('[data-ribbon-group="show"] .de-excel34-command');if(e)return e.title===label;for(const x of r.querySelectorAll('*'))if(x.shadowRoot&&walk(x.shadowRoot))return true;return false};return walk(p)},label0);
+              await tab34('data').click();
+              await grp34('filter').getByRole('button',{name:'Sort range A → Z',exact:true}).waitFor();
+              await grp34('filter').getByRole('button',{name:'Sort range Z → A',exact:true}).waitFor();
+              await tab34('home').click();
+              console.log('PASS dedicated gridline toggle restores native state and ascending/descending sort controls are accessible');
+
 
 
               await panel.locator('.cryptor-office-expand').click();
